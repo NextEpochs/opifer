@@ -42,7 +42,7 @@ describe("Company export and import", () => {
   it("the export carries configuration and work, never a secret value or a session", async () => {
     const response = await app.inject({ method: "GET", url: `/v1/companies/${companyId}/export` });
     expect(response.statusCode).toBe(200);
-    expect(response.headers["content-disposition"]).toContain("opifer-nextepochs.json");
+    expect(response.headers["content-disposition"]).toContain("opifer-proclive.json");
     const doc = response.json() as CompanyExport;
     expect(doc.format).toBe("opifer-company");
     expect(doc.tables["agents"]).toHaveLength(4);
