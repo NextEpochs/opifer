@@ -3,6 +3,8 @@ import { Plus, X } from "lucide-react";
 import { api, type AgentView, type ModelsInfo, type ToolPermissionView } from "../api";
 import { fill } from "../i18n";
 import { ActivityChip, Avatar, Button, Card, Input, Segmented, Select, Textarea, money } from "../ui";
+import { OrgChart, type HireRequest } from "../components/OrgChart";
+import { usePref } from "../prefs";
 import type { Workspace } from "../App";
 
 type Tab = "overview" | "permissions" | "budget" | "history";
@@ -13,6 +15,12 @@ export function TeamPage({ ws, param }: { ws: Workspace; param: string | null })
   const agents = overview?.agents ?? [];
   const selected = agents.find((a) => a.id === param) ?? null;
   const hiring = param === "new";
+  const [view, setView] = usePref<"chart" | "cards">("team.view", "chart");
+  const [hireDefaults, setHireDefaults] = useState<HireRequest | null>(null);
+  const hire = (r: HireRequest) => {
+    setHireDefaults(r);
+    ws.go("team", "new");
+  };
 
   return (
     <div className="flex h-full min-h-screen">
@@ -22,12 +30,20 @@ export function TeamPage({ ws, param }: { ws: Workspace; param: string | null })
             <h1 className="m-0 font-display text-[34px] font-bold leading-[1.1] tracking-tight">{t.teamTitle}</h1>
             <p className="mt-1.5 text-[15px] text-mute">{t.teamSub}</p>
           </div>
-          <Button variant="primary" onClick={() => ws.go("team", "new")}>
-            <Plus size={16} /> {t.hireAgent}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Segmented value={view} onChange={setView} label={t.teamTitle} options={[{ value: "chart", label: t.orgChart }, { value: "cards", label: t.cards }]} className="w-48" />
+            <Button variant="primary" onClick={() => hire({ role: "", reportsToAgentId: null })}>
+              <Plus size={16} /> {t.hireAgent}
+            </Button>
+          </div>
         </header>
-        {agents.length === 0 && !hiring && <p className="text-sm text-mute">{t.nobodyWorking}</p>}
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3">
+        {agents.length === 0 && !hiring && view === "cards" && <p className="text-sm text-mute">{t.nobodyWorking}</p>}
+        {view === "chart" && (
+          <Card className="min-h-[560px] flex-1 overflow-hidden">
+            <OrgChart ws={ws} selectedId={selected?.id ?? null} onHire={hire} />
+          </Card>
+        )}
+        <div className={`grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3 ${view === "chart" ? "hidden" : ""}`}>
           {agents.map((a) => (
             <button key={a.id} type="button" onClick={() => ws.go("team", a.id)} className={`flex flex-col gap-3 rounded-card border bg-card p-4 text-left shadow-card transition hover:border-accent ${selected?.id === a.id ? "border-accent" : "border-line"}`}>
               <div className="flex items-center gap-3">
@@ -54,19 +70,19 @@ export function TeamPage({ ws, param }: { ws: Workspace; param: string | null })
       </div>
       {(selected || hiring) && (
         <aside className="m-4 flex w-[400px] shrink-0 flex-col overflow-hidden rounded-[22px] border border-line bg-card shadow-card" aria-label={selected ? selected.name : t.newAgent}>
-          {hiring ? <HireForm ws={ws} /> : selected ? <AgentDrawer key={selected.id} ws={ws} agent={selected} /> : null}
+          {hiring ? <HireForm ws={ws} defaults={hireDefaults} /> : selected ? <AgentDrawer key={selected.id} ws={ws} agent={selected} /> : null}
         </aside>
       )}
     </div>
   );
 }
 
-function HireForm({ ws }: { ws: Workspace }) {
+function HireForm({ ws, defaults }: { ws: Workspace; defaults: HireRequest | null }) {
   const { t, company, overview } = ws;
   const [name, setName] = useState("");
-  const [role, setRole] = useState("");
+  const [role, setRole] = useState(defaults?.role ?? "");
   const [model, setModel] = useState("");
-  const [reportsTo, setReportsTo] = useState("");
+  const [reportsTo, setReportsTo] = useState(defaults?.reportsToAgentId ?? "");
   const [models, setModels] = useState<ModelsInfo | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);

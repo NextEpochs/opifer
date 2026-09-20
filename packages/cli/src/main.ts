@@ -23,6 +23,7 @@ import {
   runSecretSet,
   runSecretUnbind,
 } from "./commands/govern.js";
+import { runTaskAction, runTaskAssign, runTaskComment, runTaskCreate, runTaskList, runTaskShow } from "./commands/task.js";
 import { say, setColor } from "./output.js";
 
 const program = new Command();
@@ -211,6 +212,57 @@ secret
   .description("remove a binding by id")
   .option("--company <name>", "company (default: the first one)")
   .action(async (id: string, opts: { company?: string }) => runSecretUnbind({ id, ...opts, ...homeOf(program) }));
+
+const task = program.command("task").description("tasks: what the agents work on");
+task
+  .command("list", { isDefault: true })
+  .description("open tasks (todo, in progress, in review, blocked)")
+  .option("--all", "include done and cancelled")
+  .option("--status <list>", "comma-separated statuses")
+  .option("--agent <name>", "only this agent's tasks")
+  .option("--company <name>", "company (default: the first one)")
+  .action(async (opts: { all?: boolean; status?: string; agent?: string; company?: string }) => runTaskList({ ...opts, ...homeOf(program) }));
+task
+  .command("create <title>")
+  .description("create a task; with --agent the agent wakes up and starts")
+  .option("--agent <name>", "assign to an agent")
+  .option("--description <text>", "what to do")
+  .option("--acceptance <text>", "what makes the result verifiable")
+  .option("--priority <low|normal|high|urgent>", "priority (default normal)")
+  .option("--project <name>", "project")
+  .option("--parent <id>", "parent task id")
+  .option("--company <name>", "company (default: the first one)")
+  .action(async (title: string, opts: { agent?: string; description?: string; acceptance?: string; priority?: string; project?: string; parent?: string; company?: string }) => runTaskCreate({ title, ...opts, ...homeOf(program) }));
+task
+  .command("show <id>")
+  .description("the task with its why chain, results, subtasks and comments")
+  .option("--company <name>", "company (default: the first one)")
+  .action(async (id: string, opts: { company?: string }) => runTaskShow({ id, ...opts, ...homeOf(program) }));
+task
+  .command("comment <id> <body>")
+  .description("comment on a task (@Name wakes an agent)")
+  .action(async (id: string, body: string) => runTaskComment({ id, body, ...homeOf(program) }));
+task
+  .command("assign <id> <agent>")
+  .description("assign the task to an agent, who wakes up")
+  .option("--company <name>", "company (default: the first one)")
+  .action(async (id: string, agent: string, opts: { company?: string }) => runTaskAssign({ id, agent, ...opts, ...homeOf(program) }));
+for (const [name, description] of [
+  ["complete", "close the task as verified (--note is the result summary)"],
+  ["request-changes", "send a delivered task back with a note"],
+  ["block", "block the task with a reason"],
+  ["unblock", "unblock the task; the assignee wakes up"],
+  ["cancel", "cancel the task"],
+  ["release", "give a task in progress back to the queue"],
+  ["wake", "wake the assignee again"],
+] as const) {
+  task
+    .command(`${name} <id>`)
+    .description(description)
+    .option("--note <text>", "summary, note or reason")
+    .option("--verification <text>", "for complete: how the result was checked")
+    .action(async (id: string, opts: { note?: string; verification?: string }) => runTaskAction(name, { id, ...opts, ...homeOf(program) }));
+}
 
 function homeOf(cmd: Command): { home?: string } {
   const home = (cmd.opts() as { home?: string }).home;

@@ -149,3 +149,26 @@ input[type="range"] {
 .pulse {
   animation: pulse-dot 1.6s ease-in-out infinite;
 }
+
+/* React Flow chrome follows the theme. */
+.react-flow__controls {
+  box-shadow: none;
+  border: 1px solid var(--o-line);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.react-flow__controls-button {
+  background: var(--o-card);
+  border-bottom: 1px solid var(--o-line);
+  color: var(--o-ink-2);
+  fill: var(--o-ink-2);
+}
+.react-flow__controls-button:hover {
+  background: var(--o-raised);
+}
+.react-flow__controls-button svg {
+  fill: currentColor;
+}
+.react-flow__edge-path {
+  stroke: var(--o-line-strong);
+}

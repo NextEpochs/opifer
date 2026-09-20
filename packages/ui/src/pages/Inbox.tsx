@@ -3,11 +3,12 @@ import { api, type Approval } from "../api";
 import { fill } from "../i18n";
 import { Button, Kbd } from "../ui";
 import { ApprovalCard } from "../components/ApprovalCard";
+import { ReviewCard } from "../components/TaskBits";
 import type { Workspace } from "../App";
 
 /** The inbox: every decision a person has to take, oldest first. A / D decide the focused one. */
 export function InboxPage({ ws }: { ws: Workspace }) {
-  const { t, company, pending } = ws;
+  const { t, company, pending, attention } = ws;
   const [tab, setTab] = useState<"pending" | "decided">("pending");
   const [decided, setDecided] = useState<Approval[]>([]);
   const [focus, setFocus] = useState(0);
@@ -52,14 +53,21 @@ export function InboxPage({ ws }: { ws: Workspace }) {
       </header>
       <div className="flex gap-2">
         <Button variant={tab === "pending" ? "primary" : "ghost"} size="sm" onClick={() => setTab("pending")}>
-          {t.inboxTabs.pending} · {pending.length}
+          {t.inboxTabs.pending} · {pending.length + attention.length}
         </Button>
         <Button variant={tab === "decided" ? "primary" : "ghost"} size="sm" onClick={() => setTab("decided")}>
           {t.inboxTabs.decided}
         </Button>
       </div>
+      {tab === "pending" && attention.length > 0 && (
+        <div className="grid grid-cols-1 gap-4 2xl:grid-cols-2">
+          {attention.map((task) => (
+            <ReviewCard key={task.id} task={task} ws={ws} />
+          ))}
+        </div>
+      )}
       {list.length === 0 ? (
-        <p className="text-sm text-mute">{tab === "pending" ? t.nothingToDecide : "—"}</p>
+        <p className="text-sm text-mute">{tab === "pending" && attention.length === 0 ? t.nothingToDecide : tab === "pending" ? "" : "—"}</p>
       ) : (
         <div className="grid grid-cols-1 gap-4 2xl:grid-cols-2">
           {list.map((a, i) => (

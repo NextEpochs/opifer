@@ -44,7 +44,7 @@ The default model is chosen with `--model provider/model` (for example `anthropi
 
 ### The interface
 
-Opifer is a company you walk through, not an admin panel. With the server running (`pnpm o4r up --detach`) the web interface at the server address has six sections: **Home** (a board of widgets you can drag, resize and add to: what needs you, spend against the cap, who is working, recent results, activity), **Inbox** (every decision a person has to take, explained in plain words, with one-click answers and keyboard shortcuts), **Team** (agents as colleagues: hire, pause, permissions, budget, revision history), **Chat** (talk to an agent; approvals appear in the thread, the workbench shows cost and files), **Money** (costs by agent and model, caps) and **Settings**. A *Simple / Advanced* switch keeps the same screens and adds the technical layer for power users. English by default, Italian available, dark and light themes.
+Opifer is a company you walk through, not an admin panel. With the server running (`pnpm o4r up --detach`) the web interface at the server address has seven sections: **Home** (a board of widgets you can drag, resize and add to: what needs you, spend against the cap, who is working, recent results, activity), **Inbox** (every decision a person has to take, explained in plain words, with one-click answers and keyboard shortcuts: tool approvals, budget increases, deliveries to verify, blocked tasks), **Team** (an org chart: drag a role from the palette onto the person it should report to and you are hiring; drag an agent onto another to change who they report to; each agent has permissions, budget and revision history), **Work** (goals, projects and a task board you drag cards across; every task shows why it matters, what *done* means, what it cost and what was delivered), **Chat** (talk to an agent; approvals appear in the thread, the workbench shows cost and files), **Money** (costs by agent and model, caps) and **Settings**. A *Simple / Advanced* switch keeps the same screens and adds the technical layer for power users. English by default, Italian available, dark and light themes.
 
 To look at the interface with scripted agents and no real model: `pnpm build && node packages/server/dist/preview.js` and open http://127.0.0.1:4790.
 
@@ -58,6 +58,20 @@ pnpm o4r chat --resume <session id>  # resume a conversation
 ```
 
 Every conversation is persisted: it survives a restart and resumes from the saved history without re-running tools.
+
+### Work
+
+Tasks are how the company gets things done: an agent is assigned a task, wakes up, works in its own session, delivers a result and a person (or a reviewer agent) verifies it. The rules are the ones of the specification: one assignee at a time, taken with an *atomic checkout* so two agents can never work the same task; a lease with a heartbeat, so a task whose agent dies goes back to the queue (and is blocked after two failures instead of looping forever); *done* only with a verified result; a parent task closes only when its children have; every task knows its *why* (mission → goal → project → parent). Comments with `@Name` wake that agent; a person's comment wakes the assignee; a task waiting for an approval resumes on the decision.
+
+```bash
+pnpm o4r task create "Write the pricing page" --agent Leo --acceptance "Copy approved; renders on mobile"
+pnpm o4r task                                  # the open tasks
+pnpm o4r task show <id>                        # why chain, result, subtasks, comments
+pnpm o4r task comment <id> "@Nora check the prices against the public pages"
+pnpm o4r task complete <id> --note "Checked on the staging site"   # request-changes, block, unblock, cancel, release
+```
+
+Agents get the matching tools (`task_status`, `task_comment`, `task_create` for delegating downward, `task_deliver`, `task_block`) and a brief that explains the task, its why chain and the rules above.
 
 ### Governance
 
@@ -106,8 +120,9 @@ Docker will instead serve as the default sandbox for the commands executed by th
 | `packages/db` | Schema, forward and backward migrations, embedded Postgres |
 | `packages/runtime` | Agent loop, model providers, context |
 | `packages/gateway` | Governance: budget reservation, permissions, approvals, secrets, governed tool executor |
-| `packages/server` | HTTP API `/v1`, WebSocket events |
-| `packages/ui` | Web interface (React, Vite, Tailwind; NextEpochs look, dnd-kit widget board) |
+| `packages/work` | Goals, projects, tasks: atomic checkout, leases, results, wake-ups, task tools for agents |
+| `packages/server` | HTTP API `/v1`, WebSocket events, the scheduler that wakes agents on their tasks |
+| `packages/ui` | Web interface (React, Vite, Tailwind; NextEpochs look, dnd-kit widget board and task board, React Flow org chart) |
 | `packages/cli` | The `o4r` command |
 | `packages/sdk` | Contracts for plugins, channels, providers (MIT) |
 | `plugins/*` | Plugins maintained by NextEpochs (MIT): Anthropic, OpenAI (API key and ChatGPT sign-in), OpenAI-compatible endpoints |

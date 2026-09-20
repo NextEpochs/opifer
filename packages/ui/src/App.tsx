@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Coins, Home as HomeIcon, Inbox as InboxIcon, KanbanSquare, MessageSquare, Settings as SettingsIcon, Users } from "lucide-react";
-import { api, eventsSocket, type Approval, type Company, type Overview } from "./api";
+import { api, eventsSocket, type Approval, type Company, type Overview, type Task } from "./api";
 import { detectLocale, fill, saveLocale, stringsFor, type Locale, type Strings } from "./i18n";
 import { useDocumentAttributes, usePref, type Theme, type ViewMode } from "./prefs";
 import { Avatar, Segmented } from "./ui";
@@ -10,10 +10,11 @@ import { TeamPage } from "./pages/Team";
 import { ChatPage } from "./pages/Chat";
 import { MoneyPage } from "./pages/Money";
 import { SettingsPage } from "./pages/Settings";
+import { WorkPage } from "./pages/Work";
 
-export type Page = "home" | "inbox" | "team" | "chat" | "money" | "settings";
+export type Page = "home" | "inbox" | "team" | "work" | "chat" | "money" | "settings";
 
-const PAGES: Page[] = ["home", "inbox", "team", "chat", "money", "settings"];
+const PAGES: Page[] = ["home", "inbox", "team", "work", "chat", "money", "settings"];
 
 function pageFromHash(): { page: Page; param: string | null } {
   const raw = location.hash.replace(/^#\/?/, "");
@@ -28,6 +29,8 @@ export interface Workspace {
   companies: Company[];
   overview: Overview | null;
   pending: Approval[];
+  /** Tasks that need a person: delivered for review, or blocked. */
+  attention: Task[];
   t: Strings;
   locale: Locale;
   mode: ViewMode;
@@ -48,6 +51,7 @@ export function App() {
   const [companyId, setCompanyId] = usePref<string | null>("company", null);
   const [overview, setOverview] = useState<Overview | null>(null);
   const [pending, setPending] = useState<Approval[]>([]);
+  const [attention, setAttention] = useState<Task[]>([]);
   const [live, setLive] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const refreshTimer = useRef<number | null>(null);
@@ -77,9 +81,10 @@ export function App() {
   const refresh = useCallback(async () => {
     if (!company) return;
     try {
-      const [o, p] = await Promise.all([api.overview(company.id), api.approvals(company.id, "pending")]);
+      const [o, p, a] = await Promise.all([api.overview(company.id), api.approvals(company.id, "pending"), api.tasks(company.id, { status: "in_review,blocked" })]);
       setOverview(o);
       setPending(p);
+      setAttention(a);
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -118,13 +123,14 @@ export function App() {
 
   const nav: Array<{ page: Page; label: string; icon: typeof HomeIcon; badge?: number; disabled?: boolean }> = [
     { page: "home", label: t.nav.home, icon: HomeIcon },
-    { page: "inbox", label: t.nav.inbox, icon: InboxIcon, badge: pending.length },
+    { page: "inbox", label: t.nav.inbox, icon: InboxIcon, badge: pending.length + attention.length },
     { page: "team", label: t.nav.team, icon: Users },
+    { page: "work", label: t.nav.work, icon: KanbanSquare },
     { page: "chat", label: t.nav.chat, icon: MessageSquare },
     { page: "money", label: t.nav.money, icon: Coins },
   ];
 
-  const ws: Workspace | null = company ? { company, companies, overview, pending, t, locale, mode, refresh, go, agentName } : null;
+  const ws: Workspace | null = company ? { company, companies, overview, pending, attention, t, locale, mode, refresh, go, agentName } : null;
 
   return (
     <div className="flex h-full min-h-screen">
@@ -145,11 +151,6 @@ export function App() {
             {badge ? <span className="ml-auto flex h-[22px] min-w-[22px] items-center justify-center rounded-full bg-accent px-1.5 text-xs font-bold text-white">{badge}</span> : null}
           </a>
         ))}
-        <span className="flex items-center gap-3 rounded-control px-3 py-[11px] text-[15px] font-semibold text-faint" title={t.comingSoon} aria-disabled="true">
-          <KanbanSquare size={20} strokeWidth={1.8} aria-hidden="true" />
-          <span>{t.nav.work}</span>
-          <span className="ml-auto text-[10px] font-bold uppercase tracking-wide">M3</span>
-        </span>
         <div className="grow" />
         <a href="#/settings" aria-current={route.page === "settings" ? "page" : undefined} className={`flex items-center gap-3 rounded-control px-3 py-[11px] text-[15px] font-semibold no-underline transition ${route.page === "settings" ? "bg-accent-soft text-ink shadow-[inset_2px_0_0_var(--o-accent)]" : "text-ink-2 hover:bg-hover hover:text-ink"}`}>
           <SettingsIcon size={20} strokeWidth={1.8} aria-hidden="true" />
@@ -195,6 +196,8 @@ export function App() {
           <InboxPage ws={ws} />
         ) : route.page === "team" ? (
           <TeamPage ws={ws} param={route.param} />
+        ) : route.page === "work" ? (
+          <WorkPage ws={ws} param={route.param} />
         ) : route.page === "chat" ? (
           <ChatPage ws={ws} param={route.param} />
         ) : (

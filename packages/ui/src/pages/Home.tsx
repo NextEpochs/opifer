@@ -8,6 +8,7 @@ import { fill } from "../i18n";
 import { DEFAULT_LAYOUT, usePref, type WidgetPlacement, type WidgetSize } from "../prefs";
 import { ActivityChip, Avatar, Button, Card, CardHeader, Chip, EmptyState, money, timeAgo } from "../ui";
 import { ApprovalCard } from "../components/ApprovalCard";
+import { ReviewCard } from "../components/TaskBits";
 import { greeting, type Workspace } from "../App";
 
 type WidgetId = "needsYou" | "spend" | "team" | "done" | "activity" | "models" | "costByAgent";
@@ -45,7 +46,7 @@ export function HomePage({ ws }: { ws: Workspace }) {
       <header className="flex flex-wrap items-end justify-between gap-5">
         <div>
           <h1 className="m-0 font-display text-[34px] font-bold leading-[1.1] tracking-tight">{greeting(t, company.name, overview?.working ?? 0)}</h1>
-          <p className="mt-1.5 text-[15px] text-mute">{overview ? fill(t.summary, { agents: overview.agents.length, working: overview.working, pending: overview.pending }) : "…"}</p>
+          <p className="mt-1.5 text-[15px] text-mute">{overview ? fill(t.summary, { agents: overview.agents.length, working: overview.working, pending: overview.pending + ws.attention.length }) : "…"}</p>
         </div>
         <div className="flex gap-2">
           {firstAgent && (
@@ -53,7 +54,7 @@ export function HomePage({ ws }: { ws: Workspace }) {
               {fill(t.talkTo, { agent: firstAgent.name })}
             </Button>
           )}
-          <Button variant="primary" onClick={() => ws.go("chat", firstAgent ? `new-${firstAgent.id}` : undefined)}>
+          <Button variant="primary" onClick={() => ws.go("work", "new")}>
             {t.giveTask}
           </Button>
         </div>
@@ -150,16 +151,20 @@ function WidgetBody({ id, ws }: { id: WidgetId; ws: Workspace }) {
 }
 
 function NeedsYou({ ws }: { ws: Workspace }) {
-  const { t, pending } = ws;
-  if (pending.length === 0) return <EmptyState>{t.nothingToDecide}</EmptyState>;
+  const { t, pending, attention } = ws;
+  const total = pending.length + attention.length;
+  if (total === 0) return <EmptyState>{t.nothingToDecide}</EmptyState>;
   return (
     <div className="flex flex-col gap-3 px-[18px] pb-[18px] pt-3">
-      {pending.slice(0, 3).map((a) => (
+      {pending.slice(0, 2).map((a) => (
         <ApprovalCard key={a.id} approval={a} agentName={ws.agentName} companyId={ws.company.id} t={t} onDecided={ws.refresh} compact />
       ))}
-      {pending.length > 3 && (
+      {attention.slice(0, 3 - Math.min(2, pending.length)).map((task) => (
+        <ReviewCard key={task.id} task={task} ws={ws} compact />
+      ))}
+      {total > 3 && (
         <a href="#/inbox" className="text-[13px] font-bold text-accent-text no-underline">
-          {fill(t.waitingCount, { n: pending.length })} →
+          {fill(t.waitingCount, { n: total })} →
         </a>
       )}
     </div>

@@ -109,6 +109,23 @@ export const api = {
   overview: (companyId: string) => request<Overview>(`/v1/companies/${companyId}/overview`),
   models: () => request<ModelsInfo>("/v1/models"),
   sessionsAll: (companyId: string) => request<Session[]>(`/v1/companies/${companyId}/sessions`),
+  // work
+  tasks: (companyId: string, query: { status?: string; agentId?: string; projectId?: string } = {}) => {
+    const params = new URLSearchParams(Object.entries(query).filter(([, v]) => v) as [string, string][]);
+    return request<Task[]>(`/v1/companies/${companyId}/tasks?${params}`);
+  },
+  task: (id: string) => request<TaskDetail>(`/v1/tasks/${id}`),
+  createTask: (companyId: string, input: { title: string; description?: string; acceptance?: string; priority?: TaskPriority; projectId?: string | null; goalId?: string | null; parentId?: string | null; assigneeAgentId?: string | null; dueAt?: string | null }) =>
+    request<Task>(`/v1/companies/${companyId}/tasks`, { method: "POST", body: JSON.stringify(input) }),
+  updateTask: (id: string, patch: Partial<Pick<Task, "title" | "description" | "acceptance" | "priority" | "projectId" | "goalId" | "dueAt">>) => request<Task>(`/v1/tasks/${id}`, { method: "PATCH", body: JSON.stringify(patch) }),
+  taskAction: (id: string, action: "assign" | "complete" | "request-changes" | "block" | "unblock" | "cancel" | "release" | "wake", body: Record<string, unknown> = {}) =>
+    request<Task>(`/v1/tasks/${id}/${action}`, { method: "POST", body: JSON.stringify(body) }),
+  commentTask: (id: string, body: string) => request<TaskComment>(`/v1/tasks/${id}/comments`, { method: "POST", body: JSON.stringify({ body }) }),
+  goals: (companyId: string) => request<Goal[]>(`/v1/companies/${companyId}/goals`),
+  createGoal: (companyId: string, input: { title: string; measure?: string; parentId?: string | null }) => request<Goal>(`/v1/companies/${companyId}/goals`, { method: "POST", body: JSON.stringify(input) }),
+  updateGoal: (companyId: string, id: string, patch: Partial<Pick<Goal, "title" | "measure" | "status">>) => request<Goal>(`/v1/companies/${companyId}/goals/${id}`, { method: "PATCH", body: JSON.stringify(patch) }),
+  projects: (companyId: string) => request<Project[]>(`/v1/companies/${companyId}/projects`),
+  createProject: (companyId: string, input: { name: string; description?: string; goalId?: string | null }) => request<Project>(`/v1/companies/${companyId}/projects`, { method: "POST", body: JSON.stringify(input) }),
 };
 
 export interface Approval {
@@ -199,6 +216,83 @@ export interface ModelsInfo {
   fallback: string | null;
   providers: Array<{ id: string; enabled: boolean; detail: string }>;
   models: Array<{ id: string; provider: string; contextWindow: number; price: { inputPerMillion: number; outputPerMillion: number; currency: string } }>;
+}
+
+export type TaskStatus = "todo" | "in_progress" | "in_review" | "blocked" | "done" | "cancelled";
+export type TaskPriority = "low" | "normal" | "high" | "urgent";
+
+export interface Task {
+  id: string;
+  companyId: string;
+  projectId: string | null;
+  goalId: string | null;
+  parentId: string | null;
+  title: string;
+  description: string;
+  acceptance: string;
+  status: TaskStatus;
+  priority: TaskPriority;
+  assigneeAgentId: string | null;
+  assigneeUserId: string | null;
+  reviewerAgentId: string | null;
+  createdByKind: string;
+  createdById: string | null;
+  dueAt: string | null;
+  leaseSessionId: string | null;
+  leaseExpiresAt: string | null;
+  failures: number;
+  blockedReason: string | null;
+  result: { summary: string; verification?: string } | null;
+  startedAt: string | null;
+  finishedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Goal {
+  id: string;
+  parentId: string | null;
+  title: string;
+  description: string;
+  measure: string;
+  status: "active" | "reached" | "dropped";
+  dueAt: string | null;
+}
+
+export interface Project {
+  id: string;
+  goalId: string | null;
+  name: string;
+  description: string;
+  status: "active" | "paused" | "done" | "archived";
+  workdir: string | null;
+}
+
+export interface TaskComment {
+  id: string;
+  authorKind: "person" | "agent" | "system";
+  authorId: string | null;
+  body: string;
+  mentions: string[];
+  createdAt: string;
+}
+
+export interface WorkProduct {
+  id: string;
+  kind: "file" | "link" | "diff" | "document" | "decision" | "note";
+  title: string;
+  ref: string;
+  summary: string;
+  createdAt: string;
+}
+
+export interface TaskDetail extends Task {
+  why: { mission: string | null; companyName: string; goals: Goal[]; project: Project | null; parents: Array<{ id: string; title: string }> };
+  comments: TaskComment[];
+  products: WorkProduct[];
+  children: Task[];
+  sessions: Array<{ id: string; agentId: string; status: string; running: boolean; createdAt: string }>;
+  cost: { eur: number; usd: number; calls: number };
 }
 
 export interface BusEvent {

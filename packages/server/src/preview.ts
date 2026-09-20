@@ -34,6 +34,8 @@ const app = await buildApp({
   providers: { providers: new ProviderRegistry().register(provider), defaultModel: "fake/echo", fallbackModel: null, report: [{ id: "fake", enabled: true, detail: "scripted preview provider" }] },
   workRoot: path.join(dir, "work"),
   governance: { credentialsDir: path.join(dir, "credentials") },
+  // No scheduler: the seeded tasks keep the states below, so screens are stable.
+  work: { scheduler: false },
 });
 app.opifer.governance!.prices.set("fake/echo", { inputPerMillion: 3, outputPerMillion: 15, currency: "USD" });
 
@@ -48,6 +50,33 @@ const s1 = (await app.inject({ method: "POST", url: `/v1/companies/${company.id}
 await app.inject({ method: "POST", url: `/v1/sessions/${s1.id}/messages`, payload: { text: "Rebuild the website with the new pricing page and make sure the build passes." } });
 const s2 = (await app.inject({ method: "POST", url: `/v1/companies/${company.id}/sessions`, payload: { agentId: nora.id, title: "Competitor pricing" } })).json() as { id: string };
 await app.inject({ method: "POST", url: `/v1/sessions/${s2.id}/messages`, payload: { text: "Compare the pricing pages of our six closest competitors." } });
+
+// Work: a goal, two projects and tasks in every state, so the board and the inbox have something to show.
+const work = app.opifer.work;
+const mike = { kind: "person" as const, id: null };
+const goal = await work.createGoal({ companyId: company.id, title: "Launch the new website by October", description: "A site that explains the product and converts.", measure: "Site live, 100 sign-ups in the first month." }, mike);
+const site = await work.createProject({ companyId: company.id, name: "Website", description: "The public site and the pricing page.", goalId: goal.id }, mike);
+const research = await work.createProject({ companyId: company.id, name: "Market research", description: "What the competitors do and charge.", goalId: goal.id }, mike);
+const leo = (await app.inject({ method: "GET", url: `/v1/companies/${company.id}/agents` })).json() as Array<{ id: string; name: string }>;
+const leoId = leo.find((a) => a.name === "Leo")!.id;
+
+const pricing = await work.createTask({ companyId: company.id, projectId: site.id, title: "Write the pricing page", description: "Three plans, one clear recommendation, no jargon.", acceptance: "Copy approved by Mike; renders on mobile.", priority: "high", assigneeAgentId: leoId }, mike);
+await work.checkout(company.id, pricing.id, { agentId: leoId });
+const compare = await work.createTask({ companyId: company.id, projectId: research.id, title: "Compare competitor pricing", description: "Six closest competitors: plans, prices, limits.", acceptance: "A table with sources for every number.", priority: "normal", assigneeAgentId: nora.id }, mike);
+await work.checkout(company.id, compare.id, { agentId: nora.id });
+await work.addProduct(company.id, compare.id, { kind: "document", title: "competitor-pricing.md", ref: "docs/competitor-pricing.md", summary: "Six competitors compared, with sources." }, { kind: "agent", id: nora.id });
+await work.requestReview(company.id, compare.id, { summary: "Compared six competitors; the median price is 29 EUR a month. Table with sources attached.", verification: "Every price checked on the public pricing page on 18 September." }, { kind: "agent", id: nora.id });
+const analytics = await work.createTask({ companyId: company.id, projectId: site.id, title: "Set up analytics", description: "Privacy-friendly analytics on every page.", priority: "normal", assigneeAgentId: philip.id }, mike);
+await work.checkout(company.id, analytics.id, { agentId: philip.id });
+await work.block(company.id, analytics.id, "I need the analytics account credentials; none is configured.", { kind: "agent", id: philip.id });
+const domain = await work.createTask({ companyId: company.id, projectId: site.id, title: "Choose the domain name", priority: "urgent", assigneeAgentId: philip.id }, mike);
+await work.checkout(company.id, domain.id, { agentId: philip.id });
+await work.complete(company.id, domain.id, { summary: "Registered nextepochs.ai; DNS points to the new host.", verification: "dig shows the new records; the site answers over HTTPS." }, { kind: "agent", id: philip.id });
+await work.createTask({ companyId: company.id, projectId: site.id, title: "Design the home page", description: "Hero, three benefits, one call to action.", priority: "high", assigneeAgentId: leoId }, mike);
+await work.createTask({ companyId: company.id, projectId: site.id, title: "Write the FAQ", priority: "low" }, mike);
+await work.createTask({ companyId: company.id, projectId: research.id, title: "Interview five customers", description: "What made them choose us, what almost stopped them.", priority: "normal", assigneeAgentId: nora.id }, mike);
+await work.comment(company.id, pricing.id, mike, "Keep the middle plan as the recommended one.");
+await work.comment(company.id, pricing.id, { kind: "agent", id: leoId }, "Understood — drafting three plans now, middle one highlighted.");
 
 await app.listen({ host: "127.0.0.1", port });
 console.log(`preview on http://127.0.0.1:${port}  (company ${company.id})`);
