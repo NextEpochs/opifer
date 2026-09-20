@@ -150,16 +150,15 @@ importers:
       '@opifer/core':
         specifier: workspace:*
         version: link:../core
+      '@opifer/db':
+        specifier: workspace:*
+        version: link:../db
       '@opifer/sdk':
         specifier: workspace:*
         version: link:../sdk
       postgres:
         specifier: ^3.4.7
         version: 3.4.9
-    devDependencies:
-      '@opifer/db':
-        specifier: workspace:*
-        version: link:../db
 
   packages/sdk: {}
 
