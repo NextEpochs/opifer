@@ -12,6 +12,8 @@ services:
       # Model provider keys (M1); from M2 they live in the encrypted vault.
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      # ChatGPT subscription instead of an API key:
+      #   docker compose exec opifer node packages/cli/dist/main.js login chatgpt --manual
     volumes:
       - opifer-data:/data
     restart: unless-stopped

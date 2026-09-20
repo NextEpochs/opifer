@@ -58,7 +58,7 @@ export async function runDoctor(options: { home?: string }): Promise<void> {
   }
 
   if (config) {
-    const setup = setupProviders(config.models);
+    const setup = await setupProviders(config.models, process.env, { credentialsDir: home.credentialsDir });
     const enabled = setup.report.filter((r) => r.enabled).map((r) => r.id);
     checks.push({
       name: "Model providers",

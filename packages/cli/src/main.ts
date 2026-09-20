@@ -2,6 +2,7 @@
 import { Command } from "commander";
 import { OPIFER_VERSION } from "@opifer/core";
 import { runChat } from "./commands/chat.js";
+import { runLogin, runLogout } from "./commands/login.js";
 import { runDoctor } from "./commands/doctor.js";
 import { runInit } from "./commands/init.js";
 import { runMigrate } from "./commands/migrate.js";
@@ -57,6 +58,22 @@ program
   .option("--model <provider/model>", "model for the new session")
   .action(async (agent: string | undefined, opts: { company?: string; resume?: string; model?: string }) => {
     await runChat({ ...(agent ? { agent } : {}), ...opts, ...homeOf(program) });
+  });
+
+program
+  .command("login <provider>")
+  .description("sign in to a provider account (chatgpt: use a ChatGPT subscription instead of an API key)")
+  .option("--manual", "paste the redirect URL by hand instead of using the local callback (headless machines)")
+  .option("--no-browser", "print the URL without opening a browser")
+  .action(async (provider: string, opts: { manual?: boolean; browser?: boolean }) => {
+    await runLogin(provider, { ...(opts.manual ? { manual: true } : {}), ...(opts.browser === false ? { noBrowser: true } : {}), ...homeOf(program) });
+  });
+
+program
+  .command("logout <provider>")
+  .description("remove stored sign-in credentials for a provider")
+  .action(async (provider: string) => {
+    await runLogout(provider, homeOf(program));
   });
 
 program

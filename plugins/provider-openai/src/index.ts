@@ -204,3 +204,20 @@ export class OpenAIProvider implements ModelProvider {
     yield { type: "done", stopReason };
   }
 }
+
+export { ChatGPTProvider, CHATGPT_BACKEND_URL, DEFAULT_CHATGPT_MODELS } from "./chatgpt/provider.js";
+export type { ChatGPTProviderOptions } from "./chatgpt/provider.js";
+export { FileCredentialStore, MemoryCredentialStore } from "./chatgpt/credentials.js";
+export type { ChatGPTCredentials, CredentialStore } from "./chatgpt/credentials.js";
+export {
+  DEFAULT_OAUTH,
+  CALLBACK_PORT,
+  buildAuthorizationRequest,
+  exchangeCode,
+  refreshCredentials,
+  parseCallbackURL,
+  startCallbackServer,
+  decodeJwtPayload,
+  credentialsFromTokens,
+} from "./chatgpt/oauth.js";
+export type { OAuthEndpoints, AuthorizationRequest, CallbackServer, PkcePair } from "./chatgpt/oauth.js";

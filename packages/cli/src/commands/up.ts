@@ -69,7 +69,7 @@ export async function runUp(options: UpOptions): Promise<void> {
   await migrateUp(db.handle.sql, { log: (m) => say.info(`  ${m}`) });
 
   const uiDir = uiDistDir();
-  const providers = setupProviders(config.models);
+  const providers = await setupProviders(config.models, process.env, { credentialsDir: home.credentialsDir });
   for (const r of providers.report) (r.enabled ? say.ok : say.warn)(`provider ${r.id}: ${r.detail}`);
   say.ok(`Default model: ${providers.defaultModel}`);
   const app = await buildApp({ db: db.handle, mode: "local", bus: new EventBus(), uiDir, logger: false, providers, workRoot: home.workDir });

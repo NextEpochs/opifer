@@ -4,6 +4,21 @@
     "rootDir": "src",
     "outDir": "dist"
   },
-  "include": ["src"],
-  "references": [{ "path": "../core" }, { "path": "../db" }, { "path": "../server" }]
+  "include": [
+    "src"
+  ],
+  "references": [
+    {
+      "path": "../core"
+    },
+    {
+      "path": "../db"
+    },
+    {
+      "path": "../server"
+    },
+    {
+      "path": "../../plugins/provider-openai"
+    }
+  ]
 }

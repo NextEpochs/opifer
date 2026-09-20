@@ -66,7 +66,7 @@ export async function runInit(options: InitOptions): Promise<void> {
   }
 
   say.step("Model providers");
-  const setup = setupProviders(config.models);
+  const setup = await setupProviders(config.models, process.env, { credentialsDir: home.credentialsDir });
   for (const r of setup.report) (r.enabled ? say.ok : say.warn)(`${r.id}: ${r.detail}`);
   if (!setup.report.some((r) => r.enabled)) {
     say.warn("No provider configured: set ANTHROPIC_API_KEY or OPENAI_API_KEY, or a local endpoint with --local-url");

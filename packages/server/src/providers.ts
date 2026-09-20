@@ -6,7 +6,8 @@
 
 import { ProviderRegistry } from "@opifer/runtime";
 import { AnthropicProvider } from "@opifer/provider-anthropic";
-import { OpenAIProvider } from "@opifer/provider-openai";
+import { ChatGPTProvider, DEFAULT_OAUTH, FileCredentialStore, OpenAIProvider } from "@opifer/provider-openai";
+import path from "node:path";
 import { createCompatibleProvider } from "@opifer/provider-openai-compatible";
 
 export interface ModelsConfig {
@@ -30,10 +31,21 @@ export interface ProviderSetup {
 const DEFAULT_BY_PROVIDER: Record<string, string> = {
   anthropic: "anthropic/claude-sonnet-5",
   openai: "openai/gpt-5.6-terra",
+  chatgpt: "chatgpt/gpt-5.6-terra",
   local: "local/llama3",
 };
 
-export function setupProviders(config: ModelsConfig = {}, env: NodeJS.ProcessEnv = process.env): ProviderSetup {
+export interface ProviderSetupOptions {
+  /** Directory holding sign-in credentials (e.g. `<OPIFER_HOME>/credentials`). */
+  credentialsDir?: string;
+}
+
+/** Where the ChatGPT sign-in tokens live under the credentials directory. */
+export function chatgptCredentialsFile(credentialsDir: string): string {
+  return path.join(credentialsDir, "chatgpt.json");
+}
+
+export async function setupProviders(config: ModelsConfig = {}, env: NodeJS.ProcessEnv = process.env, options: ProviderSetupOptions = {}): Promise<ProviderSetup> {
   const providers = new ProviderRegistry();
   const report: ProviderSetup["report"] = [];
 
@@ -49,6 +61,24 @@ export function setupProviders(config: ModelsConfig = {}, env: NodeJS.ProcessEnv
     report.push({ id: "openai", enabled: true, detail: "key from OPENAI_API_KEY" });
   } else {
     report.push({ id: "openai", enabled: false, detail: "OPENAI_API_KEY is missing" });
+  }
+
+  if (options.credentialsDir) {
+    const store = new FileCredentialStore(chatgptCredentialsFile(options.credentialsDir));
+    const credentials = await store.load();
+    if (credentials) {
+      const issuer = env["OPIFER_CHATGPT_AUTH_URL"]?.replace(/\/$/, "");
+      providers.register(
+        new ChatGPTProvider({
+          store,
+          ...(env["OPIFER_CHATGPT_BACKEND_URL"] ? { baseURL: env["OPIFER_CHATGPT_BACKEND_URL"] } : {}),
+          ...(issuer ? { oauth: { ...DEFAULT_OAUTH, authorizeURL: `${issuer}/oauth/authorize`, tokenURL: `${issuer}/oauth/token` } } : {}),
+        }),
+      );
+      report.push({ id: "chatgpt", enabled: true, detail: `signed in as ${credentials.email ?? credentials.accountId}${credentials.planType ? ` (${credentials.planType})` : ""}` });
+    } else {
+      report.push({ id: "chatgpt", enabled: false, detail: "not signed in (o4r login chatgpt)" });
+    }
   }
 
   const localURL = config.local?.baseURL ?? env["OPIFER_LOCAL_BASE_URL"];

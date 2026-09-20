@@ -29,6 +29,9 @@ importers:
       '@opifer/db':
         specifier: workspace:*
         version: link:../db
+      '@opifer/provider-openai':
+        specifier: workspace:*
+        version: link:../../plugins/provider-openai
       '@opifer/server':
         specifier: workspace:*
         version: link:../server

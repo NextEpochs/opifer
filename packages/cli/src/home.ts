@@ -35,6 +35,8 @@ export interface OpiferHome {
   logFile: string;
   /** Working directories of the sessions. */
   workDir: string;
+  /** Sign-in credentials (ChatGPT tokens); owner-only files. */
+  credentialsDir: string;
 }
 
 export function resolveHome(override?: string): OpiferHome {
@@ -46,6 +48,7 @@ export function resolveHome(override?: string): OpiferHome {
     pidFile: path.join(dir, "server.pid"),
     logFile: path.join(dir, "server.log"),
     workDir: path.join(dir, "work"),
+    credentialsDir: path.join(dir, "credentials"),
   };
 }
 
