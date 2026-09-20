@@ -101,7 +101,7 @@ export class Turn {
       if (this.aborted) return this.outcome("interrupted", "interrupted");
 
       emit({ type: "phase", phase: "assemble" });
-      const request = this.assembleRequest();
+      const request = await this.assembleRequest();
 
       const reservation = await this.reserveBudget(request);
       if (reservation && !reservation.allowed) return this.outcome("budget_exhausted", "waiting");
@@ -146,11 +146,14 @@ export class Turn {
     }
   }
 
-  private assembleRequest() {
+  private async assembleRequest() {
+    const tools = this.deps.tools.definitionsFor
+      ? await this.deps.tools.definitionsFor({ companyId: this.ctx.session.companyId, agentId: this.ctx.session.agentId })
+      : this.deps.tools.definitions();
     return {
       system: this.ctx.session.systemPrompt,
       messages: this.history.map((m): Message => ({ role: m.role, content: m.content })),
-      tools: this.deps.tools.definitions(),
+      tools,
       maxOutputTokens: this.deps.maxOutputTokens,
       cachePrefix: true,
       signal: this.ctx.controller.signal,
@@ -158,7 +161,7 @@ export class Turn {
   }
 
   /** Budget before the call: the reservation is refused when a cap is reached, and the call never starts. */
-  private async reserveBudget(request: ReturnType<Turn["assembleRequest"]>): Promise<BudgetDecision | null> {
+  private async reserveBudget(request: Awaited<ReturnType<Turn["assembleRequest"]>>): Promise<BudgetDecision | null> {
     const budget = this.deps.governance.budget;
     if (!budget) return null;
     const { session, run, emit } = this.ctx;
@@ -178,7 +181,7 @@ export class Turn {
     return decision;
   }
 
-  private callModel(request: ReturnType<Turn["assembleRequest"]>): Promise<CompletionOutcome> {
+  private callModel(request: Awaited<ReturnType<Turn["assembleRequest"]>>): Promise<CompletionOutcome> {
     const { emit } = this.ctx;
     return completeWithRecovery(this.ctx.primary, this.ctx.fallback, request, (t) => emit({ type: "text", text: t }), {
       ...this.deps.recovery,

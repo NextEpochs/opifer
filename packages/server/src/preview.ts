@@ -59,6 +59,7 @@ const app = await buildApp({
   // No scheduler and no review worker: the seeded data keeps the states below, so screens are stable.
   work: { scheduler: false },
   learning: { worker: false },
+  connections: { start: false, sandbox: "local" },
 });
 app.opifer.governance!.prices.set("fake/echo", {
   inputPerMillion: 3,
@@ -404,6 +405,63 @@ await learning.skills.curate(company.id, {
 await db.sql`INSERT INTO learning_reviews (company_id, agent_id, session_id, task_id, status, proposals, applied, finished_at) VALUES
   (${company.id}, ${nora.id}, ${s2.id}, ${compare.id}, 'done', ${{ reason: "a repeatable comparison with a clear procedure" } as never}::jsonb, ${{ memoryIds: ["a", "b"], skill: { id: compareSkill.id, name: "compare-pricing", version: 1 } } as never}::jsonb, now()),
   (${company.id}, ${philip.id}, ${s1.id}, null, 'done', ${{ reason: "nothing new: the build already went fine" } as never}::jsonb, ${{ memoryIds: [] } as never}::jsonb, now())`;
+
+// Connections: a routine for Sam, a workflow tool, a webhook and a subscription, a Telegram channel waiting for its secret.
+const sam = (
+  await app.inject({
+    method: "POST",
+    url: `/v1/companies/${company.id}/agents`,
+    payload: { name: "Sam", role: "Support and operations. Keeps checklists and routines running.", reportsToAgentId: philip.id },
+  })
+).json() as { id: string };
+await app.opifer.routines.create(
+  {
+    companyId: company.id,
+    agentId: sam.id,
+    name: "Weekly digest",
+    prompt: "Produce the weekly digest of the repository: commits, tests, open tasks. Deliver it as a short note.",
+    scheduleKind: "cron",
+    schedule: "0 9 * * 1",
+    timezone: "Europe/Rome",
+    deliverTo: ["channels"],
+    skills: [],
+  },
+  mike,
+);
+const daily = await app.opifer.routines.create(
+  {
+    companyId: company.id,
+    agentId: sam.id,
+    name: "Daily health check",
+    prompt: "Check that the site answers and the build passes; report anything odd.",
+    scheduleKind: "interval",
+    schedule: "86400",
+    deliverTo: ["channels"],
+  },
+  mike,
+);
+await db.sql`INSERT INTO routine_runs (company_id, routine_id, due_at, status, result, started_at, finished_at) VALUES (${company.id}, ${daily.id}, now() - interval '1 day', 'done', 'All green: the site answers in 120 ms and the build passes.', now() - interval '1 day', now() - interval '1 day' + interval '40 seconds')`;
+await app.opifer.connections.create(
+  {
+    companyId: company.id,
+    kind: "workflow",
+    name: "n8n_report",
+    description: "Sends the weekly numbers to the reporting workflow in n8n",
+    config: {
+      url: "http://127.0.0.1:5678/webhook/report",
+      method: "POST",
+      inputSchema: { type: "object", properties: { text: { type: "string" } } },
+      headers: { authorization: "Bearer ${N8N_TOKEN}" },
+    },
+    risk: "medium",
+    secretNames: ["N8N_TOKEN"],
+  },
+  mike,
+);
+await app.opifer.webhooks.create({ companyId: company.id, name: "n8n-tasks", action: "create_task", defaults: { agentId: philip.id } }, mike);
+await app.opifer.events.create({ companyId: company.id, name: "n8n-listener", url: "http://127.0.0.1:5678/webhook/opifer", events: ["task.*", "approval.*"] }, mike);
+await app.opifer.channels.create({ companyId: company.id, kind: "telegram", name: "Telegram", secretName: "TELEGRAM_BOT_TOKEN", defaultAgentId: philip.id }, mike);
+await db.sql`UPDATE channels SET status = 'missing_secret', status_detail = 'set the secret TELEGRAM_BOT_TOKEN' WHERE company_id = ${company.id}`;
 
 await app.listen({ host: "127.0.0.1", port });
 console.log(`preview on http://127.0.0.1:${port}  (company ${company.id})`);

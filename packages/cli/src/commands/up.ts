@@ -81,7 +81,13 @@ export async function runUp(options: UpOptions): Promise<void> {
     providers,
     workRoot: home.workDir,
     governance: { credentialsDir: home.credentialsDir },
+    connections: {
+      sandbox: config.sandbox?.kind ?? "auto",
+      ...(config.sandbox?.image ? { dockerImage: config.sandbox.image } : {}),
+      ...(config.sandbox?.network ? { dockerNetwork: config.sandbox.network } : {}),
+    },
   });
+  (app.opifer.sandbox.kind === "docker" ? say.ok : say.warn)(`Sandbox: ${app.opifer.sandbox.detail}`);
   await app.listen({ host: config.server.host, port: config.server.port });
   await writeFile(home.pidFile, `${process.pid}\n`, "utf8");
 

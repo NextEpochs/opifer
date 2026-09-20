@@ -3,7 +3,7 @@
  * secrets (values never come back), agent revisions and status.
  */
 
-import { ApprovalError } from "@opifer/gateway";
+import { ApprovalError, type Approval } from "@opifer/gateway";
 import type { AgentRuntime } from "@opifer/runtime";
 import type { FastifyInstance } from "fastify";
 import type { Governance } from "../governance.js";
@@ -98,6 +98,79 @@ function message(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+/**
+ * Decides an approval and does what follows: resumes the session (tool
+ * approvals), raises the cap and reactivates the agent (budget), applies
+ * or denies the promotion (skills). Used by the API, the webhooks and the
+ * channels alike.
+ */
+export async function decideApproval(
+  app: FastifyInstance,
+  approvalId: string,
+  decision: { status: "approved" | "denied"; note?: string | null; newCap?: number | null; decidedBy?: string | null },
+): Promise<Approval & { followUp: string | null }> {
+  const { runtime, governance, bus } = app.opifer;
+  if (!runtime || !governance) throw new ApprovalError("not_found", "governance is not configured");
+  const { approvals, budget, agents } = governance;
+  const sql = app.opifer.db.sql;
+  const [row] = await sql<{ company_id: string }[]>`SELECT company_id FROM approvals WHERE id = ${approvalId}`;
+  if (!row) throw new ApprovalError("not_found", "approval not found");
+  const companyId = row.company_id;
+  const approval = await approvals.decide(companyId, approvalId, { status: decision.status, note: decision.note ?? null, decidedBy: decision.decidedBy ?? null });
+  bus.publish("approval.decided", companyId, { approvalId: approval.id, kind: approval.kind, status: approval.status, agentId: approval.agentId, sessionId: approval.sessionId });
+
+  let followUp: string | null = null;
+  const resume = async (sessionId: string) => {
+    if (runtime.isRunning(sessionId)) return;
+    const session = await runtime.store.getSession(sessionId);
+    if (!session || session.status !== "active") return;
+    if (session.taskId) {
+      // A task session resumes through the scheduler, which holds the lease.
+      await app.opifer.work.wake(session.companyId, session.agentId, "decision", { taskId: session.taskId, dedupeKey: `decision:${approval.id}` });
+      followUp = followUp ? `${followUp}; task resumed` : "task_resumed";
+    } else {
+      startTurnInBackground(app, runtime, session);
+      followUp = followUp ? `${followUp}; session resumed` : "session_resumed";
+    }
+  };
+  if (approval.kind === "tool_use" || approval.kind === "dangerous_command") {
+    // Either way the session resumes: the approved call runs, the denied one is refused to the model.
+    if (approval.sessionId) await resume(approval.sessionId);
+  } else if (approval.kind === "budget_increase" && approval.status === "approved" && approval.agentId) {
+    const subject = approval.subject as { policyId?: string | null; cap?: number };
+    const policy = subject.policyId ? (await budget.listPolicies(companyId)).find((p) => p.id === subject.policyId) : undefined;
+    if (policy) {
+      const cap = decision.newCap ?? policy.cap * 2;
+      await budget.setPolicy({
+        companyId,
+        scopeKind: policy.scopeKind,
+        scopeId: policy.scopeId,
+        window: policy.window,
+        cap,
+        currency: policy.currency,
+        warnRatio: policy.warnRatio,
+      });
+      followUp = `cap raised to ${cap} ${policy.currency}`;
+    }
+    await agents.setStatus(companyId, approval.agentId, "active", { reason: "budget increase approved" });
+    bus.publish("agent.status_changed", companyId, { agentId: approval.agentId, status: "active" });
+    if (approval.sessionId) await resume(approval.sessionId);
+  } else if (approval.kind === "skill_promotion" && app.opifer.learning) {
+    // The promotion follows the decision: applied (a copy at the new scope) or denied.
+    const promotion = await app.opifer.learning.promotions.byApproval(companyId, approval.id);
+    if (promotion) {
+      try {
+        const decided = await app.opifer.learning.promotions.decide(companyId, promotion.id, approval.status === "approved", { kind: "person" });
+        followUp = decided.status === "applied" ? "promotion_applied" : "promotion_denied";
+        bus.publish("promotion.decided", companyId, { promotionId: decided.id, status: decided.status, kind: decided.kind });
+      } catch (error) {
+        followUp = `promotion failed: ${message(error)}`;
+      }
+    }
+  }
+  return { ...approval, followUp };
+}
+
 export async function registerGovernanceRoutes(app: FastifyInstance, options: GovernanceRoutesOptions): Promise<void> {
   const { runtime, governance } = options;
   const { budget, approvals, permissions, secrets, agents } = governance;
@@ -161,74 +234,12 @@ export async function registerGovernanceRoutes(app: FastifyInstance, options: Go
     "/approvals/:id/decide",
     { schema: { body: decideBody } },
     async (request, reply) => {
-      const [row] = await sql<{ company_id: string }[]>`SELECT company_id FROM approvals WHERE id = ${request.params.id}`;
-      if (!row) return reply.code(404).send({ error: "approval not found" });
-      const companyId = row.company_id;
-      let approval;
       try {
-        approval = await approvals.decide(companyId, request.params.id, { status: request.body.status, note: request.body.note ?? null });
+        return await decideApproval(app, request.params.id, { status: request.body.status, note: request.body.note ?? null, newCap: request.body.newCap ?? null });
       } catch (error) {
         if (error instanceof ApprovalError) return reply.code(error.code === "not_found" ? 404 : 409).send({ error: error.message });
         throw error;
       }
-      bus.publish("approval.decided", companyId, {
-        approvalId: approval.id,
-        kind: approval.kind,
-        status: approval.status,
-        agentId: approval.agentId,
-        sessionId: approval.sessionId,
-      });
-
-      let followUp: string | null = null;
-      const resume = async (sessionId: string) => {
-        if (runtime.isRunning(sessionId)) return;
-        const session = await runtime.store.getSession(sessionId);
-        if (!session || session.status !== "active") return;
-        if (session.taskId) {
-          // A task session resumes through the scheduler, which holds the lease.
-          await app.opifer.work.wake(session.companyId, session.agentId, "decision", { taskId: session.taskId, dedupeKey: `decision:${approval.id}` });
-          followUp = followUp ? `${followUp}; task resumed` : "task_resumed";
-        } else {
-          startTurnInBackground(app, runtime, session);
-          followUp = followUp ? `${followUp}; session resumed` : "session_resumed";
-        }
-      };
-      if (approval.kind === "tool_use" || approval.kind === "dangerous_command") {
-        // Either way the session resumes: the approved call runs, the denied one is refused to the model.
-        if (approval.sessionId) await resume(approval.sessionId);
-      } else if (approval.kind === "budget_increase" && approval.status === "approved" && approval.agentId) {
-        const subject = approval.subject as { policyId?: string | null; cap?: number };
-        const policy = subject.policyId ? (await budget.listPolicies(companyId)).find((p) => p.id === subject.policyId) : undefined;
-        if (policy) {
-          const cap = request.body.newCap ?? policy.cap * 2;
-          await budget.setPolicy({
-            companyId,
-            scopeKind: policy.scopeKind,
-            scopeId: policy.scopeId,
-            window: policy.window,
-            cap,
-            currency: policy.currency,
-            warnRatio: policy.warnRatio,
-          });
-          followUp = `cap raised to ${cap} ${policy.currency}`;
-        }
-        await agents.setStatus(companyId, approval.agentId, "active", { reason: "budget increase approved" });
-        bus.publish("agent.status_changed", companyId, { agentId: approval.agentId, status: "active" });
-        if (approval.sessionId) await resume(approval.sessionId);
-      } else if (approval.kind === "skill_promotion" && app.opifer.learning) {
-        // The promotion follows the decision: applied (a copy at the new scope) or denied.
-        const promotion = await app.opifer.learning.promotions.byApproval(companyId, approval.id);
-        if (promotion) {
-          try {
-            const decided = await app.opifer.learning.promotions.decide(companyId, promotion.id, approval.status === "approved", { kind: "person" });
-            followUp = decided.status === "applied" ? "promotion_applied" : "promotion_denied";
-            bus.publish("promotion.decided", companyId, { promotionId: decided.id, status: decided.status, kind: decided.kind });
-          } catch (error) {
-            followUp = `promotion failed: ${message(error)}`;
-          }
-        }
-      }
-      return { ...approval, followUp };
     },
   );
 

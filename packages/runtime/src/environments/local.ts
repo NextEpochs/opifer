@@ -16,7 +16,7 @@ function capped(text: string): string {
 }
 
 export class LocalEnvironment implements ExecutionEnvironment {
-  readonly id = "local";
+  readonly id: string = "local";
   private workdir = process.cwd();
 
   async prepare(workdir: string): Promise<void> {

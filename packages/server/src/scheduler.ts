@@ -9,7 +9,7 @@
 import path from "node:path";
 import type { EventBus } from "@opifer/core";
 import type { AgentRuntime, RuntimeEvent, SessionRecord } from "@opifer/runtime";
-import { TASK_GUIDE, describeTask, type Task, type Wakeup, type WorkService } from "@opifer/work";
+import { TASK_GUIDE, describeTask, type Routine, type RoutineRun, type RoutineService, type Task, type Wakeup, type WorkService } from "@opifer/work";
 import type { Sql } from "postgres";
 
 export interface SchedulerOptions {
@@ -18,6 +18,12 @@ export interface SchedulerOptions {
   runtime: AgentRuntime;
   bus: EventBus;
   workRoot: string;
+  /** Routines: claimed every tick, run in their own session. */
+  routines?: RoutineService;
+  /** The full text of a skill for a routine's context, by name (learning is optional). */
+  skillText?: (companyId: string, agentId: string, name: string) => Promise<string | null>;
+  /** Delivers a finished routine run to its channels. */
+  deliver?: (routine: Routine, run: RoutineRun, text: string) => Promise<void>;
   log?: { info: (o: unknown, m?: string) => void; warn: (o: unknown, m?: string) => void; error: (o: unknown, m?: string) => void };
   tickMs?: number;
   concurrency?: number;
@@ -38,6 +44,11 @@ export class Scheduler {
     this.tickMs = o.tickMs ?? 2000;
     this.concurrency = o.concurrency ?? 3;
     this.staleWakeupMs = o.staleWakeupMs ?? 10 * 60_000;
+  }
+
+  /** Where finished routine runs go (the channel hub). */
+  deliverTo(deliver: NonNullable<SchedulerOptions["deliver"]>): void {
+    this.o.deliver = deliver;
   }
 
   start(): void {
@@ -62,6 +73,10 @@ export class Scheduler {
     let started = 0;
     try {
       await this.o.work.requeueStaleWakeups(this.staleWakeupMs);
+      if (this.o.routines) {
+        const due = await this.o.routines.claimDue();
+        for (const run of due.claimed) this.o.bus.publish("routine.due", run.companyId, { routineId: run.routineId, runId: run.id, dueAt: run.dueAt.toISOString() });
+      }
       const freed = await this.o.work.releaseExpiredLeases();
       for (const task of freed) this.o.bus.publish("task.updated", task.companyId, { taskId: task.id, status: task.status, reason: "lease_expired" });
       while (this.running.size < this.concurrency) {
@@ -91,8 +106,9 @@ export class Scheduler {
 
   private async handle(wakeup: Wakeup): Promise<void> {
     const { work, runtime, sql } = this.o;
+    if (wakeup.reason === "routine") return this.handleRoutine(wakeup);
     if (!wakeup.taskId) {
-      await work.finishWakeup(wakeup.id, "skipped", "no task: routines and heartbeats arrive with M5");
+      await work.finishWakeup(wakeup.id, "skipped", "no task");
       return;
     }
     const task = await work.getTask(wakeup.companyId, wakeup.taskId);
@@ -166,6 +182,96 @@ export class Scheduler {
     }
 
     await this.settle(task, session, agent, stopReason, failed, lastText, holding);
+    await work.finishWakeup(wakeup.id, failed ? "failed" : "done", failed);
+  }
+
+  /**
+   * A routine run: its own session, the prompt as the message, the skills
+   * in the context; stopped for inactivity, never for duration. The run row
+   * was claimed at most once; a session that fails or is interrupted is
+   * recorded, not retried.
+   */
+  private async handleRoutine(wakeup: Wakeup): Promise<void> {
+    const { work, runtime, sql, routines } = this.o;
+    const runId = typeof wakeup.payload["runId"] === "string" ? wakeup.payload["runId"] : null;
+    if (!routines || !runId) return work.finishWakeup(wakeup.id, "skipped", "routines are not configured");
+    const run = await routines.getRun(wakeup.companyId, runId);
+    if (!run) return work.finishWakeup(wakeup.id, "skipped", "run not found");
+    if (run.status !== "claimed") return work.finishWakeup(wakeup.id, "skipped", `run is ${run.status}`);
+    const routine = await routines.get(wakeup.companyId, run.routineId);
+    if (!routine || !routine.enabled) {
+      await routines.finishRun(run.id, { status: "failed", error: "routine disabled or gone" });
+      return work.finishWakeup(wakeup.id, "skipped", "routine disabled or gone");
+    }
+    const [agent] = await sql<
+      { id: string; name: string; status: string }[]
+    >`SELECT id, name, status FROM agents WHERE id = ${routine.agentId} AND company_id = ${wakeup.companyId}`;
+    if (!agent || agent.status !== "active") {
+      await routines.finishRun(run.id, { status: "failed", error: agent ? `agent is ${agent.status}` : "agent not found" });
+      return work.finishWakeup(wakeup.id, "skipped", "agent unavailable");
+    }
+    const skills: string[] = [];
+    for (const name of routine.skills) {
+      const text = await this.o.skillText?.(wakeup.companyId, agent.id, name);
+      if (text) skills.push(text);
+    }
+    const context = [
+      `This is a run of the routine "${routine.name}" (${routine.scheduleKind === "interval" ? `every ${routine.schedule} seconds` : routine.scheduleKind === "cron" ? `cron ${routine.schedule}` : "once"}), due ${run.dueAt.toISOString()}. Do the job described in the message, then answer with the result: what you did, what you found, what needs a person. Your last answer is delivered as the outcome of this run.`,
+      ...skills.map((text) => `Skill to follow:\n${text}`),
+    ].join("\n\n");
+    const session = await runtime.startSession({
+      companyId: wakeup.companyId,
+      agentId: agent.id,
+      kind: "routine",
+      title: `${routine.name} · ${run.dueAt.toISOString().slice(0, 16).replace("T", " ")}`,
+      workdir: path.join(this.o.workRoot, `routine-${routine.id}`),
+      taskContext: context,
+      ...(routine.model ? { model: routine.model } : {}),
+    });
+    const started = await routines.startRun(run.id, session.id);
+    if (!started) return work.finishWakeup(wakeup.id, "skipped", "run taken by another scheduler");
+    this.o.bus.publish("routine.started", wakeup.companyId, { routineId: routine.id, runId: run.id, sessionId: session.id });
+
+    // Idle stop: the run is interrupted after idleTimeoutSeconds without any event, never for its duration.
+    const controller = new AbortController();
+    let idle: NodeJS.Timeout | null = null;
+    const touch = () => {
+      if (idle) clearTimeout(idle);
+      idle = setTimeout(() => controller.abort(), routine.idleTimeoutSeconds * 1000);
+      idle.unref();
+    };
+    touch();
+    let text = "";
+    let failed: string | null = null;
+    let interrupted = false;
+    try {
+      const result = await runtime.runTurn({
+        sessionId: session.id,
+        text: routine.prompt,
+        signal: controller.signal,
+        onEvent: (event: RuntimeEvent) => {
+          touch();
+          this.o.bus.publish("session.event", wakeup.companyId, { sessionId: session.id, runId: event.type === "done" ? event.run.id : null, event });
+        },
+      });
+      text = result.assistantText;
+      if (result.run.status === "failed") failed = result.run.error ?? "run failed";
+      if (result.stopReason === "interrupted") interrupted = true;
+    } catch (error) {
+      failed = error instanceof Error ? error.message : String(error);
+    } finally {
+      if (idle) clearTimeout(idle);
+    }
+    const status = failed ? "failed" : interrupted ? "interrupted" : "done";
+    await routines.finishRun(run.id, { status, result: text || null, error: failed ?? (interrupted ? `stopped after ${routine.idleTimeoutSeconds} seconds of inactivity` : null) });
+    this.o.bus.publish("routine.finished", wakeup.companyId, { routineId: routine.id, runId: run.id, status, preview: text.slice(0, 200) });
+    if (status === "done" && this.o.deliver) {
+      try {
+        await this.o.deliver(routine, { ...run, sessionId: session.id, status, result: text }, text);
+      } catch (error) {
+        this.o.log?.warn({ err: error, routineId: routine.id }, "routine delivery failed");
+      }
+    }
     await work.finishWakeup(wakeup.id, failed ? "failed" : "done", failed);
   }
 

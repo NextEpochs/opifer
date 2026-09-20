@@ -845,3 +845,227 @@ export const learningBackups = pgTable(
   },
   (t) => [index("learning_backups_company_idx").on(t.companyId, t.createdAt)],
 );
+
+// ---------------------------------------------------------------------------
+// Connections (M5): routines, tool connections, webhooks, events, channels.
+// ---------------------------------------------------------------------------
+
+export const routines = pgTable(
+  "routines",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+    agentId: uuid("agent_id")
+      .notNull()
+      .references(() => agents.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    prompt: text("prompt").notNull(),
+    scheduleKind: text("schedule_kind", { enum: ["interval", "cron", "once"] }).notNull(),
+    schedule: text("schedule").notNull(),
+    timezone: text("timezone").notNull().default("UTC"),
+    skills: text("skills")
+      .array()
+      .notNull()
+      .default(sql`'{}'`),
+    model: text("model"),
+    deliverTo: jsonb("deliver_to").$type<string[]>().notNull().default([]),
+    catchUpSeconds: integer("catch_up_seconds").notNull().default(3600),
+    idleTimeoutSeconds: integer("idle_timeout_seconds").notNull().default(600),
+    learn: boolean("learn").notNull().default(false),
+    enabled: boolean("enabled").notNull().default(true),
+    nextDueAt: timestamp("next_due_at", { withTimezone: true }),
+    lastRunAt: timestamp("last_run_at", { withTimezone: true }),
+    createdByKind: text("created_by_kind", { enum: ["person", "agent", "system"] })
+      .notNull()
+      .default("person"),
+    createdById: uuid("created_by_id"),
+    ...timestamps,
+  },
+  (t) => [unique("routines_company_id_name_key").on(t.companyId, t.name), index("routines_due_idx").on(t.enabled, t.nextDueAt)],
+);
+
+export const routineRuns = pgTable(
+  "routine_runs",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+    routineId: uuid("routine_id")
+      .notNull()
+      .references(() => routines.id, { onDelete: "cascade" }),
+    dueAt: timestamp("due_at", { withTimezone: true }).notNull(),
+    sessionId: uuid("session_id").references(() => sessions.id, { onDelete: "set null" }),
+    status: text("status", { enum: ["claimed", "running", "done", "failed", "skipped", "interrupted"] })
+      .notNull()
+      .default("claimed"),
+    result: text("result"),
+    error: text("error"),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (t) => [unique("routine_runs_routine_id_due_at_key").on(t.routineId, t.dueAt)],
+);
+
+export const toolConnections = pgTable(
+  "tool_connections",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+    kind: text("kind", { enum: ["mcp_stdio", "mcp_http", "workflow"] }).notNull(),
+    name: text("name").notNull(),
+    description: text("description").notNull().default(""),
+    config: jsonb("config").$type<Record<string, unknown>>().notNull().default({}),
+    risk: text("risk", { enum: ["low", "medium", "high"] })
+      .notNull()
+      .default("medium"),
+    secretNames: text("secret_names")
+      .array()
+      .notNull()
+      .default(sql`'{}'`),
+    enabled: boolean("enabled").notNull().default(true),
+    status: text("status", { enum: ["unknown", "healthy", "degraded", "failed", "missing_secret"] })
+      .notNull()
+      .default("unknown"),
+    statusDetail: text("status_detail"),
+    tools: jsonb("tools").$type<Array<{ name: string; description: string; inputSchema: Record<string, unknown> }>>().notNull().default([]),
+    lastCheckedAt: timestamp("last_checked_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (t) => [unique("tool_connections_company_id_name_key").on(t.companyId, t.name)],
+);
+
+export const webhooks = pgTable(
+  "webhooks",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    action: text("action", { enum: ["create_task", "wake_agent", "comment", "decide_approval"] }).notNull(),
+    tokenHash: text("token_hash").notNull(),
+    defaults: jsonb("defaults").$type<Record<string, unknown>>().notNull().default({}),
+    enabled: boolean("enabled").notNull().default(true),
+    calls: integer("calls").notNull().default(0),
+    lastCalledAt: timestamp("last_called_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (t) => [unique("webhooks_company_id_name_key").on(t.companyId, t.name)],
+);
+
+export const eventSubscriptions = pgTable(
+  "event_subscriptions",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    url: text("url").notNull(),
+    events: text("events")
+      .array()
+      .notNull()
+      .default(sql`'{*}'`),
+    secret: text("secret").notNull(),
+    enabled: boolean("enabled").notNull().default(true),
+    failures: integer("failures").notNull().default(0),
+    lastDeliveredAt: timestamp("last_delivered_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (t) => [unique("event_subscriptions_company_id_name_key").on(t.companyId, t.name)],
+);
+
+export const eventDeliveries = pgTable(
+  "event_deliveries",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+    subscriptionId: uuid("subscription_id")
+      .notNull()
+      .references(() => eventSubscriptions.id, { onDelete: "cascade" }),
+    eventType: text("event_type").notNull(),
+    payload: jsonb("payload").$type<Record<string, unknown>>().notNull(),
+    status: text("status", { enum: ["pending", "delivered", "failed"] })
+      .notNull()
+      .default("pending"),
+    attempts: integer("attempts").notNull().default(0),
+    nextAttemptAt: timestamp("next_attempt_at", { withTimezone: true }).notNull().defaultNow(),
+    responseStatus: integer("response_status"),
+    error: text("error"),
+    deliveredAt: timestamp("delivered_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (t) => [index("event_deliveries_pending_idx").on(t.status, t.nextAttemptAt)],
+);
+
+export const channels = pgTable(
+  "channels",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+    kind: text("kind", { enum: ["telegram"] }).notNull(),
+    name: text("name").notNull(),
+    secretName: text("secret_name").notNull(),
+    defaultAgentId: uuid("default_agent_id").references(() => agents.id, { onDelete: "set null" }),
+    config: jsonb("config").$type<Record<string, unknown>>().notNull().default({}),
+    enabled: boolean("enabled").notNull().default(true),
+    status: text("status", { enum: ["unknown", "healthy", "failed", "missing_secret"] })
+      .notNull()
+      .default("unknown"),
+    statusDetail: text("status_detail"),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (t) => [unique("channels_company_id_name_key").on(t.companyId, t.name)],
+);
+
+export const channelBindings = pgTable(
+  "channel_bindings",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+    channelId: uuid("channel_id")
+      .notNull()
+      .references(() => channels.id, { onDelete: "cascade" }),
+    externalSenderId: text("external_sender_id").notNull(),
+    externalChatId: text("external_chat_id").notNull(),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+    displayName: text("display_name").notNull().default(""),
+    pairingCode: text("pairing_code"),
+    pairingExpiresAt: timestamp("pairing_expires_at", { withTimezone: true }),
+    agentId: uuid("agent_id").references(() => agents.id, { onDelete: "set null" }),
+    sessionId: uuid("session_id").references(() => sessions.id, { onDelete: "set null" }),
+    notify: boolean("notify").notNull().default(true),
+    lastMessageAt: timestamp("last_message_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (t) => [unique("channel_bindings_channel_id_external_chat_id_external_sender_id_key").on(t.channelId, t.externalChatId, t.externalSenderId)],
+);

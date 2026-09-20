@@ -43,6 +43,8 @@ export interface NativeTool {
 
 export interface ToolExecutor {
   definitions(): ToolDefinition[];
+  /** Definitions for one company and agent, when tools differ per company (connections); falls back to `definitions()`. */
+  definitionsFor?(scope: { companyId: string; agentId: string }): Promise<ToolDefinition[]>;
   execute(name: string, args: Record<string, unknown>, context: ToolContext): Promise<ToolOutcome>;
   /** Governance check without executing: what a person must approve first, if anything. */
   preflight?(name: string, args: Record<string, unknown>, context: ToolContext): Promise<ApprovalNeeded | null>;

@@ -211,6 +211,25 @@ describe("the twenty invariants", () => {
       expect(claims).toHaveLength(5);
       expect(new Set(claims.map((w) => w!.id)).size).toBe(5);
       expect(claims.every((w) => w!.status === "running" && w!.attempts === 1)).toBe(true);
+      // A routine's due time is one run row, unique per due time: ten schedulers claiming the same
+      // moment produce one run; a run cut by a crash is recorded as interrupted and never re-run.
+      const { RoutineService } = await import("@opifer/work");
+      const routines = new RoutineService(db.sql, work);
+      const routine = await routines.create(
+        { companyId, agentId, name: "Once per due time", prompt: "Do the job.", scheduleKind: "interval", schedule: "600" },
+        { kind: "person" },
+        new Date("2026-09-20T12:00:00Z"),
+      );
+      const at = new Date("2026-09-20T12:10:00Z");
+      const claimed = (await Promise.all(Array.from({ length: 10 }, () => routines.claimDue(at)))).flatMap((r) => r.claimed).filter((r) => r.routineId === routine.id);
+      expect(claimed).toHaveLength(1);
+      const [session] = await db.sql<
+        { id: string }[]
+      >`INSERT INTO sessions (company_id, agent_id, kind, system_prompt, system_prompt_hash, model) VALUES (${companyId}, ${agentId}, 'routine', 'p', 'h', 'fake/echo') RETURNING id`;
+      expect((await routines.startRun(claimed[0]!.id, session!.id))?.status).toBe("running");
+      expect(await routines.markStaleRunsInterrupted()).toBe(1);
+      expect((await routines.claimDue(at)).claimed.filter((r) => r.routineId === routine.id)).toHaveLength(0);
+      expect((await routines.listRuns(companyId, routine.id)).map((r) => r.status)).toEqual(["interrupted"]);
     });
     it(invariantById("no-tool-replay").title, async () => {
       // A turn dies after the model asked for a tool: on resume the tool is not re-run.

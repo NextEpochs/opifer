@@ -19,6 +19,7 @@
     "@opifer/core": "workspace:*",
     "@opifer/db": "workspace:*",
     "@opifer/provider-openai": "workspace:*",
+    "@opifer/runtime": "workspace:*",
     "@opifer/server": "workspace:*",
     "commander": "^14.0.0"
   }

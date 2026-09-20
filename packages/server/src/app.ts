@@ -15,13 +15,18 @@ import { registerGovernanceRoutes } from "./routes/governance.js";
 import { registerOverviewRoutes } from "./routes/overview.js";
 import { registerWorkRoutes } from "./routes/work.js";
 import { AgentRuntime, NATIVE_TOOLS, NativeToolExecutor, SessionStore, type GovernanceGates, type LearningHooks, type ProviderRegistry } from "@opifer/runtime";
-import { WorkService, taskTools } from "@opifer/work";
-import { LEARNING_GUIDE, LearningService, learningTools } from "@opifer/learning";
+import { RoutineService, WorkService, taskTools } from "@opifer/work";
+import { LEARNING_GUIDE, LearningService, learningTools, renderSkillMarkdown } from "@opifer/learning";
 import type { ProviderSetup } from "./providers.js";
 import { buildGovernance, type Governance } from "./governance.js";
 import { Scheduler } from "./scheduler.js";
 import { LearningWorker } from "./learning-worker.js";
 import { registerLearningRoutes } from "./routes/learning.js";
+import { registerRoutineRoutes } from "./routes/routines.js";
+import { registerConnectionRoutes } from "./routes/connections.js";
+import { ChannelHub } from "./channels.js";
+import { ChannelService, ConnectionService, ConnectionToolExecutor, EventService, WebhookService } from "@opifer/connections";
+import { DockerEnvironment, LocalEnvironment, dockerAvailable, useEnvironment } from "@opifer/runtime";
 
 export interface AppOptions {
   db: DatabaseHandle;
@@ -47,6 +52,15 @@ export interface AppOptions {
   work?: { leaseMs?: number; failureThreshold?: number; scheduler?: boolean; tickMs?: number; concurrency?: number };
   /** Learning: the review worker (`worker: false` leaves reviews pending for tests), the review model, the embedding model. */
   learning?: { worker?: boolean; tickMs?: number; reviewModel?: string | null; embeddingModel?: string | null };
+  /** Connections: the channel hub and the event deliverer (`start: false` in tests), the sandbox for commands. */
+  connections?: {
+    start?: boolean;
+    eventTickMs?: number;
+    sandbox?: "local" | "docker" | "auto";
+    dockerImage?: string;
+    dockerNetwork?: string;
+    transport?: ConstructorParameters<typeof ChannelHub>[0]["transport"];
+  };
 }
 
 export interface AppContext {
@@ -56,9 +70,17 @@ export interface AppContext {
   runtime: AgentRuntime | null;
   governance: Governance | null;
   work: WorkService;
+  routines: RoutineService;
   scheduler: Scheduler | null;
   learning: LearningService | null;
   learningWorker: LearningWorker | null;
+  connections: ConnectionService;
+  webhooks: WebhookService;
+  events: EventService;
+  channels: ChannelService;
+  hub: ChannelHub | null;
+  /** How commands run: "local" or "docker", with the reason. */
+  sandbox: { kind: "local" | "docker"; detail: string };
 }
 
 export function buildRuntime(
@@ -101,6 +123,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
     ...(options.work?.leaseMs !== undefined ? { leaseMs: options.work.leaseMs } : {}),
     ...(options.work?.failureThreshold !== undefined ? { failureThreshold: options.work.failureThreshold } : {}),
   });
+  const routines = new RoutineService(options.db.sql, work);
   // Learning needs the providers (for the review and, when one can embed, for semantic search).
   const learning = options.providers
     ? new LearningService(options.db.sql, new SessionStore(options.db.sql), options.providers.providers, {
@@ -108,9 +131,47 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
         reviewModel: options.learning?.reviewModel ?? null,
       })
     : null;
-  // Native tools plus the task and learning tools, under governance when it is on.
-  const inner =
-    options.tools ?? new NativeToolExecutor([...NATIVE_TOOLS, ...taskTools(work, options.db.sql), ...(learning ? learningTools(learning.memories, learning.skills) : [])]);
+  // The sandbox: Docker when asked for (or available, with "auto"), the local process otherwise.
+  const wanted = options.connections?.sandbox ?? "auto";
+  let sandbox: AppContext["sandbox"] = { kind: "local", detail: "commands run on this machine" };
+  if (wanted !== "local") {
+    const docker = await dockerAvailable();
+    if (docker.ok) {
+      sandbox = {
+        kind: "docker",
+        detail: `${docker.detail}, image ${options.connections?.dockerImage ?? "node:22-bookworm-slim"}, network ${options.connections?.dockerNetwork ?? "none"}`,
+      };
+      useEnvironment(
+        () =>
+          new DockerEnvironment({
+            ...(options.connections?.dockerImage ? { image: options.connections.dockerImage } : {}),
+            ...(options.connections?.dockerNetwork ? { network: options.connections.dockerNetwork } : {}),
+          }),
+      );
+    } else {
+      sandbox = {
+        kind: "local",
+        detail:
+          wanted === "docker"
+            ? `Docker asked for but not available (${docker.detail}); commands run on this machine`
+            : `Docker not available (${docker.detail}); commands run on this machine`,
+      };
+      useEnvironment(() => new LocalEnvironment());
+    }
+  } else useEnvironment(() => new LocalEnvironment());
+
+  // Connections: MCP servers and workflow tools become tools of their company.
+  const readSecret = async (companyId: string, name: string, purpose: string) =>
+    governanceRef.current ? governanceRef.current.secrets.readForSystem(companyId, name, purpose) : null;
+  const governanceRef: { current: Governance | null } = { current: null };
+  const connections = new ConnectionService(options.db.sql, readSecret);
+  const webhooks = new WebhookService(options.db.sql);
+  const events = new EventService(options.db.sql);
+  const channels = new ChannelService(options.db.sql);
+  // Native tools plus the task and learning tools, then the connection tools, under governance when it is on.
+  const nativeExecutor = new NativeToolExecutor([...NATIVE_TOOLS, ...taskTools(work, options.db.sql), ...(learning ? learningTools(learning.memories, learning.skills) : [])]);
+  const connectionExecutor = new ConnectionToolExecutor(options.tools ?? nativeExecutor, connections);
+  const inner = connectionExecutor;
   const governance =
     options.providers && options.governance
       ? await buildGovernance(options.db, options.providers.providers, bus, {
@@ -119,12 +180,17 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
           inner,
         })
       : null;
+  governanceRef.current = governance;
   if (learning && governance) learning.attachGovernance({ approvals: governance.approvals, budget: governance.budget });
   const learningHooks: LearningHooks | null = learning
     ? {
         snapshot: (companyId, agentId) => learning.snapshot(companyId, agentId),
         onTurnDone: async (session, run) => {
-          // Routines (M5) will opt out; chats and task sessions are reviewed.
+          // Routines do not write memory unless they say so; chats and task sessions are reviewed.
+          if (session.kind === "routine") {
+            const owner = await routines.routineOfSession(session.id);
+            if (!owner?.routine.learn) return;
+          }
           await learning.reviewer.enqueue({ companyId: session.companyId, agentId: session.agentId, sessionId: session.id, runId: run.id, taskId: session.taskId });
         },
         guide: LEARNING_GUIDE,
@@ -153,6 +219,17 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
         bus,
         workRoot,
         log: app.log,
+        routines,
+        ...(learning
+          ? {
+              skillText: async (companyId: string, agentId: string, name: string) => {
+                const skill = await learning.skills.resolve(companyId, agentId, name);
+                const version = skill ? await learning.skills.version(companyId, skill.id) : null;
+                if (skill && version) await learning.skills.recordUse(companyId, skill.id, { agentId });
+                return skill && version ? renderSkillMarkdown(skill, version) : null;
+              },
+            }
+          : {}),
         ...(options.work?.tickMs !== undefined ? { tickMs: options.work.tickMs } : {}),
         ...(options.work?.concurrency !== undefined ? { concurrency: options.work.concurrency } : {}),
       })
@@ -160,7 +237,41 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   const learningWorker = learning
     ? new LearningWorker({ sql: options.db.sql, learning, bus, log: app.log, ...(options.learning?.tickMs !== undefined ? { tickMs: options.learning.tickMs } : {}) })
     : null;
-  app.decorate("opifer", { db: options.db, bus, mode: options.mode, runtime, governance, work, scheduler, learning, learningWorker });
+  const hub =
+    runtime && governance ? new ChannelHub({ app, bus, channels, log: app.log, ...(options.connections?.transport ? { transport: options.connections.transport } : {}) }) : null;
+  if (scheduler && hub) scheduler.deliverTo((routine, run, text) => hub.deliverRoutine(routine, run, text));
+  app.decorate("opifer", {
+    db: options.db,
+    bus,
+    mode: options.mode,
+    runtime,
+    governance,
+    work,
+    routines,
+    scheduler,
+    learning,
+    learningWorker,
+    connections,
+    webhooks,
+    events,
+    channels,
+    hub,
+    sandbox,
+  });
+  // Every company event is queued for its subscribers and sent by the deliverer.
+  bus.subscribe((event) => void events.enqueue(event).catch((error) => app.log.warn({ err: error }, "event enqueue failed")));
+  if (options.connections?.start !== false) {
+    let eventTimer: NodeJS.Timeout | null = null;
+    app.addHook("onReady", async () => {
+      await hub?.start();
+      eventTimer = setInterval(() => void events.flush().catch((error) => app.log.warn({ err: error }, "event delivery failed")), options.connections?.eventTickMs ?? 5000);
+      eventTimer.unref();
+    });
+    app.addHook("onClose", async () => {
+      if (eventTimer) clearInterval(eventTimer);
+      await hub?.stop();
+    });
+  }
   if (scheduler && options.work?.scheduler !== false) {
     app.addHook("onReady", async () => scheduler.start());
     app.addHook("onClose", async () => scheduler.stop());
@@ -173,6 +284,9 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
     // After a restart the runs left "running" are marked interrupted: the history stays, no replay.
     const stale = await runtime.store.markAllStaleRunsInterrupted();
     if (stale > 0) app.log.warn({ stale }, "runs interrupted by a restart");
+    // Routine runs cut by the restart are recorded as interrupted and never re-run: at most once.
+    const staleRoutines = await routines.markStaleRunsInterrupted();
+    if (staleRoutines > 0) app.log.warn({ staleRoutines }, "routine runs interrupted by a restart");
   }
 
   await app.register(fastifyWebsocket);
@@ -187,6 +301,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
     return {
       status: database === "ok" ? "ok" : "degraded",
       version: OPIFER_VERSION,
+      sandbox,
       mode: options.mode,
       database,
       runtime: runtime ? "ok" : "absent",
@@ -206,6 +321,11 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   await app.register(registerAgentRoutes, { prefix: "/v1" });
   await app.register(registerAuditRoutes, { prefix: "/v1" });
   await app.register(async (scope) => registerWorkRoutes(scope, { work, runtime }), { prefix: "/v1" });
+  await app.register(async (scope) => registerRoutineRoutes(scope, { routines }), { prefix: "/v1" });
+  await app.register(
+    async (scope) => registerConnectionRoutes(scope, { connections, webhooks, events, channels, hub, invalidateTools: (companyId) => connectionExecutor.invalidate(companyId) }),
+    { prefix: "/v1" },
+  );
   if (runtime && options.providers) {
     const setup = options.providers;
     await app.register(async (scope) => registerSessionRoutes(scope, { runtime, workRoot }), { prefix: "/v1" });

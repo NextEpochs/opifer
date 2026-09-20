@@ -23,6 +23,9 @@
       "path": "packages/learning"
     },
     {
+      "path": "packages/connections"
+    },
+    {
       "path": "packages/server"
     },
     {
@@ -30,6 +33,9 @@
     },
     {
       "path": "plugins/provider-anthropic"
+    },
+    {
+      "path": "plugins/channel-telegram"
     },
     {
       "path": "plugins/provider-openai"

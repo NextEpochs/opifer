@@ -3,6 +3,7 @@ import { DndContext, DragOverlay, PointerSensor, useDraggable, useDroppable, use
 import { Plus, X } from "lucide-react";
 import { api, eventsSocket, type Goal, type Project, type Task, type TaskStatus } from "../api";
 import { Button, Card, Chip, Input, Segmented } from "../ui";
+import { RoutinesView } from "../components/Routines";
 import { STATUS_ORDER, TaskCard, TaskForm } from "../components/TaskBits";
 import { TaskDrawer } from "../components/TaskDrawer";
 import type { Workspace } from "../App";
@@ -13,7 +14,7 @@ export function WorkPage({ ws, param }: { ws: Workspace; param: string | null })
   const [tasks, setTasks] = useState<Task[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
-  const [view, setView] = useState<"board" | "list">("board");
+  const [view, setView] = useState<"board" | "list" | "routines">("board");
   const [creating, setCreating] = useState(param === "new");
   const [projectFilter, setProjectFilter] = useState("");
   const [notice, setNotice] = useState<string | null>(null);
@@ -105,8 +106,9 @@ export function WorkPage({ ws, param }: { ws: Workspace; param: string | null })
               options={[
                 { value: "board", label: t.views.board },
                 { value: "list", label: t.views.list },
+                { value: "routines", label: t.views.routines },
               ]}
-              className="w-44"
+              className="w-64"
             />
             <select
               value={projectFilter}
@@ -127,9 +129,11 @@ export function WorkPage({ ws, param }: { ws: Workspace; param: string | null })
           </div>
         </header>
         {notice && <p className="m-0 rounded-control border border-warn/40 bg-warn-soft px-3 py-2 text-[13px] text-warn">{notice}</p>}
-        {tasks.length === 0 && !creating && <p className="text-sm text-mute">{t.noTasks}</p>}
+        {tasks.length === 0 && !creating && view !== "routines" && <p className="text-sm text-mute">{t.noTasks}</p>}
 
-        {view === "board" ? (
+        {view === "routines" ? (
+          <RoutinesView ws={ws} />
+        ) : view === "board" ? (
           <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={(e) => void onDragEnd(e)}>
             <div className="grid grid-cols-1 gap-3 md:grid-cols-3 2xl:grid-cols-5">
               {STATUS_ORDER.map((status) => (
@@ -142,7 +146,7 @@ export function WorkPage({ ws, param }: { ws: Workspace; param: string | null })
           <ListView ws={ws} tasks={tasks} projects={projects} onOpen={open} />
         )}
 
-        <GoalsPanel ws={ws} goals={goals} projects={projects} onChanged={load} />
+        {view !== "routines" && <GoalsPanel ws={ws} goals={goals} projects={projects} onChanged={load} />}
       </div>
 
       {(selected || creating) && (

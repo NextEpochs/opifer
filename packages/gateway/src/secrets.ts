@@ -217,6 +217,15 @@ export class SecretService {
     return values;
   }
 
+  /** A company secret for the system itself (a bot token, a connection key): no agent, access logged under the purpose. */
+  async readForSystem(companyId: string, name: string, purpose: string): Promise<string | null> {
+    const [row] = await this.sql<SecretRow[]>`SELECT * FROM secrets WHERE company_id = ${companyId} AND name = ${name} ORDER BY version DESC LIMIT 1`;
+    if (!row) return null;
+    await this
+      .sql`INSERT INTO secret_access_events (company_id, secret_name, agent_id, session_id, run_id, tool_name) VALUES (${companyId}, ${name}, NULL, NULL, NULL, ${purpose})`;
+    return this.cipher.decrypt(companyId, Buffer.from(row.ciphertext), Buffer.from(row.nonce));
+  }
+
   async accessLog(
     companyId: string,
     limit = 100,

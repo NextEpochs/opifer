@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Coins, GraduationCap, Home as HomeIcon, Inbox as InboxIcon, KanbanSquare, MessageSquare, Settings as SettingsIcon, Users } from "lucide-react";
+import { Coins, GraduationCap, Home as HomeIcon, Plug, Inbox as InboxIcon, KanbanSquare, MessageSquare, Settings as SettingsIcon, Users } from "lucide-react";
 import { api, eventsSocket, type Approval, type Company, type Overview, type Task } from "./api";
 import { detectLocale, fill, saveLocale, stringsFor, type Locale, type Strings } from "./i18n";
 import { useDocumentAttributes, usePref, type Theme, type ViewMode } from "./prefs";
@@ -12,10 +12,11 @@ import { MoneyPage } from "./pages/Money";
 import { SettingsPage } from "./pages/Settings";
 import { WorkPage } from "./pages/Work";
 import { LearningPage } from "./pages/Learning";
+import { ConnectionsPage } from "./pages/Connections";
 
-export type Page = "home" | "inbox" | "team" | "work" | "chat" | "money" | "learning" | "settings";
+export type Page = "home" | "inbox" | "team" | "work" | "chat" | "money" | "learning" | "connections" | "settings";
 
-const PAGES: Page[] = ["home", "inbox", "team", "work", "chat", "money", "learning", "settings"];
+const PAGES: Page[] = ["home", "inbox", "team", "work", "chat", "money", "learning", "connections", "settings"];
 
 function pageFromHash(): { page: Page; param: string | null } {
   const raw = location.hash.replace(/^#\/?/, "");
@@ -130,6 +131,7 @@ export function App() {
     { page: "chat", label: t.nav.chat, icon: MessageSquare },
     { page: "money", label: t.nav.money, icon: Coins },
     { page: "learning", label: t.nav.learning, icon: GraduationCap },
+    { page: "connections", label: t.nav.connections, icon: Plug },
   ];
 
   const ws: Workspace | null = company ? { company, companies, overview, pending, attention, t, locale, mode, refresh, go, agentName } : null;
@@ -219,6 +221,8 @@ export function App() {
           <ChatPage ws={ws} param={route.param} />
         ) : route.page === "learning" ? (
           <LearningPage ws={ws} param={route.param} />
+        ) : route.page === "connections" ? (
+          <ConnectionsPage ws={ws} />
         ) : (
           <MoneyPage ws={ws} />
         )}

@@ -36,6 +36,23 @@ import {
   runSkillList,
   runSkillShow,
 } from "./commands/learning.js";
+import {
+  runChannelAddTelegram,
+  runChannelList,
+  runChannelPair,
+  runChannelRemove,
+  runConnectionAction,
+  runConnectionAddMcp,
+  runConnectionAddWorkflow,
+  runConnectionList,
+  runRoutineAction,
+  runRoutineCreate,
+  runRoutineList,
+  runWebhookCreate,
+  runWebhookList,
+  runWebhookRemove,
+  runWebhookSubscribe,
+} from "./commands/connections.js";
 import { say, setColor } from "./output.js";
 
 const program = new Command();
@@ -373,6 +390,141 @@ learning
   .description("review on|off · promotion automatic|review|forbidden · threshold N · snapshot CHARS · inactive DAYS · archive DAYS")
   .option("--company <name>", "company (default: the first one)")
   .action(async (key: string, value: string, opts: { company?: string }) => runLearningSet({ key, value, ...opts, ...homeOf(program) }));
+
+const routine = program.command("routine").description("recurring work: an agent, a prompt, a schedule (at most one run per due time)");
+routine
+  .command("list", { isDefault: true })
+  .description("the routines and their next run")
+  .option("--company <name>", "company (default: the first one)")
+  .action(async (opts: { company?: string }) => runRoutineList({ ...opts, ...homeOf(program) }));
+routine
+  .command("create <name>")
+  .description('create a routine: --every "monday 9:00" | "every 2 hours" | "weekdays 18:30" | a cron | a date')
+  .requiredOption("--agent <name>", "who runs it")
+  .requiredOption("--every <schedule>", "when")
+  .requiredOption("--prompt <text>", "what to do each time")
+  .option("--timezone <tz>", "timezone for the schedule (default: this machine's)")
+  .option("--skills <names>", "comma-separated skills to load")
+  .option("--deliver <targets>", "comma-separated: channels (default), inbox, or a channel id")
+  .option("--learn", "let the routine write memory (off by default)")
+  .option("--company <name>", "company (default: the first one)")
+  .action(async (name: string, opts: { agent: string; every: string; prompt: string; timezone?: string; skills?: string; deliver?: string; learn?: boolean; company?: string }) =>
+    runRoutineCreate({ name, ...opts, ...homeOf(program) }),
+  );
+for (const [name, description] of [
+  ["run", "run a routine now"],
+  ["enable", "enable a routine"],
+  ["disable", "disable a routine"],
+  ["remove", "remove a routine"],
+  ["runs", "the last runs of a routine"],
+] as const) {
+  routine
+    .command(`${name} <name>`)
+    .description(description)
+    .option("--company <name>", "company (default: the first one)")
+    .action(async (routineName: string, opts: { company?: string }) => runRoutineAction({ action: name, name: routineName, ...opts, ...homeOf(program) }));
+}
+
+const connection = program.command("connection").description("MCP servers and workflow tools the agents can use");
+connection
+  .command("list", { isDefault: true })
+  .description("connections, their health and their tools")
+  .option("--company <name>", "company (default: the first one)")
+  .action(async (opts: { company?: string }) => runConnectionList({ ...opts, ...homeOf(program) }));
+connection
+  .command("add-mcp <name>")
+  .description("add an MCP server: --command with --args (local, stdio) or --url (remote, streamable HTTP)")
+  .option("--command <cmd>", "the executable, for example npx")
+  .option("--args <list>", "comma-separated arguments")
+  .option("--url <url>", "a remote MCP server")
+  .option("--secret <NAME>", "a company secret passed as environment variable (stdio) or bearer header (HTTP)")
+  .option("--risk <low|medium|high>", "risk of its tools (default medium)")
+  .option("--description <text>", "what it is for")
+  .option("--company <name>", "company (default: the first one)")
+  .action(async (name: string, opts: { command?: string; args?: string; url?: string; secret?: string; risk?: string; description?: string; company?: string }) =>
+    runConnectionAddMcp({ name, ...opts, ...homeOf(program) }),
+  );
+connection
+  .command("add-workflow <name>")
+  .description("add an n8n/Zapier/Make workflow as a tool: one URL the agent can call")
+  .requiredOption("--url <url>", "the webhook URL of the workflow")
+  .requiredOption("--description <text>", "when the agent should use it")
+  .option("--schema <json>", "JSON schema of the parameters")
+  .option("--field <name>", "JSON field of the response to return to the agent")
+  .option("--method <POST|GET>", "HTTP method (default POST)")
+  .option("--secret <NAME>", "a company secret sent as bearer header")
+  .option("--risk <low|medium|high>", "risk (default medium)")
+  .option("--company <name>", "company (default: the first one)")
+  .action(async (name: string, opts: { url: string; description: string; schema?: string; field?: string; method?: string; secret?: string; risk?: string; company?: string }) =>
+    runConnectionAddWorkflow({ name, ...opts, ...homeOf(program) }),
+  );
+for (const [name, description] of [
+  ["check", "talk to the server and refresh its tools and health"],
+  ["enable", "enable a connection"],
+  ["disable", "disable a connection"],
+  ["remove", "remove a connection"],
+  ["call", "call a tool by hand: --tool <name> --args '{...}'"],
+] as const) {
+  connection
+    .command(`${name} <name>`)
+    .description(description)
+    .option("--tool <tool>", "the tool (for call)")
+    .option("--args <json>", "the arguments (for call)")
+    .option("--company <name>", "company (default: the first one)")
+    .action(async (connectionName: string, opts: { tool?: string; args?: string; company?: string }) =>
+      runConnectionAction({ action: name, name: connectionName, ...opts, ...homeOf(program) }),
+    );
+}
+
+const webhook = program.command("webhook").description("inbound webhooks and outbound signed events (n8n, Zapier, Make, scripts)");
+webhook
+  .command("list", { isDefault: true })
+  .description("webhooks and subscriptions")
+  .option("--company <name>", "company (default: the first one)")
+  .action(async (opts: { company?: string }) => runWebhookList({ ...opts, ...homeOf(program) }));
+webhook
+  .command("create <name>")
+  .description("an inbound webhook: --action create_task | wake_agent | comment | decide_approval")
+  .requiredOption("--action <action>", "what a call does")
+  .option("--agent <name>", "default agent for the action")
+  .option("--company <name>", "company (default: the first one)")
+  .action(async (name: string, opts: { action: string; agent?: string; company?: string }) => runWebhookCreate({ name, ...opts, ...homeOf(program) }));
+webhook
+  .command("subscribe <name> <url>")
+  .description("send the company's events to a URL, signed")
+  .option("--events <list>", "comma-separated types or patterns (task.*, approval.requested…); default all")
+  .option("--company <name>", "company (default: the first one)")
+  .action(async (name: string, url: string, opts: { events?: string; company?: string }) => runWebhookSubscribe({ name, url, ...opts, ...homeOf(program) }));
+webhook
+  .command("remove <name>")
+  .description("remove a webhook or a subscription")
+  .option("--company <name>", "company (default: the first one)")
+  .action(async (name: string, opts: { company?: string }) => runWebhookRemove({ name, ...opts, ...homeOf(program) }));
+
+const channel = program.command("channel").description("messaging channels: talk to the agents and approve from Telegram");
+channel
+  .command("list", { isDefault: true })
+  .description("channels and who is paired")
+  .option("--company <name>", "company (default: the first one)")
+  .action(async (opts: { company?: string }) => runChannelList({ ...opts, ...homeOf(program) }));
+channel
+  .command("add-telegram")
+  .description("add the company's Telegram bot (token from @BotFather)")
+  .requiredOption("--token <token>", "the bot token")
+  .option("--agent <name>", "the agent that answers by default")
+  .option("--name <name>", "channel name (default Telegram)")
+  .option("--company <name>", "company (default: the first one)")
+  .action(async (opts: { token: string; agent?: string; name?: string; company?: string }) => runChannelAddTelegram({ ...opts, ...homeOf(program) }));
+channel
+  .command("pair <code>")
+  .description("link a chat to you with the code the bot gave you")
+  .option("--company <name>", "company (default: the first one)")
+  .action(async (code: string, opts: { company?: string }) => runChannelPair({ code, ...opts, ...homeOf(program) }));
+channel
+  .command("remove <name>")
+  .description("remove a channel")
+  .option("--company <name>", "company (default: the first one)")
+  .action(async (name: string, opts: { company?: string }) => runChannelRemove({ name, ...opts, ...homeOf(program) }));
 
 function homeOf(cmd: Command): { home?: string } {
   const home = (cmd.opts() as { home?: string }).home;

@@ -11,11 +11,18 @@ import { checkCommand } from "./safety.js";
 import type { NativeTool, ToolContext } from "./types.js";
 
 const environments = new Map<string, LocalEnvironment>();
+let factory: () => LocalEnvironment = () => new LocalEnvironment();
+
+/** Chooses how commands run (local process or a Docker container). Sessions already open keep their environment. */
+export function useEnvironment(make: () => LocalEnvironment): void {
+  factory = make;
+  environments.clear();
+}
 
 async function environmentFor(context: ToolContext): Promise<LocalEnvironment> {
   let env = environments.get(context.workdir);
   if (!env) {
-    env = new LocalEnvironment();
+    env = factory();
     await env.prepare(context.workdir);
     environments.set(context.workdir, env);
   }

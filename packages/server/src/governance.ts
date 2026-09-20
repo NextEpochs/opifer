@@ -57,7 +57,15 @@ export async function buildGovernance(db: DatabaseHandle, providers: ProviderReg
 
   const gates: GovernanceGates = {
     budget,
-    approvals,
+    approvals: {
+      // Every approval a turn asks for is announced on the bus: the interface, the channels and the subscribers hear it.
+      request: async (request) => {
+        const approval = await approvals.request(request);
+        bus.publish("approval.requested", request.companyId, { approvalId: approval.id, kind: request.kind, agentId: request.agentId, sessionId: request.sessionId });
+        return approval;
+      },
+      forToolCall: (sessionId, callId) => approvals.forToolCall(sessionId, callId),
+    },
     onBudgetStop: async (context, decision) => {
       await agents.setStatus(context.companyId, context.agentId, "budget_stopped", { actorKind: "system", reason: decision.reason });
       const approval = await approvals.request({

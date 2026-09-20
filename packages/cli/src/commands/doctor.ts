@@ -1,3 +1,4 @@
+import { dockerAvailable } from "@opifer/runtime";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { migrationStatus } from "@opifer/db";
@@ -67,6 +68,14 @@ export async function runDoctor(options: { home?: string }): Promise<void> {
       detail: enabled.length > 0 ? `${enabled.join(", ")} (default ${setup.defaultModel})` : "none: set ANTHROPIC_API_KEY, OPENAI_API_KEY or a local endpoint",
     });
   }
+
+  const docker = await dockerAvailable();
+  checks.push({
+    name: "Docker sandbox",
+    ok: docker.ok,
+    warn: true,
+    detail: docker.ok ? `${docker.detail}: agent commands run in containers with no network` : `not available (${docker.detail.slice(0, 80)}): commands run on this machine`,
+  });
 
   const ui = existsSync(path.join(uiDistDir(), "index.html"));
   checks.push({ name: "Compiled interface", ok: ui, detail: ui ? uiDistDir() : "missing: pnpm build" });

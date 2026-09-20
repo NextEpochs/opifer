@@ -174,7 +174,11 @@ export interface InboundMessage {
   channelId: string;
   externalChatId: string;
   externalSenderId: string;
+  /** How the sender calls themself on the platform. */
+  senderName?: string;
   text: string;
+  /** A tapped button (an approval, a control command) instead of text. */
+  actionId?: string;
   attachments?: Array<{ name: string; mimeType: string; bytes: Uint8Array }>;
 }
 
@@ -183,6 +187,8 @@ export interface OutboundMessage {
   text: string;
   /** Approval buttons and control commands, where the channel supports them. */
   actions?: Array<{ id: string; label: string }>;
+  /** Markdown-ish text: the channel renders what it can. */
+  markdown?: boolean;
 }
 
 export interface Channel {

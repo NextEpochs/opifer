@@ -18,6 +18,8 @@ export interface OpiferConfig {
     auxiliary?: string | null;
     local?: { baseURL: string; models?: string[]; tools?: boolean } | null;
   };
+  /** Where agent commands run: "auto" uses Docker when it is available, "local" the machine itself. */
+  sandbox?: { kind?: "auto" | "docker" | "local"; image?: string; network?: "none" | "bridge" };
 }
 
 export const DEFAULT_CONFIG: OpiferConfig = {
@@ -25,6 +27,7 @@ export const DEFAULT_CONFIG: OpiferConfig = {
   server: { host: "127.0.0.1", port: 4700 },
   database: { port: 4701 },
   models: { default: null, fallback: null, auxiliary: null, local: null },
+  sandbox: { kind: "auto", image: "node:22-bookworm-slim", network: "none" },
 };
 
 export interface OpiferHome {

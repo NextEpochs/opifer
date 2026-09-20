@@ -1,0 +1,36 @@
+{
+  "name": "@opifer/connections",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Tool connections (MCP servers, workflow tools), inbound webhooks, outbound signed events, messaging channels, the Docker sandbox.",
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc -b"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.20.0",
+    "@opifer/core": "workspace:*",
+    "@opifer/db": "workspace:*",
+    "@opifer/gateway": "workspace:*",
+    "@opifer/runtime": "workspace:*",
+    "@opifer/sdk": "workspace:*",
+    "@opifer/work": "workspace:*",
+    "postgres": "^3.4.7"
+  },
+  "devDependencies": {
+    "zod": "^4.6.5"
+  }
+}

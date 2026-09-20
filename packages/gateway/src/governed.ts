@@ -41,6 +41,10 @@ export class GovernedToolExecutor implements ToolExecutor {
     return this.inner.definitions();
   }
 
+  async definitionsFor(scope: { companyId: string; agentId: string }): Promise<ToolDefinition[]> {
+    return this.inner.definitionsFor ? this.inner.definitionsFor(scope) : this.inner.definitions();
+  }
+
   riskOf(name: string): RiskLevel {
     return this.inner.riskOf?.(name) ?? this.defaultRisk;
   }

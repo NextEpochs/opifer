@@ -7,6 +7,7 @@ export interface Health {
   database: "ok" | "error";
   runtime?: "ok" | "absent";
   governance?: "ok" | "absent";
+  sandbox?: { kind: "local" | "docker"; detail: string };
 }
 
 export interface Company {
@@ -354,6 +355,53 @@ export const api = {
       body: JSON.stringify(patch),
     }),
   promotions: (companyId: string) => request<Promotion[]>(`/v1/companies/${companyId}/promotions`),
+  setSecret: (companyId: string, name: string, value: string) =>
+    request<{ name: string }>(`/v1/companies/${companyId}/secrets`, { method: "PUT", body: JSON.stringify({ name, value }) }),
+  // routines
+  routines: (companyId: string) => request<Routine[]>(`/v1/companies/${companyId}/routines`),
+  createRoutine: (companyId: string, input: Partial<Routine> & { agentId: string; name: string; prompt: string; scheduleKind: Routine["scheduleKind"]; schedule: string }) =>
+    request<Routine>(`/v1/companies/${companyId}/routines`, { method: "POST", body: JSON.stringify(input) }),
+  updateRoutine: (companyId: string, id: string, patch: Partial<Routine>) =>
+    request<Routine>(`/v1/companies/${companyId}/routines/${id}`, { method: "PATCH", body: JSON.stringify(patch) }),
+  removeRoutine: (companyId: string, id: string) => request<void>(`/v1/companies/${companyId}/routines/${id}`, { method: "DELETE" }),
+  runRoutine: (companyId: string, id: string) => request<RoutineRun>(`/v1/companies/${companyId}/routines/${id}/run`, { method: "POST" }),
+  routineRuns: (companyId: string, id: string) => request<RoutineRun[]>(`/v1/companies/${companyId}/routines/${id}/runs?limit=20`),
+  // connections
+  connections: (companyId: string) => request<ToolConnection[]>(`/v1/companies/${companyId}/connections`),
+  createConnection: (
+    companyId: string,
+    input: { kind: ToolConnection["kind"]; name: string; description?: string; config: Record<string, unknown>; risk?: ToolConnection["risk"]; secretNames?: string[] },
+  ) => request<ToolConnection>(`/v1/companies/${companyId}/connections`, { method: "POST", body: JSON.stringify(input) }),
+  updateConnection: (companyId: string, id: string, patch: { enabled?: boolean; risk?: ToolConnection["risk"] }) =>
+    request<ToolConnection>(`/v1/companies/${companyId}/connections/${id}`, { method: "PATCH", body: JSON.stringify(patch) }),
+  checkConnection: (companyId: string, id: string) => request<ToolConnection>(`/v1/companies/${companyId}/connections/${id}/check`, { method: "POST" }),
+  removeConnection: (companyId: string, id: string) => request<void>(`/v1/companies/${companyId}/connections/${id}`, { method: "DELETE" }),
+  webhooks: (companyId: string) => request<Webhook[]>(`/v1/companies/${companyId}/webhooks`),
+  createWebhook: (companyId: string, input: { name: string; action: Webhook["action"]; defaults?: Record<string, unknown> }) =>
+    request<Webhook>(`/v1/companies/${companyId}/webhooks`, { method: "POST", body: JSON.stringify(input) }),
+  updateWebhook: (companyId: string, id: string, patch: { enabled?: boolean }) =>
+    request<Webhook>(`/v1/companies/${companyId}/webhooks/${id}`, { method: "PATCH", body: JSON.stringify(patch) }),
+  rotateWebhook: (companyId: string, id: string) => request<Webhook>(`/v1/companies/${companyId}/webhooks/${id}/rotate`, { method: "POST" }),
+  removeWebhook: (companyId: string, id: string) => request<void>(`/v1/companies/${companyId}/webhooks/${id}`, { method: "DELETE" }),
+  subscriptions: (companyId: string) => request<EventSubscription[]>(`/v1/companies/${companyId}/subscriptions`),
+  createSubscription: (companyId: string, input: { name: string; url: string; events?: string[] }) =>
+    request<EventSubscription>(`/v1/companies/${companyId}/subscriptions`, { method: "POST", body: JSON.stringify(input) }),
+  updateSubscription: (companyId: string, id: string, patch: { enabled?: boolean }) =>
+    request<EventSubscription>(`/v1/companies/${companyId}/subscriptions/${id}`, { method: "PATCH", body: JSON.stringify(patch) }),
+  removeSubscription: (companyId: string, id: string) => request<void>(`/v1/companies/${companyId}/subscriptions/${id}`, { method: "DELETE" }),
+  deliveries: (companyId: string) => request<EventDelivery[]>(`/v1/companies/${companyId}/deliveries?limit=20`),
+  channels: (companyId: string) => request<ChannelRecord[]>(`/v1/companies/${companyId}/channels`),
+  createChannel: (companyId: string, input: { kind: "telegram"; name: string; secretName: string; defaultAgentId?: string | null }) =>
+    request<ChannelRecord>(`/v1/companies/${companyId}/channels`, { method: "POST", body: JSON.stringify(input) }),
+  updateChannel: (companyId: string, id: string, patch: { defaultAgentId?: string | null; enabled?: boolean }) =>
+    request<ChannelRecord>(`/v1/companies/${companyId}/channels/${id}`, { method: "PATCH", body: JSON.stringify(patch) }),
+  reconnectChannel: (companyId: string, id: string) => request<ChannelRecord>(`/v1/companies/${companyId}/channels/${id}/reconnect`, { method: "POST" }),
+  removeChannel: (companyId: string, id: string) => request<void>(`/v1/companies/${companyId}/channels/${id}`, { method: "DELETE" }),
+  channelBindings: (companyId: string) => request<ChannelBinding[]>(`/v1/companies/${companyId}/channel-bindings`),
+  pairChannel: (companyId: string, code: string) => request<ChannelBinding>(`/v1/companies/${companyId}/channel-bindings/pair`, { method: "POST", body: JSON.stringify({ code }) }),
+  updateBinding: (companyId: string, id: string, patch: { agentId?: string | null; notify?: boolean }) =>
+    request<ChannelBinding>(`/v1/companies/${companyId}/channel-bindings/${id}`, { method: "PATCH", body: JSON.stringify(patch) }),
+  removeBinding: (companyId: string, id: string) => request<void>(`/v1/companies/${companyId}/channel-bindings/${id}`, { method: "DELETE" }),
 };
 
 // --- Learning (M4) -----------------------------------------------------------
@@ -461,6 +509,117 @@ export interface LearningSettings {
   inactiveAfterDays: number;
   archiveAfterDays: number;
   semanticSearch: boolean;
+}
+
+// --- Connections (M5) --------------------------------------------------------
+
+export interface Routine {
+  id: string;
+  agentId: string;
+  name: string;
+  prompt: string;
+  scheduleKind: "interval" | "cron" | "once";
+  schedule: string;
+  timezone: string;
+  skills: string[];
+  model: string | null;
+  deliverTo: string[];
+  catchUpSeconds: number;
+  idleTimeoutSeconds: number;
+  learn: boolean;
+  enabled: boolean;
+  nextDueAt: string | null;
+  lastRunAt: string | null;
+  createdAt: string;
+}
+
+export interface RoutineRun {
+  id: string;
+  routineId: string;
+  dueAt: string;
+  sessionId: string | null;
+  status: "claimed" | "running" | "done" | "failed" | "skipped" | "interrupted";
+  result: string | null;
+  error: string | null;
+  startedAt: string | null;
+  finishedAt: string | null;
+}
+
+export interface ToolConnection {
+  id: string;
+  kind: "mcp_stdio" | "mcp_http" | "workflow";
+  name: string;
+  description: string;
+  config: Record<string, unknown>;
+  risk: "low" | "medium" | "high";
+  secretNames: string[];
+  enabled: boolean;
+  status: "unknown" | "healthy" | "degraded" | "failed" | "missing_secret";
+  statusDetail: string | null;
+  tools: Array<{ name: string; description: string }>;
+  lastCheckedAt: string | null;
+}
+
+export interface Webhook {
+  id: string;
+  name: string;
+  action: "create_task" | "wake_agent" | "comment" | "decide_approval";
+  defaults: Record<string, unknown>;
+  enabled: boolean;
+  calls: number;
+  lastCalledAt: string | null;
+  token?: string;
+  url?: string;
+}
+
+export interface EventSubscription {
+  id: string;
+  name: string;
+  url: string;
+  events: string[];
+  enabled: boolean;
+  failures: number;
+  lastDeliveredAt: string | null;
+  secret?: string;
+}
+
+export interface EventDelivery {
+  id: string;
+  subscriptionId: string;
+  eventType: string;
+  status: "pending" | "delivered" | "failed";
+  attempts: number;
+  responseStatus: number | null;
+  error: string | null;
+  createdAt: string;
+}
+
+export interface ChannelRecord {
+  id: string;
+  kind: "telegram";
+  name: string;
+  secretName: string;
+  defaultAgentId: string | null;
+  config: { botUsername?: string };
+  enabled: boolean;
+  status: "unknown" | "healthy" | "failed" | "missing_secret";
+  statusDetail: string | null;
+  lastSeenAt: string | null;
+  live: boolean;
+}
+
+export interface ChannelBinding {
+  id: string;
+  channelId: string;
+  externalSenderId: string;
+  externalChatId: string;
+  userId: string | null;
+  displayName: string;
+  pairingCode: string | null;
+  agentId: string | null;
+  sessionId: string | null;
+  notify: boolean;
+  lastMessageAt: string | null;
 }
 
 export interface Approval {
