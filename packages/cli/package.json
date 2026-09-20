@@ -1,0 +1,22 @@
+{
+  "name": "@opifer/cli",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Il comando o4r: installazione, avvio, configurazione e uso quotidiano di Opifer.",
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "bin": {
+    "o4r": "./dist/main.js"
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc -b"
+  },
+  "dependencies": {
+    "@opifer/core": "workspace:*",
+    "@opifer/db": "workspace:*",
+    "@opifer/server": "workspace:*",
+    "commander": "^14.0.0"
+  }
+}

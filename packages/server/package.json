@@ -1,0 +1,29 @@
+{
+  "name": "@opifer/server",
+  "version": "0.0.1",
+  "private": true,
+  "description": "API HTTP /v1 ed eventi WebSocket di Opifer.",
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc -b",
+    "dev": "tsx watch src/dev.ts"
+  },
+  "dependencies": {
+    "@fastify/static": "^9.0.0",
+    "@fastify/websocket": "^11.3.0",
+    "@opifer/core": "workspace:*",
+    "@opifer/db": "workspace:*",
+    "fastify": "^5.6.0"
+  }
+}

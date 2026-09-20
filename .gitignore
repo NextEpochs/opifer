@@ -1,0 +1,25 @@
+# dipendenze e build
+node_modules/
+dist/
+*.tsbuildinfo
+.vite/
+
+# dati locali di Opifer (mai nel repository)
+.opifer/
+*.log
+
+# ambiente
+.env
+.env.*
+!.env.example
+
+# sistema e editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# test
+coverage/
+.tmp/

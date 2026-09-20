@@ -1,0 +1,12 @@
+{
+  "files": [],
+  "references": [
+    { "path": "packages/core" },
+    { "path": "packages/db" },
+    { "path": "packages/sdk" },
+    { "path": "packages/runtime" },
+    { "path": "packages/gateway" },
+    { "path": "packages/server" },
+    { "path": "packages/cli" }
+  ]
+}

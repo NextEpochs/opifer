@@ -1,0 +1,13 @@
+packages:
+  - "packages/*"
+  - "plugins/*"
+
+# Embedded Postgres downloads its binaries as npm packages: allow their install scripts.
+onlyBuiltDependencies:
+  - embedded-postgres
+  - "@embedded-postgres/linux-x64"
+  - "@embedded-postgres/linux-arm64"
+  - "@embedded-postgres/darwin-x64"
+  - "@embedded-postgres/darwin-arm64"
+  - "@embedded-postgres/windows-x64"
+  - esbuild

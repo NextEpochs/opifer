@@ -1,0 +1,30 @@
+{
+  "name": "@opifer/db",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Schema, migrazioni avanti e indietro e Postgres incorporato di Opifer.",
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./testing": {
+      "types": "./dist/testing.d.ts",
+      "default": "./dist/testing.js"
+    }
+  },
+  "files": ["dist", "migrations"],
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc -b"
+  },
+  "dependencies": {
+    "drizzle-orm": "^0.45.0",
+    "embedded-postgres": "17.10.0-beta.17",
+    "postgres": "^3.4.7"
+  }
+}
