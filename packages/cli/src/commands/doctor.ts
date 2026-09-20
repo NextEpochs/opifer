@@ -9,6 +9,7 @@ import { isPortOpen, openDatabase } from "../database.js";
 import { readConfig, resolveHome } from "../home.js";
 import { c, say } from "../output.js";
 import { uiDistDir } from "./up.js";
+import { readCliKey } from "./auth.js";
 
 interface Check {
   name: string;
@@ -113,10 +114,19 @@ export async function runDoctor(options: { home?: string }): Promise<void> {
         ok: health.status === "ok",
         detail: `${health.status} (database ${health.database}, runtime ${health.runtime}, governance ${health.governance}, sandbox ${health.sandbox?.kind ?? "?"})`,
       });
-      const companies = (await (await fetch(`http://${config.server.host === "0.0.0.0" ? "127.0.0.1" : config.server.host}:${config.server.port}/v1/companies`)).json()) as Array<{
-        name: string;
-        status: string;
-      }>;
+      // Authenticated mode: the companies list needs the CLI's own key (the health check is public).
+      const key = config.auth?.enabled ? await readCliKey(home) : null;
+      const answer = await fetch(`http://${config.server.host === "0.0.0.0" ? "127.0.0.1" : config.server.host}:${config.server.port}/v1/companies`, {
+        headers: key ? { authorization: `Bearer ${key}` } : {},
+      });
+      const companies = answer.ok ? ((await answer.json()) as Array<{ name: string; status: string }>) : [];
+      if (!answer.ok)
+        checks.push({
+          name: "Companies",
+          ok: false,
+          warn: true,
+          detail: `the server refused the companies list (${answer.status}): is this command line's key in place? o4r auth enable`,
+        });
       const stopped = companies.filter((co) => co.status === "suspended");
       if (stopped.length > 0) checks.push({ name: "Emergency stop", ok: false, warn: true, detail: `${stopped.map((co) => co.name).join(", ")} stopped: o4r resume when ready` });
     } catch (error) {
