@@ -57,7 +57,20 @@ export class Scheduler {
     if (this.timer) return;
     this.timer = setInterval(() => void this.tick(), this.tickMs);
     this.timer.unref();
-    void this.tick();
+    // A fresh process: whatever was "running" belonged to the one that died, so it goes back to pending at once,
+    // and tasks whose lease that process held are freed now rather than at the lease's expiry.
+    void this.recoverAfterRestart().then(() => this.tick());
+  }
+
+  async recoverAfterRestart(): Promise<void> {
+    try {
+      const requeued = await this.o.work.requeueStaleWakeups(0);
+      const freed = await this.o.work.releaseExpiredLeases(new Date(), { restart: true });
+      for (const task of freed) this.o.bus.publish("task.updated", task.companyId, { taskId: task.id, status: task.status, reason: "restart" });
+      if (requeued > 0 || freed.length > 0) this.o.log?.info({ requeued, freed: freed.length }, "recovered after a restart");
+    } catch (error) {
+      this.o.log?.error({ err: error }, "recovery after restart failed");
+    }
   }
 
   async stop(): Promise<void> {

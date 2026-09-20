@@ -615,15 +615,20 @@ export class WorkService {
     });
   }
 
-  /** Abandoned leases go back to todo; each expiry counts as a failed attempt. Returns the freed tasks. */
-  async releaseExpiredLeases(now: Date = new Date()): Promise<Task[]> {
+  /**
+   * Abandoned leases go back to todo; each expiry counts as a failed attempt. Returns the freed tasks.
+   * `restart: true` frees every held lease at once without counting a failure: the process that held them is gone.
+   */
+  async releaseExpiredLeases(now: Date = new Date(), options: { restart?: boolean } = {}): Promise<Task[]> {
     return this.sql.begin(async (tx) => {
-      const rows = await tx<TaskRow[]>`
+      const rows = options.restart
+        ? await tx<TaskRow[]>`SELECT * FROM tasks WHERE status = 'in_progress' AND lease_expires_at IS NOT NULL FOR UPDATE SKIP LOCKED`
+        : await tx<TaskRow[]>`
         SELECT * FROM tasks WHERE status = 'in_progress' AND lease_expires_at IS NOT NULL AND lease_expires_at < ${now} FOR UPDATE SKIP LOCKED
       `;
       const freed: Task[] = [];
       for (const before of rows) {
-        const failures = before.failures + 1;
+        const failures = options.restart ? before.failures : before.failures + 1;
         const blocked = failures >= this.failureThreshold;
         const [row] = await tx<TaskRow[]>`
           UPDATE tasks SET status = ${blocked ? "blocked" : "todo"}, failures = ${failures}, blocked_reason = ${blocked ? `${failures} abandoned or failed attempts` : null},
@@ -633,18 +638,18 @@ export class WorkService {
         await audit(tx, {
           companyId: before.company_id,
           actorKind: "system",
-          action: blocked ? "task.blocked" : "task.lease_expired",
+          action: blocked ? "task.blocked" : options.restart ? "task.released" : "task.lease_expired",
           subjectKind: "task",
           subjectId: before.id,
           taskId: before.id,
-          after: { failures, leaseRunId: before.lease_run_id, expiredAt: before.lease_expires_at?.toISOString() ?? null },
+          after: { failures, leaseRunId: before.lease_run_id, expiredAt: before.lease_expires_at?.toISOString() ?? null, ...(options.restart ? { reason: "restart" } : {}) },
         });
         if (!blocked && before.assignee_agent_id)
           await this.wake(
             before.company_id,
             before.assignee_agent_id,
             "retry",
-            { taskId: before.id, dedupeKey: `retry:${before.id}`, scheduledAt: new Date(now.getTime() + 30_000) },
+            { taskId: before.id, dedupeKey: `retry:${before.id}`, scheduledAt: new Date(now.getTime() + (options.restart ? 2000 : 30_000)) },
             tx,
           );
         freed.push(toTask(row!));

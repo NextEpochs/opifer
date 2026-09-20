@@ -285,6 +285,27 @@ describe("Work: tasks, wake-ups and the scheduler", () => {
     await runScheduler();
   });
 
+  it("after a restart the leases the dead process held are freed at once, without counting a failure, and its wake-ups go back to pending", async () => {
+    const created = (await app.inject({ method: "POST", url: `/v1/companies/${companyId}/tasks`, payload: { title: "Cut by a restart", assigneeAgentId: nora } })).json() as {
+      id: string;
+    };
+    // What the previous process left behind: a held lease and a wake-up it was running.
+    await db.sql`UPDATE tasks SET status = 'in_progress', lease_expires_at = now() + interval '4 minutes', lease_session_id = NULL, failures = 0 WHERE id = ${created.id}`;
+    await db.sql`UPDATE wakeups SET status = 'running', claimed_at = now() WHERE task_id = ${created.id}`;
+    await app.opifer.scheduler!.recoverAfterRestart();
+    const task = (await app.inject({ method: "GET", url: `/v1/tasks/${created.id}` })).json() as { status: string; failures: number; leaseExpiresAt: string | null };
+    expect(task.status).toBe("todo");
+    expect(task.failures).toBe(0);
+    expect(task.leaseExpiresAt).toBeNull();
+    const wakeups = ((await app.inject({ method: "GET", url: `/v1/companies/${companyId}/wakeups` })).json() as Array<{ taskId: string; status: string; reason: string }>).filter(
+      (w) => w.taskId === created.id,
+    );
+    expect(wakeups.every((w) => w.status === "pending")).toBe(true);
+    expect(wakeups.some((w) => w.reason === "retry")).toBe(true);
+    await app.inject({ method: "POST", url: `/v1/tasks/${created.id}/cancel`, payload: { note: "test over" } });
+    await runScheduler();
+  });
+
   it("a paused agent is skipped; blocking, unblocking and cancelling are audited; the overview shows the task work", async () => {
     await app.inject({ method: "POST", url: `/v1/agents/${nora}/status`, payload: { status: "paused" } });
     const created = (await app.inject({ method: "POST", url: `/v1/companies/${companyId}/tasks`, payload: { title: "While paused", assigneeAgentId: nora } })).json() as {
