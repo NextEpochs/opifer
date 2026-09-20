@@ -14,8 +14,8 @@ COPY plugins ./plugins
 COPY scripts ./scripts
 RUN pnpm install --frozen-lockfile
 RUN pnpm build
-# Removes the development dependencies while keeping the compiled dist folders.
-RUN pnpm prune --prod
+# Removes the development dependencies while keeping the compiled dist folders (CI=true: pnpm refuses to prune without a TTY otherwise).
+RUN CI=true pnpm prune --prod
 
 FROM node:22-bookworm-slim
 ENV NODE_ENV=production \

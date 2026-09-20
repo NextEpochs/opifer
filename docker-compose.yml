@@ -6,7 +6,8 @@ services:
     build: .
     image: opifer:local
     ports:
-      - "4700:4700"
+      # Loopback only: version 0.1 has no authentication. Put a reverse proxy with access control in front to reach it from elsewhere.
+      - "127.0.0.1:4700:4700"
     environment:
       OPIFER_COMPANY: "My company"
       # Model provider keys (M1); from M2 they live in the encrypted vault.

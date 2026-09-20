@@ -65,6 +65,8 @@ export function TaskCard({ task, ws, onOpen, dragging = false }: { task: Task; w
 }
 
 /** Creating a task: title, what to do, done when, who, priority, project. */
+const NEW_PROJECT = "__new_project__";
+
 export function TaskForm({
   ws,
   parentId,
@@ -86,6 +88,9 @@ export function TaskForm({
   const [priority, setPriority] = useState<TaskPriority>("normal");
   const [projectId, setProjectId] = useState(defaults?.projectId ?? "");
   const [projects, setProjects] = useState<Array<{ id: string; name: string }> | null>(null);
+  const [goals, setGoals] = useState<Array<{ id: string; title: string; status: string }>>([]);
+  // "+ New project…" in the selector opens a small inline form: the project is created here, then selected.
+  const [newProject, setNewProject] = useState<{ name: string; goalId: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
@@ -93,7 +98,27 @@ export function TaskForm({
       .projects(company.id)
       .then(setProjects)
       .catch(() => setProjects([]));
+    api
+      .goals(company.id)
+      .then(setGoals)
+      .catch(() => setGoals([]));
   }, [company.id]);
+
+  const createProject = async () => {
+    if (!newProject?.name.trim()) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const project = await api.createProject(company.id, { name: newProject.name.trim(), goalId: newProject.goalId || null });
+      setProjects((current) => [...(current ?? []), { id: project.id, name: project.name }]);
+      setProjectId(project.id);
+      setNewProject(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -160,15 +185,56 @@ export function TaskForm({
       {!parentId && (
         <label className="flex flex-col gap-1 text-sm">
           <span className="text-mute">{t.project}</span>
-          <Select value={projectId} onChange={(e) => setProjectId(e.target.value)}>
+          <Select
+            value={newProject ? NEW_PROJECT : projectId}
+            onChange={(e) => {
+              if (e.target.value === NEW_PROJECT) setNewProject({ name: "", goalId: "" });
+              else {
+                setNewProject(null);
+                setProjectId(e.target.value);
+              }
+            }}
+          >
             <option value="">{t.noProject}</option>
             {(projects ?? []).map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name}
               </option>
             ))}
+            <option value={NEW_PROJECT}>+ {t.newProject}…</option>
           </Select>
         </label>
+      )}
+      {!parentId && newProject && (
+        <div className="flex flex-col gap-2 rounded-control border border-line bg-panel p-3" role="group" aria-label={t.newProject}>
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="text-mute">{t.projectName}</span>
+            <Input value={newProject.name} onChange={(e) => setNewProject({ ...newProject, name: e.target.value })} autoFocus />
+          </label>
+          {goals.some((g) => g.status === "active") && (
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="text-mute">{t.goal}</span>
+              <Select value={newProject.goalId} onChange={(e) => setNewProject({ ...newProject, goalId: e.target.value })}>
+                <option value="">{t.goal}: —</option>
+                {goals
+                  .filter((g) => g.status === "active")
+                  .map((g) => (
+                    <option key={g.id} value={g.id}>
+                      {g.title}
+                    </option>
+                  ))}
+              </Select>
+            </label>
+          )}
+          <div className="flex gap-2">
+            <Button size="sm" variant="soft" disabled={busy || !newProject.name.trim()} onClick={() => void createProject()}>
+              {t.createProject}
+            </Button>
+            <Button size="sm" variant="ghost" disabled={busy} onClick={() => setNewProject(null)}>
+              {t.cancel}
+            </Button>
+          </div>
+        </div>
       )}
       {error && (
         <p role="alert" className="m-0 text-xs text-danger">

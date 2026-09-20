@@ -20,6 +20,17 @@ export interface DockerOptions {
   extraArgs?: string[];
   /** The docker binary. */
   binary?: string;
+  /**
+   * The user inside the container (`uid:gid`). By default, on Linux, the user running the server, so that files written
+   * under /work belong to it on the host; elsewhere Docker maps the ownership itself. `"root"` keeps the image's default.
+   */
+  user?: string;
+}
+
+function defaultUser(): string | undefined {
+  if (process.platform !== "linux" || typeof process.getuid !== "function" || typeof process.getgid !== "function") return undefined;
+  const uid = process.getuid();
+  return uid === 0 ? undefined : `${uid}:${process.getgid()}`;
 }
 
 export const DEFAULT_IMAGE = "node:22-bookworm-slim";
@@ -40,6 +51,7 @@ export class DockerEnvironment extends LocalEnvironment {
   private readonly network: string;
   private readonly extraArgs: string[];
   private readonly binary: string;
+  private readonly user: string | undefined;
 
   constructor(options: DockerOptions = {}) {
     super();
@@ -47,6 +59,7 @@ export class DockerEnvironment extends LocalEnvironment {
     this.network = options.network ?? "none";
     this.extraArgs = options.extraArgs ?? [];
     this.binary = options.binary ?? "docker";
+    this.user = options.user === "root" ? undefined : (options.user ?? defaultUser());
   }
 
   override run(command: string[], options: { cwd?: string; timeoutMs?: number; env?: Record<string, string>; signal?: AbortSignal } = {}): Promise<CommandResult> {

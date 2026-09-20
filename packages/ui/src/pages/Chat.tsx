@@ -17,6 +17,8 @@ interface LiveState {
 const emptyLive: LiveState = { streaming: "", tools: [], notices: [], busy: false };
 
 /** Chat with an agent: the primary door. Approvals show up in the thread; the workbench shows what the agent is doing. */
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export function ChatPage({ ws, param }: { ws: Workspace; param: string | null }) {
   const { t, company, overview, mode, pending } = ws;
   const agents = overview?.agents ?? [];
@@ -27,7 +29,8 @@ export function ChatPage({ ws, param }: { ws: Workspace; param: string | null })
   const [agentId, setAgentId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const bottom = useRef<HTMLDivElement>(null);
-  const selected = param && !param.startsWith("new-") ? param : null;
+  // Only a real id is fetched: a link built from a missing id ("#/chat/undefined") shows the empty state instead of a request.
+  const selected = param && !param.startsWith("new-") && UUID.test(param) ? param : null;
 
   const loadSessions = useCallback(async () => {
     setSessions(await api.sessions(company.id));

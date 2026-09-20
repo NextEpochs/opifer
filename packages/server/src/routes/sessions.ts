@@ -15,6 +15,9 @@ const createSessionBody = {
   },
 } as const;
 
+/** A session id is a uuid: anything else is a bad request, not a database error. */
+const sessionParams = { type: "object", properties: { id: { type: "string", format: "uuid" } }, required: ["id"] } as const;
+
 const messageBody = {
   type: "object",
   required: ["text"],
@@ -82,7 +85,7 @@ export async function registerSessionRoutes(app: FastifyInstance, options: Sessi
     },
   );
 
-  app.get<{ Params: { id: string } }>("/sessions/:id", async (request, reply) => {
+  app.get<{ Params: { id: string } }>("/sessions/:id", { schema: { params: sessionParams } }, async (request, reply) => {
     const session = await store.getSession(request.params.id);
     if (!session) return reply.code(404).send({ error: "session not found" });
     const messages = await store.listMessages(session.id);
@@ -91,13 +94,13 @@ export async function registerSessionRoutes(app: FastifyInstance, options: Sessi
     return { ...session, running: runtime.isRunning(session.id), messages, runs, compressions };
   });
 
-  app.get<{ Params: { id: string } }>("/sessions/:id/messages", async (request, reply) => {
+  app.get<{ Params: { id: string } }>("/sessions/:id/messages", { schema: { params: sessionParams } }, async (request, reply) => {
     const session = await store.getSession(request.params.id);
     if (!session) return reply.code(404).send({ error: "session not found" });
     return store.listMessages(session.id);
   });
 
-  app.get<{ Params: { id: string } }>("/sessions/:id/runs", async (request, reply) => {
+  app.get<{ Params: { id: string } }>("/sessions/:id/runs", { schema: { params: sessionParams } }, async (request, reply) => {
     const session = await store.getSession(request.params.id);
     if (!session) return reply.code(404).send({ error: "session not found" });
     const runs = await store.listRuns(session.id);
@@ -105,7 +108,7 @@ export async function registerSessionRoutes(app: FastifyInstance, options: Sessi
   });
 
   /** Sends a message: starts a turn in the background, or injects it into the running turn. */
-  app.post<{ Params: { id: string }; Body: { text: string } }>("/sessions/:id/messages", { schema: { body: messageBody } }, async (request, reply) => {
+  app.post<{ Params: { id: string }; Body: { text: string } }>("/sessions/:id/messages", { schema: { params: sessionParams, body: messageBody } }, async (request, reply) => {
     const session = await store.getSession(request.params.id);
     if (!session) return reply.code(404).send({ error: "session not found" });
     if (session.status !== "active") return reply.code(409).send({ error: `the session is ${session.status}` });
@@ -121,12 +124,12 @@ export async function registerSessionRoutes(app: FastifyInstance, options: Sessi
     return reply.code(202).send({ accepted: "turn_started", sessionId: session.id });
   });
 
-  app.post<{ Params: { id: string } }>("/sessions/:id/interrupt", async (request, reply) => {
+  app.post<{ Params: { id: string } }>("/sessions/:id/interrupt", { schema: { params: sessionParams } }, async (request, reply) => {
     const stopped = runtime.interrupt(request.params.id);
     return reply.code(stopped ? 202 : 409).send({ interrupted: stopped });
   });
 
-  app.post<{ Params: { id: string } }>("/sessions/:id/close", async (request, reply) => {
+  app.post<{ Params: { id: string } }>("/sessions/:id/close", { schema: { params: sessionParams } }, async (request, reply) => {
     const session = await store.getSession(request.params.id);
     if (!session) return reply.code(404).send({ error: "session not found" });
     runtime.interrupt(session.id);
