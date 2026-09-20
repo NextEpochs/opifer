@@ -21,7 +21,7 @@ export async function seedDemoCompany(app: FastifyInstance, options: DemoOptions
       method: "POST",
       url: "/v1/companies",
       payload: {
-        name: options.name ?? "NextEpochs",
+        name: options.name ?? "Proclive",
         mission: options.mission ?? "AI-powered software for small companies",
       },
     })

@@ -537,7 +537,7 @@ channel
 program
   .command("demo")
   .description("create a demo company on the running server: a team at work, tasks in every state, routines and connections")
-  .option("--name <name>", "company name (default: NextEpochs)")
+  .option("--name <name>", "company name (default: Proclive)")
   .action(async (opts: { name?: string }) => runDemo({ ...opts, ...homeOf(program) }));
 program
   .command("export [file]")

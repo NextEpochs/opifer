@@ -9,7 +9,7 @@ import { isPortOpen } from "./database.js";
 export async function serverBase(homeDir?: string): Promise<string> {
   const home = resolveHome(homeDir);
   const config = await requireConfig(home);
-  const base = `http://${config.server.host}:${config.server.port}`;
+  const base = `http://${config.server.host === "0.0.0.0" ? "127.0.0.1" : config.server.host}:${config.server.port}`;
   if (!(await isPortOpen(config.server.port, config.server.host === "0.0.0.0" ? "127.0.0.1" : config.server.host))) {
     throw new Error(`The server is not running on ${base}: run o4r up first (also with --detach)`);
   }

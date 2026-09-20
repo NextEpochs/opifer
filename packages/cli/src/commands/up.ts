@@ -42,14 +42,18 @@ export async function runUp(options: UpOptions): Promise<void> {
   const home = resolveHome(options.home);
   const config = await requireConfig(home);
 
+  // A pid file is proof of a running server only when that process is alive, is not this very process (in a container
+  // the server is pid 1 and so is its replacement after a restart) and the port answers; otherwise it is stale.
   const runningPid = await readPid(home);
-  if (runningPid && isProcessAlive(runningPid)) {
+  const portOpen = await isPortOpen(config.server.port);
+  if (runningPid && runningPid !== process.pid && isProcessAlive(runningPid) && portOpen) {
     say.warn(`Opifer is already running (pid ${runningPid}) on http://${config.server.host}:${config.server.port}`);
     return;
   }
-  if (await isPortOpen(config.server.port)) {
+  if (portOpen) {
     throw new Error(`Port ${config.server.port} is in use by another program`);
   }
+  if (runningPid) await rm(home.pidFile, { force: true });
 
   if (options.detach) {
     const out = openSync(home.logFile, "a");
