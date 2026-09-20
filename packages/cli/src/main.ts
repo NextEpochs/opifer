@@ -407,9 +407,13 @@ routine
   .option("--skills <names>", "comma-separated skills to load")
   .option("--deliver <targets>", "comma-separated: channels (default), inbox, or a channel id")
   .option("--learn", "let the routine write memory (off by default)")
+  .option("--as-task", "every run is a task: the agent can delegate to its reports and the result is reviewed")
   .option("--company <name>", "company (default: the first one)")
-  .action(async (name: string, opts: { agent: string; every: string; prompt: string; timezone?: string; skills?: string; deliver?: string; learn?: boolean; company?: string }) =>
-    runRoutineCreate({ name, ...opts, ...homeOf(program) }),
+  .action(
+    async (
+      name: string,
+      opts: { agent: string; every: string; prompt: string; timezone?: string; skills?: string; deliver?: string; learn?: boolean; asTask?: boolean; company?: string },
+    ) => runRoutineCreate({ name, ...opts, ...homeOf(program) }),
   );
 for (const [name, description] of [
   ["run", "run a routine now"],

@@ -109,6 +109,7 @@ export function RoutinesView({ ws }: { ws: Workspace }) {
                     </span>
                   </span>
                 </button>
+                {r.mode === "task" && <Chip tone="info">{t.routineTaskMode}</Chip>}
                 {r.skills.length > 0 && <Chip tone="mute">{r.skills.join(", ")}</Chip>}
                 <Button size="sm" onClick={() => void run(() => api.runRoutine(company.id, r.id), t.runQueued)}>
                   <Play size={13} /> {t.runNow}
@@ -142,10 +143,16 @@ export function RoutinesView({ ws }: { ws: Workspace }) {
                           {t.runStatus[x.status]}
                         </Chip>
                         <span className="text-[12px] text-mute">{x.dueAt.slice(0, 16).replace("T", " ")}</span>
-                        {x.sessionId && (
-                          <a href={`#/chat/${x.sessionId}`} className="ml-auto text-[12px] font-bold text-accent-text no-underline">
-                            {t.nav.chat} →
+                        {x.taskId ? (
+                          <a href={`#/work/${x.taskId}`} className="ml-auto text-[12px] font-bold text-accent-text no-underline">
+                            {t.nav.work} →
                           </a>
+                        ) : (
+                          x.sessionId && (
+                            <a href={`#/chat/${x.sessionId}`} className="ml-auto text-[12px] font-bold text-accent-text no-underline">
+                              {t.nav.chat} →
+                            </a>
+                          )
                         )}
                       </div>
                       {(x.result || x.error) && <p className="m-0 mt-1 line-clamp-4 whitespace-pre-wrap text-[12px]">{x.result ?? x.error}</p>}
@@ -172,6 +179,7 @@ function RoutineForm({ ws, onDone, onCancel }: { ws: Workspace; onDone: () => Pr
   const [skills, setSkills] = useState("");
   const [deliver, setDeliver] = useState(true);
   const [learn, setLearn] = useState(false);
+  const [asTask, setAsTask] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -197,6 +205,7 @@ function RoutineForm({ ws, onDone, onCancel }: { ws: Workspace; onDone: () => Pr
           .filter(Boolean),
         deliverTo: deliver ? ["channels"] : [],
         learn,
+        mode: asTask ? "task" : "session",
       });
       await onDone();
     } catch (err) {
@@ -250,6 +259,9 @@ function RoutineForm({ ws, onDone, onCancel }: { ws: Workspace; onDone: () => Pr
           </label>
           <label className="flex items-center gap-1.5 text-[13px] text-mute">
             <input type="checkbox" checked={learn} onChange={(e) => setLearn(e.target.checked)} /> {t.routineLearn}
+          </label>
+          <label className="flex items-center gap-1.5 text-[13px] text-mute" title={t.routineAsTaskHint}>
+            <input type="checkbox" checked={asTask} onChange={(e) => setAsTask(e.target.checked)} /> {t.routineAsTask}
           </label>
         </div>
         {error && <p className="m-0 text-[13px] text-danger">{error}</p>}

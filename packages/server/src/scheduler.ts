@@ -191,6 +191,51 @@ export class Scheduler {
    * was claimed at most once; a session that fails or is interrupted is
    * recorded, not retried.
    */
+  /**
+   * Task mode: the due time becomes a task assigned to the routine's agent,
+   * who works on it like any other (delegation to reports, review,
+   * verification). The run stays "running" until the task closes; see
+   * `closeTaskRun`.
+   */
+  private async runRoutineAsTask(wakeup: Wakeup, routine: Routine, run: RoutineRun): Promise<void> {
+    const { work, routines } = this.o;
+    const when = run.dueAt.toISOString().slice(0, 16).replace("T", " ");
+    const description = [
+      routine.prompt,
+      routine.skills.length > 0 ? `Load these skills first with skill_load: ${routine.skills.join(", ")}.` : "",
+      `This task is the ${when} run of the routine "${routine.name}". Deliver the result with task_deliver when it is ready.`,
+    ]
+      .filter(Boolean)
+      .join("\n\n");
+    const task = await work.createTask(
+      { companyId: wakeup.companyId, title: `${routine.name} · ${when}`, description, assigneeAgentId: routine.agentId },
+      { kind: "system", id: null },
+    );
+    const started = await routines!.startRunAsTask(run.id, task.id);
+    if (!started) return work.finishWakeup(wakeup.id, "skipped", "run taken by another scheduler");
+    this.o.bus.publish("routine.started", wakeup.companyId, { routineId: routine.id, runId: run.id, taskId: task.id });
+    await work.finishWakeup(wakeup.id, "done", `task ${task.id} created`);
+  }
+
+  /** A task closed: if it was a routine run, the run closes with it and the result is delivered. */
+  async closeTaskRun(task: Task, outcome: "success" | "failure"): Promise<void> {
+    const { routines } = this.o;
+    if (!routines) return;
+    const found = await routines.runOfTask(task.id);
+    if (!found || found.run.status !== "running") return;
+    const text = task.result?.summary ?? "";
+    const status = outcome === "success" ? "done" : "failed";
+    await routines.finishRun(found.run.id, { status, result: text || null, error: outcome === "failure" ? "the task was cancelled" : null });
+    this.o.bus.publish("routine.finished", task.companyId, { routineId: found.routine.id, runId: found.run.id, status, preview: text.slice(0, 200) });
+    if (status === "done" && this.o.deliver) {
+      try {
+        await this.o.deliver(found.routine, { ...found.run, status, result: text }, text);
+      } catch (error) {
+        this.o.log?.warn({ err: error, routineId: found.routine.id }, "routine delivery failed");
+      }
+    }
+  }
+
   private async handleRoutine(wakeup: Wakeup): Promise<void> {
     const { work, runtime, sql, routines } = this.o;
     const runId = typeof wakeup.payload["runId"] === "string" ? wakeup.payload["runId"] : null;
@@ -210,6 +255,7 @@ export class Scheduler {
       await routines.finishRun(run.id, { status: "failed", error: agent ? `agent is ${agent.status}` : "agent not found" });
       return work.finishWakeup(wakeup.id, "skipped", "agent unavailable");
     }
+    if (routine.mode === "task") return this.runRoutineAsTask(wakeup, routine, run);
     const skills: string[] = [];
     for (const name of routine.skills) {
       const text = await this.o.skillText?.(wakeup.companyId, agent.id, name);

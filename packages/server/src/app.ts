@@ -206,11 +206,6 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
         ...(learningHooks ? { learning: learningHooks } : {}),
       })
     : null;
-  if (learning) {
-    work.hooks.onTaskClosed = async (task, outcome) => {
-      await learning.onTaskClosed(task.companyId, task.id, outcome);
-    };
-  }
   const scheduler = runtime
     ? new Scheduler({
         sql: options.db.sql,
@@ -234,6 +229,11 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
         ...(options.work?.concurrency !== undefined ? { concurrency: options.work.concurrency } : {}),
       })
     : null;
+  // A closed task: a routine run in task mode closes with it; then learning looks at it.
+  work.hooks.onTaskClosed = async (task, outcome) => {
+    await scheduler?.closeTaskRun(task, outcome);
+    if (learning) await learning.onTaskClosed(task.companyId, task.id, outcome);
+  };
   const learningWorker = learning
     ? new LearningWorker({ sql: options.db.sql, learning, bus, log: app.log, ...(options.learning?.tickMs !== undefined ? { tickMs: options.learning.tickMs } : {}) })
     : null;

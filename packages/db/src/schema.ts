@@ -876,6 +876,9 @@ export const routines = pgTable(
     catchUpSeconds: integer("catch_up_seconds").notNull().default(3600),
     idleTimeoutSeconds: integer("idle_timeout_seconds").notNull().default(600),
     learn: boolean("learn").notNull().default(false),
+    mode: text("mode", { enum: ["session", "task"] })
+      .notNull()
+      .default("session"),
     enabled: boolean("enabled").notNull().default(true),
     nextDueAt: timestamp("next_due_at", { withTimezone: true }),
     lastRunAt: timestamp("last_run_at", { withTimezone: true }),
@@ -902,6 +905,7 @@ export const routineRuns = pgTable(
       .references(() => routines.id, { onDelete: "cascade" }),
     dueAt: timestamp("due_at", { withTimezone: true }).notNull(),
     sessionId: uuid("session_id").references(() => sessions.id, { onDelete: "set null" }),
+    taskId: uuid("task_id").references(() => tasks.id, { onDelete: "set null" }),
     status: text("status", { enum: ["claimed", "running", "done", "failed", "skipped", "interrupted"] })
       .notNull()
       .default("claimed"),
@@ -911,7 +915,12 @@ export const routineRuns = pgTable(
     finishedAt: timestamp("finished_at", { withTimezone: true }),
     ...timestamps,
   },
-  (t) => [unique("routine_runs_routine_id_due_at_key").on(t.routineId, t.dueAt)],
+  (t) => [
+    unique("routine_runs_routine_id_due_at_key").on(t.routineId, t.dueAt),
+    index("routine_runs_task_idx")
+      .on(t.taskId)
+      .where(sql`task_id IS NOT NULL`),
+  ],
 );
 
 export const toolConnections = pgTable(

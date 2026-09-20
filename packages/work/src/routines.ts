@@ -15,6 +15,8 @@ import type { Actor } from "./types.js";
 
 export type ScheduleKind = "interval" | "cron" | "once";
 export type RoutineRunStatus = "claimed" | "running" | "done" | "failed" | "skipped" | "interrupted";
+/** session: the agent answers in a session of its own; task: every run is a task the agent works on, delegates and gets reviewed like any other work. */
+export type RoutineMode = "session" | "task";
 
 export interface Routine {
   id: string;
@@ -31,6 +33,7 @@ export interface Routine {
   catchUpSeconds: number;
   idleTimeoutSeconds: number;
   learn: boolean;
+  mode: RoutineMode;
   enabled: boolean;
   nextDueAt: Date | null;
   lastRunAt: Date | null;
@@ -44,6 +47,7 @@ export interface RoutineRun {
   routineId: string;
   dueAt: Date;
   sessionId: string | null;
+  taskId: string | null;
   status: RoutineRunStatus;
   result: string | null;
   error: string | null;
@@ -67,6 +71,7 @@ interface RoutineRow {
   catch_up_seconds: number;
   idle_timeout_seconds: number;
   learn: boolean;
+  mode: RoutineMode;
   enabled: boolean;
   next_due_at: Date | null;
   last_run_at: Date | null;
@@ -80,6 +85,7 @@ interface RunRow {
   routine_id: string;
   due_at: Date;
   session_id: string | null;
+  task_id: string | null;
   status: RoutineRunStatus;
   result: string | null;
   error: string | null;
@@ -103,6 +109,7 @@ const toRoutine = (r: RoutineRow): Routine => ({
   catchUpSeconds: r.catch_up_seconds,
   idleTimeoutSeconds: r.idle_timeout_seconds,
   learn: r.learn,
+  mode: r.mode,
   enabled: r.enabled,
   nextDueAt: r.next_due_at,
   lastRunAt: r.last_run_at,
@@ -116,6 +123,7 @@ const toRun = (r: RunRow): RoutineRun => ({
   routineId: r.routine_id,
   dueAt: r.due_at,
   sessionId: r.session_id,
+  taskId: r.task_id,
   status: r.status,
   result: r.result,
   error: r.error,
@@ -179,6 +187,7 @@ export interface CreateRoutineInput {
   catchUpSeconds?: number;
   idleTimeoutSeconds?: number;
   learn?: boolean;
+  mode?: RoutineMode;
   enabled?: boolean;
 }
 
@@ -195,9 +204,9 @@ export class RoutineService {
     const schedule = normaliseSchedule(input.scheduleKind, input.schedule, timezone);
     const first = nextDue({ scheduleKind: schedule.kind, schedule: schedule.schedule, timezone }, now);
     const [row] = await this.sql<RoutineRow[]>`
-      INSERT INTO routines (company_id, agent_id, name, prompt, schedule_kind, schedule, timezone, skills, model, deliver_to, catch_up_seconds, idle_timeout_seconds, learn, enabled, next_due_at, created_by_kind, created_by_id)
+      INSERT INTO routines (company_id, agent_id, name, prompt, schedule_kind, schedule, timezone, skills, model, deliver_to, catch_up_seconds, idle_timeout_seconds, learn, mode, enabled, next_due_at, created_by_kind, created_by_id)
       VALUES (${input.companyId}, ${input.agentId}, ${input.name.trim()}, ${input.prompt.trim()}, ${schedule.kind}, ${schedule.schedule}, ${timezone}, ${input.skills ?? []}, ${input.model ?? null},
-              ${(input.deliverTo ?? []) as never}::jsonb, ${input.catchUpSeconds ?? 3600}, ${input.idleTimeoutSeconds ?? 600}, ${input.learn ?? false}, ${input.enabled ?? true}, ${first}, ${actor.kind}, ${actor.id ?? null})
+              ${(input.deliverTo ?? []) as never}::jsonb, ${input.catchUpSeconds ?? 3600}, ${input.idleTimeoutSeconds ?? 600}, ${input.learn ?? false}, ${input.mode ?? "session"}, ${input.enabled ?? true}, ${first}, ${actor.kind}, ${actor.id ?? null})
       RETURNING *
     `;
     const routine = toRoutine(row!);
@@ -238,7 +247,7 @@ export class RoutineService {
       UPDATE routines SET agent_id = ${patch.agentId ?? current.agentId}, name = ${(patch.name ?? current.name).trim()}, prompt = ${(patch.prompt ?? current.prompt).trim()},
         schedule_kind = ${schedule.kind}, schedule = ${schedule.schedule}, timezone = ${timezone}, skills = ${patch.skills ?? current.skills}, model = ${patch.model === undefined ? current.model : patch.model},
         deliver_to = ${(patch.deliverTo ?? current.deliverTo) as never}::jsonb, catch_up_seconds = ${patch.catchUpSeconds ?? current.catchUpSeconds}, idle_timeout_seconds = ${patch.idleTimeoutSeconds ?? current.idleTimeoutSeconds},
-        learn = ${patch.learn ?? current.learn}, enabled = ${enabled}, next_due_at = ${enabled ? next : null}
+        learn = ${patch.learn ?? current.learn}, mode = ${patch.mode ?? current.mode}, enabled = ${enabled}, next_due_at = ${enabled ? next : null}
       WHERE id = ${id} RETURNING *
     `;
     await audit(this.sql, {
@@ -354,6 +363,21 @@ export class RoutineService {
     return row ? toRun(row) : null;
   }
 
+  /** The scheduler turned the run into a task: it is running as that task until the task closes. */
+  async startRunAsTask(id: string, taskId: string): Promise<RoutineRun | null> {
+    const [row] = await this.sql<RunRow[]>`UPDATE routine_runs SET status = 'running', task_id = ${taskId}, started_at = now() WHERE id = ${id} AND status = 'claimed' RETURNING *`;
+    if (row) await this.sql`UPDATE routines SET last_run_at = now() WHERE id = ${row.routine_id}`;
+    return row ? toRun(row) : null;
+  }
+
+  /** The run of a task-mode routine, if the task is one. */
+  async runOfTask(taskId: string): Promise<{ routine: Routine; run: RoutineRun } | null> {
+    const [run] = await this.sql<RunRow[]>`SELECT * FROM routine_runs WHERE task_id = ${taskId}`;
+    if (!run) return null;
+    const routine = await this.get(run.company_id, run.routine_id);
+    return routine ? { routine, run: toRun(run) } : null;
+  }
+
   async finishRun(id: string, outcome: { status: "done" | "failed" | "interrupted"; result?: string | null; error?: string | null }): Promise<RoutineRun | null> {
     const [row] = await this.sql<
       RunRow[]
@@ -361,11 +385,11 @@ export class RoutineService {
     return row ? toRun(row) : null;
   }
 
-  /** After a restart: runs left running are interrupted, never re-run (at most once). */
+  /** After a restart: session runs left running are interrupted, never re-run (at most once). Task runs survive: the task itself is resumed by the scheduler. */
   async markStaleRunsInterrupted(): Promise<number> {
     const rows = await this.sql<
       { id: string }[]
-    >`UPDATE routine_runs SET status = 'interrupted', error = 'the server restarted during the run', finished_at = now() WHERE status = 'running' RETURNING id`;
+    >`UPDATE routine_runs SET status = 'interrupted', error = 'the server restarted during the run', finished_at = now() WHERE status = 'running' AND task_id IS NULL RETURNING id`;
     return rows.length;
   }
 

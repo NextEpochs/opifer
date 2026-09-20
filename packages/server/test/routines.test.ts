@@ -14,6 +14,7 @@ describe("Routines: scheduled runs in their own session", () => {
   let app: FastifyInstance;
   let companyId: string;
   let sam: string;
+  let dev: string;
   const delivered: Array<{ routine: string; text: string }> = [];
   let hang = false;
 
@@ -29,10 +30,21 @@ describe("Routines: scheduled runs in their own session", () => {
     db = await createTestDatabase();
     const provider = new FakeProvider((request) => {
       if (hang) return { kind: "hang" };
-      const text = request.messages
-        .at(-1)!
-        .content.map((p) => (p.type === "text" ? p.text : ""))
-        .join("");
+      const last = request.messages.at(-1)!;
+      const text = last.content.map((p) => (p.type === "text" ? p.text : "")).join("");
+      // Task mode: the manager delegates the numbers to Dev, then delivers the digest; Dev delivers the numbers.
+      const toolResult = last.content.find((p) => p.type === "tool_result");
+      if (toolResult && toolResult.type === "tool_result") {
+        const r = toolResult.content;
+        if (r.startsWith("Task:") && r.includes("run of the routine"))
+          return { kind: "tools", calls: [{ name: "task_create", arguments: { title: "Collect the week's numbers", assignee: "Dev" } }] };
+        if (r.startsWith("Task:"))
+          return { kind: "tools", calls: [{ name: "task_deliver", arguments: { summary: "Numbers: 16 packages, 134 tests green", verification: "pnpm test" } }] };
+        if (r.startsWith("Subtask created"))
+          return { kind: "tools", calls: [{ name: "task_deliver", arguments: { summary: "Weekly digest drafted; numbers delegated to Dev", verification: "read the subtask" } }] };
+        return { kind: "text", text: `ok: ${r.slice(0, 40)}` };
+      }
+      if (text.startsWith("You have been assigned")) return { kind: "tools", calls: [{ name: "task_status", arguments: {} }] };
       if (request.system.includes("Skill to follow:")) return { kind: "text", text: `Report done by the skill: 3 packages, 0 failures. (${text.slice(0, 20)})` };
       return { kind: "text", text: `Report done: all green. (${text.slice(0, 20)})` };
     });
@@ -53,6 +65,9 @@ describe("Routines: scheduled runs in their own session", () => {
     await app.ready();
     companyId = ((await app.inject({ method: "POST", url: "/v1/companies", payload: { name: "Routine Co", mission: "Keep things running" } })).json() as { id: string }).id;
     sam = ((await app.inject({ method: "POST", url: `/v1/companies/${companyId}/agents`, payload: { name: "Sam", role: "Operations" } })).json() as { id: string }).id;
+    dev = (
+      (await app.inject({ method: "POST", url: `/v1/companies/${companyId}/agents`, payload: { name: "Dev", role: "Developer", reportsToAgentId: sam } })).json() as { id: string }
+    ).id;
   }, 120_000);
 
   afterAll(async () => {
@@ -137,6 +152,62 @@ describe("Routines: scheduled runs in their own session", () => {
       (s) => s.name === "health-report",
     );
     expect(skill?.uses).toBe(1);
+  });
+
+  it("in task mode a run is a task: the agent delegates to a report, delivers, and the run closes with the task", async () => {
+    const routine = (
+      await app.inject({
+        method: "POST",
+        url: `/v1/companies/${companyId}/routines`,
+        payload: {
+          agentId: sam,
+          name: "Weekly digest",
+          prompt: "Write the weekly digest with the numbers from Dev.",
+          scheduleKind: "cron",
+          schedule: "0 9 * * 1",
+          mode: "task",
+          deliverTo: ["channels"],
+        },
+      })
+    ).json() as { id: string; mode: string };
+    expect(routine.mode).toBe("task");
+    await app.inject({ method: "POST", url: `/v1/companies/${companyId}/routines/${routine.id}/run` });
+    await runScheduler();
+    const [run] = (await app.inject({ method: "GET", url: `/v1/companies/${companyId}/routines/${routine.id}/runs` })).json() as Array<{
+      id: string;
+      status: string;
+      taskId: string | null;
+      sessionId: string | null;
+    }>;
+    expect(run!.status).toBe("running");
+    expect(run!.taskId).toBeTruthy();
+    expect(run!.sessionId).toBeNull();
+    // The task went to Sam, who delegated the numbers to Dev and delivered; Dev delivered too.
+    const task = (await app.inject({ method: "GET", url: `/v1/tasks/${run!.taskId}` })).json() as { title: string; status: string; assigneeAgentId: string; description: string };
+    expect(task.title.startsWith("Weekly digest · ")).toBe(true);
+    expect(task.assigneeAgentId).toBe(sam);
+    expect(task.description).toContain("Write the weekly digest");
+    expect(task.status).toBe("in_review");
+    const subtasks = (await app.inject({ method: "GET", url: `/v1/companies/${companyId}/tasks?parentId=${run!.taskId}` })).json() as Array<{
+      title: string;
+      assigneeAgentId: string;
+      status: string;
+    }>;
+    expect(subtasks).toEqual([expect.objectContaining({ title: "Collect the week's numbers", assigneeAgentId: dev, status: "in_review" })]);
+    // Nothing delivered yet: the run closes with the task, after review — and a parent closes only when its children are verified.
+    expect(delivered.some((d) => d.routine === "Weekly digest")).toBe(false);
+    expect((await app.inject({ method: "POST", url: `/v1/tasks/${run!.taskId}/complete`, payload: { summary: "too early" } })).statusCode).toBe(409);
+    const subtaskId = ((await app.inject({ method: "GET", url: `/v1/companies/${companyId}/tasks?parentId=${run!.taskId}` })).json() as Array<{ id: string }>)[0]!.id;
+    expect((await app.inject({ method: "POST", url: `/v1/tasks/${subtaskId}/complete`, payload: { summary: "Numbers verified" } })).statusCode).toBe(200);
+    const done = await app.inject({ method: "POST", url: `/v1/tasks/${run!.taskId}/complete`, payload: { summary: "Digest verified and sent", verification: "read it" } });
+    expect(done.statusCode).toBe(200);
+    const [closed] = (await app.inject({ method: "GET", url: `/v1/companies/${companyId}/routines/${routine.id}/runs` })).json() as Array<{
+      status: string;
+      result: string | null;
+    }>;
+    expect(closed!.status).toBe("done");
+    expect(closed!.result).toBe("Digest verified and sent");
+    expect(delivered).toContainEqual({ routine: "Weekly digest", text: "Digest verified and sent" });
   });
 
   it("a run that goes quiet is stopped for inactivity, not for duration", async () => {

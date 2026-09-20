@@ -24,6 +24,7 @@ const routineBody = {
     catchUpSeconds: { type: "integer", minimum: 0, maximum: 604_800 },
     idleTimeoutSeconds: { type: "integer", minimum: 1, maximum: 86_400 },
     learn: { type: "boolean" },
+    mode: { type: "string", enum: ["session", "task"] },
     enabled: { type: "boolean" },
   },
 } as const;

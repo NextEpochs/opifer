@@ -69,7 +69,7 @@ export function scheduleFrom(text: string): { scheduleKind: "interval" | "cron" 
 }
 
 export async function runRoutineCreate(
-  options: Common & { name: string; agent: string; every: string; prompt: string; timezone?: string; skills?: string; deliver?: string; learn?: boolean },
+  options: Common & { name: string; agent: string; every: string; prompt: string; timezone?: string; skills?: string; deliver?: string; learn?: boolean; asTask?: boolean },
 ): Promise<void> {
   const { base, company } = await connect(options);
   const agent = await resolveAgent(base, company.id, options.agent);
@@ -85,6 +85,7 @@ export async function runRoutineCreate(
       skills: options.skills ? options.skills.split(",").map((s) => s.trim()) : [],
       deliverTo: options.deliver ? options.deliver.split(",").map((s) => s.trim()) : ["channels"],
       learn: options.learn ?? false,
+      mode: options.asTask ? "task" : "session",
     }),
   });
   say.ok(`Routine "${routine.name}" for ${agent.name}: ${routine.scheduleKind} ${routine.schedule} (${routine.timezone}), next run ${when(routine.nextDueAt)}.`);

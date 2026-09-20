@@ -527,6 +527,7 @@ export interface Routine {
   catchUpSeconds: number;
   idleTimeoutSeconds: number;
   learn: boolean;
+  mode: "session" | "task";
   enabled: boolean;
   nextDueAt: string | null;
   lastRunAt: string | null;
@@ -538,6 +539,7 @@ export interface RoutineRun {
   routineId: string;
   dueAt: string;
   sessionId: string | null;
+  taskId: string | null;
   status: "claimed" | "running" | "done" | "failed" | "skipped" | "interrupted";
   result: string | null;
   error: string | null;
