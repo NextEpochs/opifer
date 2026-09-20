@@ -1,6 +1,6 @@
 {
   "name": "@opifer/gateway",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "description": "Tool registry, MCP client, permissions and budget reservation.",
   "license": "AGPL-3.0-only",

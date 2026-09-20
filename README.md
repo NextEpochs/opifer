@@ -243,7 +243,7 @@ Opifer is a Node.js server with a React interface, one PostgreSQL database and a
 | `packages/sdk`         | Contracts for plugins, channels, providers (MIT)                                                                                      |
 | `plugins/*`            | Plugins maintained by NextEpochs (MIT): Anthropic, OpenAI (API key and ChatGPT sign-in), OpenAI-compatible endpoints, the Telegram channel |
 
-Numbers from the 0.1.0 release: a clean install on a fresh Linux VM takes under a minute; the load test (20 agents, 200 tasks, 10 concurrent runs, scripted model) completes 220 runs in 13 s on 2 vCPU with none failed; the full end-to-end scene of the specification runs as a contract test.
+Numbers from the release: a clean install on a fresh Linux VM takes under a minute; the load test (20 agents, 200 tasks, 10 concurrent runs, scripted model) completes 220 runs in 13 s on 2 vCPU with none failed; the full end-to-end scene of the specification runs as a contract test.
 
 <br/>
 
@@ -278,7 +278,7 @@ The compose file binds the port to `127.0.0.1` on purpose. Agents' commands run 
 
 ## Status and roadmap
 
-**0.1.0 is the MVP** and it is released: everything above runs end to end, in tests and live. What comes next, in order:
+**1.0.0 is out**: everything above runs end to end, in tests, live on the Mac it was built on and on a second Linux machine with Docker. What comes next, in order:
 
 - Authenticated mode (users, roles, API keys) before any exposure beyond localhost
 - Docker sandbox verified on more machines; hardened runtimes as a deployment option

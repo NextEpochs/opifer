@@ -1,6 +1,6 @@
 {
   "name": "@opifer/runtime",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "description": "Phased agent loop, model providers, context management.",
   "license": "AGPL-3.0-only",

@@ -56,7 +56,7 @@ zod-to-json-schema 3.25.2 — Stefan Terdell (https://github.com/StefanTerdell/z
 @dnd-kit/core 6.3.1 — Claudéric Demers (https://github.com/clauderic/dnd-kit#readme)
 @dnd-kit/sortable 10.0.0 — Claudéric Demers (https://github.com/clauderic/dnd-kit#readme)
 @dnd-kit/utilities 3.2.2 — Claudéric Demers (https://github.com/clauderic/dnd-kit#readme)
-@embedded-postgres/linux-x64 17.10.0-beta.17 — Lei Nelissen (https://github.com/leinelissen/embedded-postgres#readme)
+@embedded-postgres/darwin-arm64 17.10.0-beta.17 — Lei Nelissen (https://github.com/leinelissen/embedded-postgres#readme)
 @fastify/accept-negotiator 2.1.0 — Aras Abbasi (https://github.com/fastify/accept-negotiator#readme)
 @fastify/ajv-compiler 4.0.6 — Manuel Spigolon (https://github.com/fastify/ajv-compiler#readme)
 @fastify/error 4.2.0 — Tomas Della Vedova (https://github.com/fastify/fastify-error#readme)

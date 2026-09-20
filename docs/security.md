@@ -1,4 +1,4 @@
-# Security review (MVP, 0.1.0)
+# Security review (1.0.0)
 
 What Opifer protects, how, and what it does not do yet. Reviewed before the first release; to be revisited at every milestone.
 

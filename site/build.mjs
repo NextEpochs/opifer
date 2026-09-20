@@ -9,6 +9,7 @@ import { marked } from "marked";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, "..");
 const out = path.join(here, "dist");
+const version = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8")).version;
 
 const pages = [
   {
@@ -74,7 +75,7 @@ ${body}
       <div class="wrap">
         <span>Opifer is a <a href="https://nextepochs.com" rel="noopener">NextEpochs</a> product.</span>
         <a href="https://github.com/NextEpochs/opifer/blob/main/LICENSE" rel="noopener">AGPL-3.0 core, MIT SDK and plugins</a>
-        <span class="r">Version 0.1.0</span>
+        <span class="r">Version ${version}</span>
       </div>
     </footer>
   </body>
@@ -83,7 +84,7 @@ ${body}
 
 rmSync(out, { recursive: true, force: true });
 mkdirSync(path.join(out, "docs"), { recursive: true });
-cpSync(path.join(here, "index.html"), path.join(out, "index.html"));
+writeFileSync(path.join(out, "index.html"), readFileSync(path.join(here, "index.html"), "utf8").replace("__VERSION__", version));
 cpSync(path.join(here, "style.css"), path.join(out, "style.css"));
 cpSync(path.join(here, "assets"), path.join(out, "assets"), { recursive: true });
 writeFileSync(path.join(out, "robots.txt"), "User-agent: *\nAllow: /\nSitemap: https://opifer.dev/sitemap.xml\n");

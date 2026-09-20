@@ -1,6 +1,6 @@
 # Security
 
-Opifer runs on one machine for one team and, in version 0.1, has no authentication: the server listens on `127.0.0.1` and whoever reaches the port is the owner. What is protected and how, and what is not done yet, is in [docs/security.md](docs/security.md). Read it before exposing anything.
+Opifer runs on one machine for one team and, in version 1.0, has no authentication: the server listens on `127.0.0.1` and whoever reaches the port is the owner. What is protected and how, and what is not done yet, is in [docs/security.md](docs/security.md). Read it before exposing anything.
 
 ## Reporting a vulnerability
 
@@ -19,4 +19,5 @@ Anything that lets a person or an agent do more than the governance allows: read
 
 | Version | Supported |
 | ------- | --------- |
-| 0.1.x   | Yes       |
+| 1.0.x   | Yes       |
+| 0.1.x   | No: upgrade to 1.0 |

@@ -2,6 +2,27 @@
 
 All notable changes to Opifer. The format follows Keep a Changelog; versions follow SemVer.
 
+## 1.0.0 — 2026-09-20 — the public release
+
+The repository is public, the website is up at [opifer.dev](https://opifer.dev), and everything the README says has been verified on a second machine. No breaking change from 0.1.0: the version says the product is ready to be tried.
+
+### Added
+- Website `site/` (home, the guides rendered from `docs/`), built with `node site/build.mjs`.
+- `CONTRIBUTING.md`, `CLA.md` (contributor licence agreement, sign-off on every commit checked by a workflow), `SECURITY.md` with private vulnerability reporting, issue forms and a pull request template.
+- The task form creates a project inline.
+- `DockerEnvironment` option `user`: on Linux the sandbox runs as the server's user, so files written under the task folder belong to it on the host.
+
+### Fixed
+- The container image did not build (`pnpm prune --prod` without a TTY) and then did not start (`commander`, then `@opifer/db` missing from a production install); verified on Linux with Docker 29: start, demo, restart, recovery after a kill.
+- `docker-compose.yml` published the port on every interface; it binds `127.0.0.1` now.
+- `o4r up` refused to start after a container restart because the stale pid file pointed at pid 1, its own pid.
+- After a server restart every wake-up left running went back to the queue without comparing the database clock with the process clock (a random CI failure).
+- `GET /v1/sessions/:id` with a malformed id answered 500; it answers 400.
+- The CLI printed `0.0.0.0` in URLs when listening on every interface.
+
+### Changed
+- The demo company is called Proclive.
+
 ## 0.1.0 — 2026-09-20 — the MVP
 
 The first release: the scene in section 16.1 of the specification runs end to end, in tests and live.

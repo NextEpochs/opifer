@@ -1,6 +1,6 @@
 {
   "name": "@opifer/channel-telegram",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Telegram channel for Opifer: one bot per company, chats with agents, approvals with buttons.",
   "license": "MIT",
   "type": "module",
