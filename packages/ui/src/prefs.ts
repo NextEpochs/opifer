@@ -60,6 +60,7 @@ export const DEFAULT_LAYOUT: WidgetPlacement[] = [
   { id: "spend", size: "s" },
   { id: "team", size: "m" },
   { id: "done", size: "m" },
-  { id: "activity", size: "l" },
+  { id: "learned", size: "m" },
+  { id: "activity", size: "m" },
   { id: "costByAgent", size: "s" },
 ];

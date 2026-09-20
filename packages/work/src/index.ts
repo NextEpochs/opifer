@@ -4,7 +4,7 @@
  */
 
 export { WorkService, WorkError } from "./service.js";
-export type { WorkServiceOptions } from "./service.js";
+export type { WorkServiceOptions, WorkHooks } from "./service.js";
 export type {
   Actor,
   ActorKind,

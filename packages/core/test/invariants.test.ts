@@ -352,8 +352,96 @@ describe("the twenty invariants", () => {
   });
 
   describe("learning", () => {
-    it.todo(invariantById("learn-outside-the-turn").title);
-    it.todo(invariantById("never-delete-what-was-learned").title);
-    it.todo(invariantById("knowledge-rises-only-with-governance").title);
+    let db: TestDatabase;
+    let companyId: string;
+    let agentId: string;
+    let learning: import("@opifer/learning").LearningService;
+    let store: import("@opifer/runtime").SessionStore;
+
+    beforeAll(async () => {
+      db = await createTestDatabase();
+      const { LearningService } = await import("@opifer/learning");
+      const { ProviderRegistry, SessionStore } = await import("@opifer/runtime");
+      const { FakeProvider } = await import("@opifer/runtime/testing");
+      const { ApprovalService } = await import("@opifer/gateway");
+      const [company] = await db.sql<{ id: string }[]>`INSERT INTO companies (name, mission) VALUES ('Learning', 'Learn from every job') RETURNING id`;
+      const [agent] = await db.sql<{ id: string }[]>`INSERT INTO agents (company_id, name, role) VALUES (${company!.id}, 'Leo', 'writer') RETURNING id`;
+      companyId = company!.id;
+      agentId = agent!.id;
+      // The reviewer always proposes one memory and one skill.
+      const provider = new FakeProvider(() => ({ kind: "text", text: JSON.stringify({ memories: [{ kind: "note", content: "The build command is pnpm build." }], skill: { name: "rebuild-site", description: "Rebuild the site", content: "1. pnpm install\n2. pnpm build\n3. check the output" }, retire: [], reason: "repeatable" }) }));
+      store = new SessionStore(db.sql);
+      learning = new LearningService(db.sql, store, new ProviderRegistry().register(provider), { approvals: new ApprovalService(db.sql) });
+    }, 120_000);
+
+    afterAll(async () => {
+      await db?.destroy();
+    });
+
+    it(invariantById("learn-outside-the-turn").title, async () => {
+      // The review reads a copy: the session's messages, prompt and runs are identical before and after; the knowledge lands in the store.
+      const session = await store.createSession({ companyId, agentId, kind: "chat", title: null, systemPrompt: "PROMPT", systemPromptHash: "p1", model: "fake/echo", fallbackModel: null, workdir: null, taskId: null });
+      const run = await store.createRun({ id: session.id, companyId, agentId });
+      await store.appendMessage(session, "user", [{ type: "text", text: "Rebuild the website and make sure the build passes, then tell me." }], { runId: run.id });
+      await store.appendMessage(session, "assistant", [{ type: "text", text: "Rebuilt with pnpm build; the build passes." }], { runId: run.id });
+      await store.finishRun(run.id, { status: "completed", stopReason: "final_answer" });
+      const before = JSON.stringify({ messages: await store.listMessages(session.id), session: await store.getSession(session.id), runs: await store.listRuns(session.id) });
+      const review = await learning.reviewer.run((await learning.reviewer.enqueue({ companyId, agentId, sessionId: session.id, runId: run.id }))!);
+      expect(review.status).toBe("done");
+      expect(review.applied.memoryIds).toHaveLength(1);
+      expect(review.applied.skill?.name).toBe("rebuild-site");
+      const after = JSON.stringify({ messages: await store.listMessages(session.id), session: await store.getSession(session.id), runs: await store.listRuns(session.id) });
+      expect(after).toBe(before);
+      // It enters play from the next session: the snapshot now carries it.
+      const snapshot = await learning.snapshot(companyId, agentId);
+      expect(snapshot.memory).toContain("pnpm build");
+      expect(snapshot.skills.map((s) => s.name)).toContain("rebuild-site");
+    });
+
+    it(invariantById("never-delete-what-was-learned").title, async () => {
+      // Unused agent skills are archived, not deleted, and come back; pinned ones are untouched.
+      const { skills } = learning;
+      const old = new Date(Date.now() - 120 * 86_400_000);
+      const unused = await skills.create({ companyId, scope: "agent", scopeAgentId: agentId, name: "old-way", description: "an old way", content: "steps", origin: "agent" }, { kind: "agent", id: agentId });
+      const pinned = await skills.create({ companyId, scope: "agent", scopeAgentId: agentId, name: "keep-me", description: "pinned by Mike", content: "steps", origin: "agent", pinned: true }, { kind: "agent", id: agentId });
+      await db.sql`UPDATE skills SET created_at = ${old} WHERE id IN (${unused.id}, ${pinned.id})`;
+      const pass = await skills.curate(companyId, { inactiveAfterDays: 30, archiveAfterDays: 90 });
+      expect(pass.archived).toEqual([unused.id]);
+      expect((await skills.get(companyId, pinned.id))?.status).toBe("active");
+      expect((await skills.get(companyId, unused.id))?.status).toBe("archived");
+      expect((await skills.versions(companyId, unused.id)).length).toBe(1);
+      const [backups] = await db.sql<{ n: string }[]>`SELECT count(*)::text AS n FROM learning_backups WHERE company_id = ${companyId}`;
+      expect(Number(backups!.n)).toBe(1);
+      const restored = await skills.setStatus(companyId, unused.id, "active", { kind: "person" });
+      expect(restored.status).toBe("active");
+      // Memories are retired with a reason, never removed.
+      const memory = await learning.memories.remember({ companyId, scope: "agent", scopeAgentId: agentId, content: "A fact that turned out wrong." }, { kind: "agent", id: agentId });
+      await learning.memories.retire(companyId, memory.id, "proved wrong", { kind: "person" });
+      expect((await learning.memories.get(companyId, memory.id))?.status).toBe("retired");
+    });
+
+    it(invariantById("knowledge-rises-only-with-governance").title, async () => {
+      // The company policy decides: forbidden never rises, review waits for a person, automatic rises by itself.
+      const { skills, promotions, settings } = learning;
+      const person = { kind: "person" as const };
+      const skill = await skills.create({ companyId, scope: "agent", scopeAgentId: agentId, name: "cite-sources", description: "Cite a source for every number", content: "steps", origin: "agent" }, { kind: "agent", id: agentId });
+      const atCompany = async () => (await skills.list(companyId, { scope: "company" })).some((s) => s.name === "cite-sources");
+
+      await settings.update(companyId, { promotion: "forbidden" }, person);
+      await expect(promotions.propose(companyId, "skill", skill.id, "company", person)).rejects.toMatchObject({ code: "forbidden" });
+      expect(await atCompany()).toBe(false);
+
+      await settings.update(companyId, { promotion: "review" }, person);
+      const proposed = await promotions.propose(companyId, "skill", skill.id, "company", person);
+      expect(proposed.status).toBe("proposed");
+      expect(proposed.approvalId).not.toBeNull();
+      expect(await atCompany()).toBe(false);
+      await promotions.decide(companyId, proposed.id, true, person);
+      expect(await atCompany()).toBe(true);
+
+      await settings.update(companyId, { promotion: "automatic" }, person);
+      const memory = await learning.memories.remember({ companyId, scope: "agent", scopeAgentId: agentId, content: "Numbers need a source." }, person);
+      expect((await promotions.propose(companyId, "memory", memory.id, "company", person)).status).toBe("applied");
+    });
   });
 });

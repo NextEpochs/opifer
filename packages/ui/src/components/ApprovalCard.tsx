@@ -54,9 +54,21 @@ export function ApprovalCard({ approval: a, agentName, companyId, t, onDecided, 
     }
   };
 
+  const promo = a.kind === "skill_promotion" ? (a.subject as { kind?: string; name?: string | null; preview?: string | null; evidence?: { successes?: number } }) : null;
   const title =
-    a.kind === "tool_use" ? fill(t.wantsTo.tool_use, { agent, tool: toolLabel.toLowerCase() }) : a.kind === "dangerous_command" ? fill(t.wantsTo.dangerous_command, { agent }) : a.kind === "budget_increase" ? fill(t.wantsTo.budget_increase, { agent }) : fill(t.wantsTo.other, { agent });
-  const explanation = a.kind === "tool_use" ? fill(t.explain.tool_use, { agent }) : a.kind === "dangerous_command" ? t.explain.dangerous_command : a.kind === "budget_increase" ? fill(t.explain.budget_increase, { agent }) : null;
+    a.kind === "tool_use"
+      ? fill(t.wantsTo.tool_use, { agent, tool: toolLabel.toLowerCase() })
+      : a.kind === "dangerous_command"
+        ? fill(t.wantsTo.dangerous_command, { agent })
+        : a.kind === "budget_increase"
+          ? fill(t.wantsTo.budget_increase, { agent })
+          : promo
+            ? promo.kind === "memory"
+              ? fill(t.wantsTo.memory_promotion, { agent })
+              : fill(t.wantsTo.skill_promotion, { name: promo.name ?? "" })
+            : fill(t.wantsTo.other, { agent });
+  const explanation =
+    a.kind === "tool_use" ? fill(t.explain.tool_use, { agent }) : a.kind === "dangerous_command" ? t.explain.dangerous_command : a.kind === "budget_increase" ? fill(t.explain.budget_increase, { agent }) : promo ? fill(t.explain.skill_promotion, { agent, successes: promo.evidence?.successes ?? 0 }) : null;
   const tone = a.risk === "high" ? "danger" : a.risk === "medium" ? "warn" : "mute";
   const pending = a.status === "pending";
 
@@ -76,6 +88,7 @@ export function ApprovalCard({ approval: a, agentName, companyId, t, onDecided, 
 
       {s.command ? <Code>{s.command}</Code> : s.tool && Object.keys(s.args).length > 0 ? <Code>{JSON.stringify(s.args, null, 1).slice(0, 600)}</Code> : null}
 
+      {promo?.preview && <p className="m-0 rounded-control border border-line bg-raised px-3 py-2 text-[13px]">{promo.preview}</p>}
       {a.kind === "budget_increase" && (
         <div className="text-[13px] text-mute">
           {s.scope}: {money(s.spent, s.currency)} / {money(s.cap, s.currency)}

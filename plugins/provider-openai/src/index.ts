@@ -15,6 +15,8 @@ import {
   ProviderError,
   type CompletionRequest,
   type ContentToolCall,
+  type Embedder,
+  type EmbeddingProvider,
   type Message,
   type ModelInfo,
   type ModelProvider,
@@ -98,7 +100,7 @@ function mapError(error: unknown, label: string): ProviderError {
   return new ProviderError(error instanceof Error ? error.message : String(error), "unknown");
 }
 
-export class OpenAIProvider implements ModelProvider {
+export class OpenAIProvider implements ModelProvider, EmbeddingProvider {
   readonly id: string;
   private readonly client: OpenAI;
   private readonly options: OpenAIProviderOptions;
@@ -109,6 +111,26 @@ export class OpenAIProvider implements ModelProvider {
     const apiKey = options.apiKey ?? process.env["OPENAI_API_KEY"];
     if (!apiKey && !options.baseURL) throw new ProviderError("missing OpenAI key (OPENAI_API_KEY)", "auth");
     this.client = new OpenAI({ apiKey: apiKey ?? "not-required", ...(options.baseURL ? { baseURL: options.baseURL } : {}), maxRetries: 0 });
+  }
+
+  /** Embeddings through the same client; `text-embedding-3-small` unless told otherwise. */
+  embedder(model = "text-embedding-3-small"): Embedder {
+    const client = this.client;
+    const label = this.id;
+    const dims = model.includes("large") ? 3072 : model.includes("ada") ? 1536 : model.includes("nomic") ? 768 : 1536;
+    return {
+      id: `${label}/${model}`,
+      dimensions: dims,
+      async embed(texts: string[]): Promise<number[][]> {
+        if (texts.length === 0) return [];
+        try {
+          const response = await client.embeddings.create({ model, input: texts });
+          return response.data.sort((a, b) => a.index - b.index).map((d) => d.embedding);
+        } catch (error) {
+          throw mapError(error, label);
+        }
+      },
+    };
   }
 
   async listModels(): Promise<ModelInfo[]> {

@@ -192,6 +192,18 @@ export async function registerGovernanceRoutes(app: FastifyInstance, options: Go
       await agents.setStatus(companyId, approval.agentId, "active", { reason: "budget increase approved" });
       bus.publish("agent.status_changed", companyId, { agentId: approval.agentId, status: "active" });
       if (approval.sessionId) await resume(approval.sessionId);
+    } else if (approval.kind === "skill_promotion" && app.opifer.learning) {
+      // The promotion follows the decision: applied (a copy at the new scope) or denied.
+      const promotion = await app.opifer.learning.promotions.byApproval(companyId, approval.id);
+      if (promotion) {
+        try {
+          const decided = await app.opifer.learning.promotions.decide(companyId, promotion.id, approval.status === "approved", { kind: "person" });
+          followUp = decided.status === "applied" ? "promotion_applied" : "promotion_denied";
+          bus.publish("promotion.decided", companyId, { promotionId: decided.id, status: decided.status, kind: decided.kind });
+        } catch (error) {
+          followUp = `promotion failed: ${message(error)}`;
+        }
+      }
     }
     return { ...approval, followUp };
   });

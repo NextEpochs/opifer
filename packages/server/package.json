@@ -33,6 +33,7 @@
     "@opifer/runtime": "workspace:*",
     "@opifer/sdk": "workspace:*",
     "@opifer/work": "workspace:*",
+    "@opifer/learning": "workspace:*",
     "fastify": "^5.6.0",
     "postgres": "^3.4.7"
   },

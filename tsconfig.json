@@ -20,6 +20,9 @@
       "path": "packages/work"
     },
     {
+      "path": "packages/learning"
+    },
+    {
       "path": "packages/server"
     },
     {

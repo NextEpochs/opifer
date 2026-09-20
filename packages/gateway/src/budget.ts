@@ -187,7 +187,7 @@ export class BudgetService implements BudgetGate {
     });
   }
 
-  async settle(reservationId: string, modelId: string, usage: Usage): Promise<void> {
+  async settle(reservationId: string, modelId: string, usage: Usage, kind: "model" | "auxiliary_model" = "model"): Promise<{ eur: number; usd: number }> {
     const money = await this.prices.cost(modelId, usage);
     const slash = modelId.indexOf("/");
     await this.sql.begin(async (tx) => {
@@ -199,13 +199,14 @@ export class BudgetService implements BudgetGate {
         INSERT INTO cost_events (company_id, agent_id, session_id, run_id, project_id, task_id, kind, provider, model, input_tokens, cached_input_tokens, output_tokens, amount_usd, amount_eur)
         VALUES (
           ${reservation.company_id}, ${reservation.agent_id}, ${reservation.session_id}, ${reservation.run_id}, ${reservation.project_id}, ${reservation.task_id},
-          'model', ${slash > 0 ? modelId.slice(0, slash) : null}, ${slash > 0 ? modelId.slice(slash + 1) : modelId},
+          ${kind}, ${slash > 0 ? modelId.slice(0, slash) : null}, ${slash > 0 ? modelId.slice(slash + 1) : modelId},
           ${usage.inputTokens}, ${usage.cachedInputTokens ?? 0}, ${usage.outputTokens}, ${money.usd}, ${money.eur}
         )
         RETURNING id
       `;
       await tx`UPDATE budget_reservations SET status = 'settled', cost_event_id = ${event!.id}, settled_at = now() WHERE id = ${reservationId}`;
     });
+    return { eur: money.eur, usd: money.usd };
   }
 
   async release(reservationId: string): Promise<void> {

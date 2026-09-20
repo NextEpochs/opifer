@@ -16,6 +16,11 @@ export interface WorkServiceOptions {
   failureThreshold?: number;
 }
 
+export interface WorkHooks {
+  /** A task reached done (success) or was cancelled (failure). Runs after the transaction; errors are swallowed. */
+  onTaskClosed?(task: Task, outcome: "success" | "failure"): Promise<void>;
+}
+
 type Db = Sql | TransactionSql;
 
 interface GoalRow {
@@ -161,12 +166,22 @@ export class WorkService {
   readonly leaseMs: number;
   readonly failureThreshold: number;
 
+  hooks: WorkHooks = {};
+
   constructor(
     private readonly sql: Sql,
     options: WorkServiceOptions = {},
   ) {
     this.leaseMs = options.leaseMs ?? 5 * 60_000;
     this.failureThreshold = options.failureThreshold ?? 2;
+  }
+
+  private async closed(task: Task, outcome: "success" | "failure"): Promise<void> {
+    try {
+      await this.hooks.onTaskClosed?.(task, outcome);
+    } catch {
+      // learning is best effort: a failed hook never undoes a closed task
+    }
   }
 
   // --- Goals ---------------------------------------------------------------
@@ -475,6 +490,9 @@ export class WorkService {
       `;
       await audit(tx, { companyId, actorKind: actor.kind, actorId: actor.id ?? null, action: "task.done", subjectKind: "task", subjectId: id, taskId: id, before: { status: before.status }, after: { summary: result.summary, verification: result.verification ?? null, runId: options.runId ?? null } });
       return toTask(row!);
+    }).then(async (task) => {
+      await this.closed(task, "success");
+      return task;
     });
   }
 
@@ -503,7 +521,9 @@ export class WorkService {
   }
 
   async cancel(companyId: string, id: string, reason: string, actor: Actor): Promise<Task> {
-    return this.transition(companyId, id, ["todo", "in_progress", "in_review", "blocked"], "cancelled", actor, "task.cancelled", { reason }, (tx) => tx`UPDATE tasks SET status = 'cancelled', finished_at = now(), lease_run_id = NULL, lease_session_id = NULL, lease_expires_at = NULL WHERE id = ${id} RETURNING *`);
+    const task = await this.transition(companyId, id, ["todo", "in_progress", "in_review", "blocked"], "cancelled", actor, "task.cancelled", { reason }, (tx) => tx`UPDATE tasks SET status = 'cancelled', finished_at = now(), lease_run_id = NULL, lease_session_id = NULL, lease_expires_at = NULL WHERE id = ${id} RETURNING *`);
+    await this.closed(task, "failure");
+    return task;
   }
 
   private async transition(companyId: string, id: string, from: TaskStatus[], to: TaskStatus, actor: Actor, action: string, after: Record<string, unknown>, update: (tx: TransactionSql) => Promise<TaskRow[]>): Promise<Task> {

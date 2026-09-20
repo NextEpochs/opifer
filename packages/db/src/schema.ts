@@ -6,6 +6,7 @@
 
 import { sql } from "drizzle-orm";
 import {
+  boolean,
   customType,
   index,
   integer,
@@ -13,6 +14,7 @@ import {
   numeric,
   pgTable,
   primaryKey,
+  real,
   text,
   timestamp,
   unique,
@@ -547,4 +549,192 @@ export const wakeups = pgTable(
     ...timestamps,
   },
   (t) => [index("wakeups_pending_idx").on(t.scheduledAt)],
+);
+
+// ---------------------------------------------------------------------------
+// Learning (M4): memories, skills, reviews, promotions.
+// ---------------------------------------------------------------------------
+
+const tsvector = customType<{ data: string; driverData: string }>({
+  dataType() {
+    return "tsvector";
+  },
+});
+
+export const learningSettings = pgTable("learning_settings", {
+  companyId: uuid("company_id")
+    .primaryKey()
+    .references(() => companies.id, { onDelete: "cascade" }),
+  reviewEnabled: boolean("review_enabled").notNull().default(true),
+  promotion: text("promotion", { enum: ["automatic", "review", "forbidden"] }).notNull().default("review"),
+  promotionThreshold: integer("promotion_threshold").notNull().default(3),
+  snapshotMaxChars: integer("snapshot_max_chars").notNull().default(6000),
+  inactiveAfterDays: integer("inactive_after_days").notNull().default(30),
+  archiveAfterDays: integer("archive_after_days").notNull().default(90),
+  ...timestamps,
+});
+
+export const memories = pgTable(
+  "memories",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+    scope: text("scope", { enum: ["agent", "team", "company"] }).notNull(),
+    scopeAgentId: uuid("scope_agent_id").references(() => agents.id, { onDelete: "cascade" }),
+    kind: text("kind", { enum: ["note", "profile"] }).notNull().default("note"),
+    subject: text("subject").notNull().default(""),
+    content: text("content").notNull(),
+    status: text("status", { enum: ["active", "retired", "superseded"] }).notNull().default("active"),
+    supersedesId: uuid("supersedes_id"),
+    pinned: boolean("pinned").notNull().default(false),
+    sourceSessionId: uuid("source_session_id").references(() => sessions.id, { onDelete: "set null" }),
+    sourceRunId: uuid("source_run_id").references(() => runs.id, { onDelete: "set null" }),
+    sourceTaskId: uuid("source_task_id").references(() => tasks.id, { onDelete: "set null" }),
+    authorKind: text("author_kind", { enum: ["person", "agent", "system"] }).notNull().default("agent"),
+    authorId: uuid("author_id"),
+    embedding: real("embedding").array(),
+    search: tsvector("search").generatedAlwaysAs(sql`to_tsvector('english', coalesce(subject, '') || ' ' || content)`),
+    retiredReason: text("retired_reason"),
+    retiredAt: timestamp("retired_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (t) => [index("memories_scope_idx").on(t.companyId, t.scope, t.scopeAgentId, t.status)],
+);
+
+export const skills = pgTable(
+  "skills",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+    scope: text("scope", { enum: ["agent", "team", "company"] }).notNull(),
+    scopeAgentId: uuid("scope_agent_id").references(() => agents.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    description: text("description").notNull().default(""),
+    tags: text("tags").array().notNull().default(sql`'{}'`),
+    origin: text("origin", { enum: ["agent", "person", "imported"] }).notNull(),
+    status: text("status", { enum: ["active", "inactive", "archived"] }).notNull().default("active"),
+    pinned: boolean("pinned").notNull().default(false),
+    currentVersion: integer("current_version").notNull().default(1),
+    uses: integer("uses").notNull().default(0),
+    lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+    promotedFromId: uuid("promoted_from_id"),
+    createdByKind: text("created_by_kind", { enum: ["person", "agent", "system"] }).notNull().default("agent"),
+    createdById: uuid("created_by_id"),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (t) => [index("skills_scope_idx").on(t.companyId, t.scope, t.scopeAgentId, t.status)],
+);
+
+export const skillVersions = pgTable(
+  "skill_versions",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+    skillId: uuid("skill_id")
+      .notNull()
+      .references(() => skills.id, { onDelete: "cascade" }),
+    version: integer("version").notNull(),
+    description: text("description").notNull().default(""),
+    content: text("content").notNull(),
+    files: jsonb("files").$type<Record<string, string>>().notNull().default({}),
+    note: text("note").notNull().default(""),
+    createdByKind: text("created_by_kind", { enum: ["person", "agent", "system"] }).notNull().default("agent"),
+    createdById: uuid("created_by_id"),
+    ...timestamps,
+  },
+  (t) => [unique("skill_versions_skill_id_version_key").on(t.skillId, t.version)],
+);
+
+export const skillUsage = pgTable(
+  "skill_usage",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+    skillId: uuid("skill_id")
+      .notNull()
+      .references(() => skills.id, { onDelete: "cascade" }),
+    version: integer("version").notNull(),
+    agentId: uuid("agent_id")
+      .notNull()
+      .references(() => agents.id, { onDelete: "cascade" }),
+    sessionId: uuid("session_id").references(() => sessions.id, { onDelete: "set null" }),
+    runId: uuid("run_id").references(() => runs.id, { onDelete: "set null" }),
+    taskId: uuid("task_id").references(() => tasks.id, { onDelete: "set null" }),
+    outcome: text("outcome", { enum: ["unknown", "success", "failure"] }).notNull().default("unknown"),
+    ...timestamps,
+  },
+  (t) => [index("skill_usage_skill_idx").on(t.skillId, t.outcome)],
+);
+
+export const learningReviews = pgTable(
+  "learning_reviews",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+    agentId: uuid("agent_id")
+      .notNull()
+      .references(() => agents.id, { onDelete: "cascade" }),
+    sessionId: uuid("session_id")
+      .notNull()
+      .references(() => sessions.id, { onDelete: "cascade" }),
+    runId: uuid("run_id").references(() => runs.id, { onDelete: "set null" }),
+    taskId: uuid("task_id").references(() => tasks.id, { onDelete: "set null" }),
+    status: text("status", { enum: ["pending", "running", "done", "failed", "skipped"] }).notNull().default("pending"),
+    proposals: jsonb("proposals").$type<Record<string, unknown>>().notNull().default({}),
+    applied: jsonb("applied").$type<Record<string, unknown>>().notNull().default({}),
+    costEur: numeric("cost_eur", { precision: 12, scale: 6 }).notNull().default("0"),
+    error: text("error"),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (t) => [index("learning_reviews_company_idx").on(t.companyId, t.status, t.createdAt)],
+);
+
+export const promotions = pgTable(
+  "promotions",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+    kind: text("kind", { enum: ["skill", "memory"] }).notNull(),
+    subjectId: uuid("subject_id").notNull(),
+    fromScope: text("from_scope", { enum: ["agent", "team"] }).notNull(),
+    toScope: text("to_scope", { enum: ["team", "company"] }).notNull(),
+    status: text("status", { enum: ["proposed", "approved", "denied", "applied", "forbidden"] }).notNull().default("proposed"),
+    approvalId: uuid("approval_id").references(() => approvals.id, { onDelete: "set null" }),
+    evidence: jsonb("evidence").$type<Record<string, unknown>>().notNull().default({}),
+    resultId: uuid("result_id"),
+    proposedByKind: text("proposed_by_kind", { enum: ["person", "agent", "system"] }).notNull().default("system"),
+    proposedById: uuid("proposed_by_id"),
+    decidedAt: timestamp("decided_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (t) => [index("promotions_company_idx").on(t.companyId, t.status)],
+);
+
+export const learningBackups = pgTable(
+  "learning_backups",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+    kind: text("kind", { enum: ["curator"] }).notNull(),
+    payload: jsonb("payload").$type<Record<string, unknown>>().notNull(),
+    ...timestamps,
+  },
+  (t) => [index("learning_backups_company_idx").on(t.companyId, t.createdAt)],
 );

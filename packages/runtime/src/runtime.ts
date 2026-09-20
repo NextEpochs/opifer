@@ -29,6 +29,17 @@ export interface RuntimeOptions {
   maxOutputTokens?: number;
   /** Budget, approvals and the budget-stop hook; absent in the ungoverned local runtime. */
   governance?: GovernanceGates;
+  /** Learning (M4): the snapshot that enters the prompt, and the hook that queues the background review. */
+  learning?: LearningHooks;
+}
+
+export interface LearningHooks {
+  /** Memory snapshot and skills index for a new session of this agent. */
+  snapshot?(companyId: string, agentId: string): Promise<{ memory: string; skills: Array<{ name: string; description: string }> }>;
+  /** A turn ended: the review may run later, on a copy, never on the live session. */
+  onTurnDone?(session: SessionRecord, run: RunRecord, stopReason: string): Promise<void>;
+  /** One paragraph on how to use memory and skills, appended to the governance rules. */
+  guide?: string;
 }
 
 export interface StartSessionInput {
@@ -97,10 +108,13 @@ export class AgentRuntime {
     const reports = (await sql<{ name: string }[]>`SELECT name FROM agents WHERE reports_to_agent_id = ${agent.id} ORDER BY name`).map((r) => r.name);
 
     const workdir = input.workdir ?? null;
+    const learned = this.options.learning?.snapshot ? await this.options.learning.snapshot(input.companyId, input.agentId) : null;
     const promptInput: PromptInput = {
       agent: { name: agent.name, role: agent.role, reportsTo, reports },
       company: { name: company.name, mission: company.mission },
       contextFiles: await loadContextFiles(workdir),
+      ...(learned ? { memorySnapshot: learned.memory, skillsIndex: learned.skills } : {}),
+      ...(this.options.learning?.guide ? { governanceRules: [this.options.learning.guide] } : {}),
       ...(input.taskContext ? { taskContext: input.taskContext } : {}),
       ...(input.locale ? { locale: input.locale } : {}),
     };
@@ -194,6 +208,14 @@ export class AgentRuntime {
     await this.store.appendRunEvent(run, "phase", { phase: "close", stopReason: outcome.stopReason, iterations: outcome.iterations });
     const finished = await this.store.finishRun(run.id, { status: outcome.status, stopReason: outcome.stopReason, error: outcome.error });
     emit({ type: "done", run: finished });
+    if (this.options.learning?.onTurnDone && outcome.status === "completed") {
+      // Never let learning break the turn that just succeeded.
+      try {
+        await this.options.learning.onTurnDone(session, finished, outcome.stopReason);
+      } catch {
+        // the review is best effort
+      }
+    }
     return { run: finished, stopReason: outcome.stopReason, assistantText: outcome.assistantText };
   }
 }

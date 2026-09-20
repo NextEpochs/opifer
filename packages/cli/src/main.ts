@@ -24,6 +24,7 @@ import {
   runSecretUnbind,
 } from "./commands/govern.js";
 import { runTaskAction, runTaskAssign, runTaskComment, runTaskCreate, runTaskList, runTaskShow } from "./commands/task.js";
+import { runLearningSet, runLearningShow, runMemoryAction, runMemoryAdd, runMemoryList, runSkillAction, runSkillExport, runSkillInstall, runSkillList, runSkillShow } from "./commands/learning.js";
 import { say, setColor } from "./output.js";
 
 const program = new Command();
@@ -263,6 +264,94 @@ for (const [name, description] of [
     .option("--verification <text>", "for complete: how the result was checked")
     .action(async (id: string, opts: { note?: string; verification?: string }) => runTaskAction(name, { id, ...opts, ...homeOf(program) }));
 }
+
+const memory = program.command("memory").description("what the agents remember");
+memory
+  .command("list", { isDefault: true })
+  .description("memories (from an agent's point of view with --agent; --query searches)")
+  .option("--agent <name>", "read as this agent: its own, its teams', the company's")
+  .option("--query <text>", "search (needs --agent)")
+  .option("--all", "include retired and superseded entries")
+  .option("--company <name>", "company (default: the first one)")
+  .action(async (opts: { agent?: string; query?: string; all?: boolean; company?: string }) => runMemoryList({ ...opts, ...homeOf(program) }));
+memory
+  .command("add <content>")
+  .description("save a memory (company-wide, or an agent's with --agent)")
+  .option("--agent <name>", "the agent it belongs to")
+  .option("--scope <agent|team|company>", "scope (default: agent with --agent, company otherwise)")
+  .option("--subject <name>", "makes it a profile of a person or a system")
+  .option("--pin", "keep it first in the snapshot")
+  .option("--company <name>", "company (default: the first one)")
+  .action(async (content: string, opts: { agent?: string; scope?: string; subject?: string; pin?: boolean; company?: string }) => runMemoryAdd({ content, ...opts, ...homeOf(program) }));
+for (const [name, description] of [
+  ["retire", "retire a memory with a reason (it stays in the record)"],
+  ["correct", "replace a memory with a corrected text"],
+  ["pin", "keep a memory first in the snapshot"],
+  ["unpin", "unpin a memory"],
+  ["promote", "share a memory with the whole company (per the company policy)"],
+] as const) {
+  memory
+    .command(`${name} <id> [text]`)
+    .description(description)
+    .option("--company <name>", "company (default: the first one)")
+    .action(async (id: string, text: string | undefined, opts: { company?: string }) => runMemoryAction({ action: name, id, ...(text ? { text } : {}), ...opts, ...homeOf(program) }));
+}
+
+const skill = program.command("skill").description("reusable procedures the agents learn and use");
+skill
+  .command("list", { isDefault: true })
+  .description("skills (what an agent can load with --agent)")
+  .option("--agent <name>", "as seen by this agent")
+  .option("--all", "include archived skills")
+  .option("--company <name>", "company (default: the first one)")
+  .action(async (opts: { agent?: string; all?: boolean; company?: string }) => runSkillList({ ...opts, ...homeOf(program) }));
+skill
+  .command("show <name>")
+  .description("the skill's text, versions and usage")
+  .option("--agent <name>", "the agent's own copy")
+  .option("--version <n>", "an older version")
+  .option("--company <name>", "company (default: the first one)")
+  .action(async (name: string, opts: { agent?: string; version?: string; company?: string }) => runSkillShow({ name, ...opts, ...homeOf(program) }));
+skill
+  .command("install <dir>")
+  .description("install a skill folder (SKILL.md plus scripts/, references/, templates/)")
+  .option("--agent <name>", "for this agent only (default: the whole company)")
+  .option("--name <name>", "override the name in the header")
+  .option("--company <name>", "company (default: the first one)")
+  .action(async (dir: string, opts: { agent?: string; name?: string; company?: string }) => runSkillInstall({ dir, ...opts, ...homeOf(program) }));
+skill
+  .command("export <name> <dir>")
+  .description("export a skill as a folder in the open format")
+  .option("--agent <name>", "the agent's own copy")
+  .option("--company <name>", "company (default: the first one)")
+  .action(async (name: string, dir: string, opts: { agent?: string; company?: string }) => runSkillExport({ name, dir, ...opts, ...homeOf(program) }));
+for (const [name, description] of [
+  ["restore", "go back to a version: o4r skill restore <name> <version>"],
+  ["archive", "archive a skill (restorable)"],
+  ["unarchive", "bring an archived skill back"],
+  ["pin", "pin a skill: the curator and the agents leave it alone"],
+  ["unpin", "unpin a skill"],
+  ["promote", "share an agent's skill with the whole company (per the company policy)"],
+] as const) {
+  skill
+    .command(`${name} <name> [version]`)
+    .description(description)
+    .option("--agent <name>", "the agent's own copy")
+    .option("--company <name>", "company (default: the first one)")
+    .action(async (skillName: string, version: string | undefined, opts: { agent?: string; company?: string }) => runSkillAction({ action: name, name: skillName, ...(version ? { version } : {}), ...opts, ...homeOf(program) }));
+}
+
+const learning = program.command("learning").description("how the company learns: review, promotion policy, curator");
+learning
+  .command("show", { isDefault: true })
+  .description("settings and the last background reviews")
+  .option("--company <name>", "company (default: the first one)")
+  .action(async (opts: { company?: string }) => runLearningShow({ ...opts, ...homeOf(program) }));
+learning
+  .command("set <key> <value>")
+  .description("review on|off · promotion automatic|review|forbidden · threshold N · snapshot CHARS · inactive DAYS · archive DAYS")
+  .option("--company <name>", "company (default: the first one)")
+  .action(async (key: string, value: string, opts: { company?: string }) => runLearningSet({ key, value, ...opts, ...homeOf(program) }));
 
 function homeOf(cmd: Command): { home?: string } {
   const home = (cmd.opts() as { home?: string }).home;

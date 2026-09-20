@@ -22,21 +22,6 @@
     },
     {
       "path": "../gateway"
-    },
-    {
-      "path": "../../plugins/provider-anthropic"
-    },
-    {
-      "path": "../../plugins/provider-openai"
-    },
-    {
-      "path": "../../plugins/provider-openai-compatible"
-    },
-    {
-      "path": "../work"
-    },
-    {
-      "path": "../learning"
     }
   ]
 }

@@ -29,7 +29,7 @@ export interface BudgetGate {
   /** Reserves the estimated cost of a call before it starts; denied when a cap is reached. */
   reserve(context: BudgetContext, estimate: CostEstimate): Promise<BudgetDecision>;
   /** Records the real usage of a reserved call. */
-  settle(reservationId: string, modelId: string, usage: Usage): Promise<void>;
+  settle(reservationId: string, modelId: string, usage: Usage, kind?: "model" | "auxiliary_model"): Promise<{ eur: number; usd: number } | void>;
   /** Frees a reservation whose call never happened. */
   release(reservationId: string): Promise<void>;
 }

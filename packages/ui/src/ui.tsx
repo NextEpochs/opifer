@@ -146,7 +146,7 @@ export function Segmented<T extends string>({ value, options, onChange, label, c
           type="button"
           aria-pressed={value === o.value}
           onClick={() => onChange(o.value)}
-          className={`flex-1 rounded-[9px] px-2 py-1.5 text-[13px] font-bold transition ${value === o.value ? "bg-hover text-ink shadow-[0_1px_2px_rgba(0,0,0,.4)]" : "text-mute hover:text-ink"}`}
+          className={`flex-1 whitespace-nowrap rounded-[9px] px-2.5 py-1.5 text-[13px] font-bold transition ${value === o.value ? "bg-hover text-ink shadow-[0_1px_2px_rgba(0,0,0,.4)]" : "text-mute hover:text-ink"}`}
         >
           {o.label}
         </button>

@@ -14,11 +14,14 @@ import { registerModelRoutes } from "./routes/models.js";
 import { registerGovernanceRoutes } from "./routes/governance.js";
 import { registerOverviewRoutes } from "./routes/overview.js";
 import { registerWorkRoutes } from "./routes/work.js";
-import { AgentRuntime, NATIVE_TOOLS, NativeToolExecutor, type GovernanceGates, type ProviderRegistry } from "@opifer/runtime";
+import { AgentRuntime, NATIVE_TOOLS, NativeToolExecutor, SessionStore, type GovernanceGates, type LearningHooks, type ProviderRegistry } from "@opifer/runtime";
 import { WorkService, taskTools } from "@opifer/work";
+import { LEARNING_GUIDE, LearningService, learningTools } from "@opifer/learning";
 import type { ProviderSetup } from "./providers.js";
 import { buildGovernance, type Governance } from "./governance.js";
 import { Scheduler } from "./scheduler.js";
+import { LearningWorker } from "./learning-worker.js";
+import { registerLearningRoutes } from "./routes/learning.js";
 
 export interface AppOptions {
   db: DatabaseHandle;
@@ -42,6 +45,8 @@ export interface AppOptions {
   governance?: { credentialsDir: string; usdToEur?: number } | false;
   /** Task leases and the scheduler; `scheduler: false` leaves wake-ups unprocessed (tests drive them by hand). */
   work?: { leaseMs?: number; failureThreshold?: number; scheduler?: boolean; tickMs?: number; concurrency?: number };
+  /** Learning: the review worker (`worker: false` leaves reviews pending for tests), the review model, the embedding model. */
+  learning?: { worker?: boolean; tickMs?: number; reviewModel?: string | null; embeddingModel?: string | null };
 }
 
 export interface AppContext {
@@ -52,9 +57,11 @@ export interface AppContext {
   governance: Governance | null;
   work: WorkService;
   scheduler: Scheduler | null;
+  learning: LearningService | null;
+  learningWorker: LearningWorker | null;
 }
 
-export function buildRuntime(db: DatabaseHandle, providers: ProviderRegistry, options: { workRoot: string; defaultModel: string; fallbackModel?: string | null; tools?: AppOptions["tools"]; gates?: GovernanceGates }): AgentRuntime {
+export function buildRuntime(db: DatabaseHandle, providers: ProviderRegistry, options: { workRoot: string; defaultModel: string; fallbackModel?: string | null; tools?: AppOptions["tools"]; gates?: GovernanceGates; learning?: LearningHooks }): AgentRuntime {
   return new AgentRuntime({
     sql: db.sql,
     providers,
@@ -63,6 +70,7 @@ export function buildRuntime(db: DatabaseHandle, providers: ProviderRegistry, op
     defaultModel: options.defaultModel,
     defaultFallbackModel: options.fallbackModel ?? null,
     ...(options.gates ? { governance: options.gates } : {}),
+    ...(options.learning ? { learning: options.learning } : {}),
   });
 }
 
@@ -86,8 +94,15 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   const bus = options.bus ?? new EventBus();
   const workRoot = options.workRoot ?? path.join(tmpdir(), "opifer-work");
   const work = new WorkService(options.db.sql, { ...(options.work?.leaseMs !== undefined ? { leaseMs: options.work.leaseMs } : {}), ...(options.work?.failureThreshold !== undefined ? { failureThreshold: options.work.failureThreshold } : {}) });
-  // Native tools plus the task tools, under governance when it is on.
-  const inner = options.tools ?? new NativeToolExecutor([...NATIVE_TOOLS, ...taskTools(work, options.db.sql)]);
+  // Learning needs the providers (for the review and, when one can embed, for semantic search).
+  const learning = options.providers
+    ? new LearningService(options.db.sql, new SessionStore(options.db.sql), options.providers.providers, {
+        embedder: options.providers.providers.embedder(options.learning?.embeddingModel ?? null),
+        reviewModel: options.learning?.reviewModel ?? null,
+      })
+    : null;
+  // Native tools plus the task and learning tools, under governance when it is on.
+  const inner = options.tools ?? new NativeToolExecutor([...NATIVE_TOOLS, ...taskTools(work, options.db.sql), ...(learning ? learningTools(learning.memories, learning.skills) : [])]);
   const governance =
     options.providers && options.governance
       ? await buildGovernance(options.db, options.providers.providers, bus, {
@@ -96,6 +111,17 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
           inner,
         })
       : null;
+  if (learning && governance) learning.attachGovernance({ approvals: governance.approvals, budget: governance.budget });
+  const learningHooks: LearningHooks | null = learning
+    ? {
+        snapshot: (companyId, agentId) => learning.snapshot(companyId, agentId),
+        onTurnDone: async (session, run) => {
+          // Routines (M5) will opt out; chats and task sessions are reviewed.
+          await learning.reviewer.enqueue({ companyId: session.companyId, agentId: session.agentId, sessionId: session.id, runId: run.id, taskId: session.taskId });
+        },
+        guide: LEARNING_GUIDE,
+      }
+    : null;
   const runtime = options.providers
     ? buildRuntime(options.db, options.providers.providers, {
         workRoot,
@@ -103,15 +129,26 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
         fallbackModel: options.providers.fallbackModel,
         tools: governance ? governance.tools : inner,
         ...(governance ? { gates: governance.gates } : {}),
+        ...(learningHooks ? { learning: learningHooks } : {}),
       })
     : null;
+  if (learning) {
+    work.hooks.onTaskClosed = async (task, outcome) => {
+      await learning.onTaskClosed(task.companyId, task.id, outcome);
+    };
+  }
   const scheduler = runtime
     ? new Scheduler({ sql: options.db.sql, work, runtime, bus, workRoot, log: app.log, ...(options.work?.tickMs !== undefined ? { tickMs: options.work.tickMs } : {}), ...(options.work?.concurrency !== undefined ? { concurrency: options.work.concurrency } : {}) })
     : null;
-  app.decorate("opifer", { db: options.db, bus, mode: options.mode, runtime, governance, work, scheduler });
+  const learningWorker = learning ? new LearningWorker({ sql: options.db.sql, learning, bus, log: app.log, ...(options.learning?.tickMs !== undefined ? { tickMs: options.learning.tickMs } : {}) }) : null;
+  app.decorate("opifer", { db: options.db, bus, mode: options.mode, runtime, governance, work, scheduler, learning, learningWorker });
   if (scheduler && options.work?.scheduler !== false) {
     app.addHook("onReady", async () => scheduler.start());
     app.addHook("onClose", async () => scheduler.stop());
+  }
+  if (learningWorker && options.learning?.worker !== false) {
+    app.addHook("onReady", async () => learningWorker.start());
+    app.addHook("onClose", async () => learningWorker.stop());
   }
   if (runtime) {
     // After a restart the runs left "running" are marked interrupted: the history stays, no replay.
@@ -149,6 +186,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
     await app.register(async (scope) => registerModelRoutes(scope, { runtime, setup }), { prefix: "/v1" });
     if (governance) await app.register(async (scope) => registerGovernanceRoutes(scope, { runtime, governance }), { prefix: "/v1" });
     await app.register(async (scope) => registerOverviewRoutes(scope, { runtime, governance }), { prefix: "/v1" });
+    if (learning) await app.register(async (scope) => registerLearningRoutes(scope, { learning, governance }), { prefix: "/v1" });
   }
 
   if (options.uiDir && (await dirExists(options.uiDir))) {

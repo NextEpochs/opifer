@@ -47,6 +47,9 @@ importers:
       '@opifer/gateway':
         specifier: workspace:*
         version: link:../gateway
+      '@opifer/learning':
+        specifier: workspace:*
+        version: link:../learning
       '@opifer/runtime':
         specifier: workspace:*
         version: link:../runtime
@@ -74,6 +77,27 @@ importers:
       '@opifer/db':
         specifier: workspace:*
         version: link:../db
+      '@opifer/runtime':
+        specifier: workspace:*
+        version: link:../runtime
+      '@opifer/sdk':
+        specifier: workspace:*
+        version: link:../sdk
+      postgres:
+        specifier: ^3.4.7
+        version: 3.4.9
+
+  packages/learning:
+    dependencies:
+      '@opifer/core':
+        specifier: workspace:*
+        version: link:../core
+      '@opifer/db':
+        specifier: workspace:*
+        version: link:../db
+      '@opifer/gateway':
+        specifier: workspace:*
+        version: link:../gateway
       '@opifer/runtime':
         specifier: workspace:*
         version: link:../runtime
@@ -119,6 +143,9 @@ importers:
       '@opifer/gateway':
         specifier: workspace:*
         version: link:../gateway
+      '@opifer/learning':
+        specifier: workspace:*
+        version: link:../learning
       '@opifer/provider-anthropic':
         specifier: workspace:*
         version: link:../../plugins/provider-anthropic

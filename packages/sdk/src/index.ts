@@ -111,6 +111,20 @@ export interface ModelProvider {
   complete(request: CompletionRequest): AsyncIterable<StreamEvent>;
 }
 
+/** Turns texts into vectors for semantic search; a provider may offer one. */
+export interface Embedder {
+  /** Identifier, `provider/model`. */
+  readonly id: string;
+  /** Vector length. */
+  readonly dimensions: number;
+  embed(texts: string[]): Promise<number[][]>;
+}
+
+/** A provider that can also embed. */
+export interface EmbeddingProvider {
+  embedder(model?: string): Embedder;
+}
+
 export type ProviderErrorKind = "transient" | "rate_limit" | "auth" | "request" | "unknown";
 
 /** Provider error, classified to decide retries and fallback. */

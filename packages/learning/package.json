@@ -1,8 +1,8 @@
 {
-  "name": "@opifer/core",
+  "name": "@opifer/learning",
   "version": "0.0.1",
   "private": true,
-  "description": "Opifer domain model, invariants and events.",
+  "description": "Memory and skills: scoped entries, snapshot for the prompt, search, versions, curator, promotion, background review.",
   "license": "AGPL-3.0-only",
   "type": "module",
   "main": "./dist/index.js",
@@ -20,11 +20,13 @@
     "build": "tsc -b",
     "typecheck": "tsc -b"
   },
-  "devDependencies": {
+  "dependencies": {
+    "@opifer/core": "workspace:*",
     "@opifer/db": "workspace:*",
-    "@opifer/runtime": "workspace:*",
     "@opifer/gateway": "workspace:*",
-    "@opifer/work": "workspace:*",
-    "@opifer/learning": "workspace:*"
-  }
+    "@opifer/runtime": "workspace:*",
+    "@opifer/sdk": "workspace:*",
+    "postgres": "^3.4.7"
+  },
+  "devDependencies": {}
 }

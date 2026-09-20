@@ -4,13 +4,17 @@
  * is a plugin that implements `ModelProvider`.
  */
 
-import type { ModelProvider } from "@opifer/sdk";
+import type { Embedder, EmbeddingProvider, ModelProvider } from "@opifer/sdk";
 
 export interface ResolvedModel {
   provider: ModelProvider;
   model: string;
   /** Full form `provider/model`. */
   id: string;
+}
+
+function canEmbed(provider: ModelProvider): provider is ModelProvider & EmbeddingProvider {
+  return typeof (provider as Partial<EmbeddingProvider>).embedder === "function";
 }
 
 export class ProviderRegistry {
@@ -28,6 +32,21 @@ export class ProviderRegistry {
 
   list(): ModelProvider[] {
     return [...this.providers.values()];
+  }
+
+  /**
+   * The embedder for `provider/model`, or the first provider that offers one
+   * when no model is given; null when none can embed (search stays full-text).
+   */
+  embedder(modelId?: string | null): Embedder | null {
+    if (modelId) {
+      const { provider, model } = this.resolve(modelId);
+      return canEmbed(provider) ? provider.embedder(model) : null;
+    }
+    for (const provider of this.providers.values()) {
+      if (canEmbed(provider)) return provider.embedder();
+    }
+    return null;
   }
 
   resolve(modelId: string): ResolvedModel {

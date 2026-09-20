@@ -1,7 +1,7 @@
 export { TURN_PHASES, DEFAULT_TURN_LIMITS } from "./limits.js";
 export type { TurnPhase, TurnLimits, StopReason } from "./limits.js";
 export { AgentRuntime } from "./runtime.js";
-export type { RuntimeOptions, StartSessionInput, TurnInput, TurnResult } from "./runtime.js";
+export type { RuntimeOptions, StartSessionInput, TurnInput, TurnResult, LearningHooks } from "./runtime.js";
 export { SessionStore } from "./store.js";
 export type { CreateSessionInput } from "./store.js";
 export { ProviderRegistry } from "./providers.js";

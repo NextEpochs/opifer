@@ -188,6 +188,9 @@ function AgentDrawer({ ws, agent }: { ws: Workspace; agent: AgentView }) {
       <div className="mt-3 flex items-center gap-2 px-5">
         <ActivityChip activity={agent.activity} t={t} />
         {agent.doing && <span className="truncate text-[13px] text-mute">{agent.doing}</span>}
+        <a href={`#/learning/${agent.id}`} className="ml-auto shrink-0 text-[13px] font-bold text-accent-text no-underline">
+          {t.memoryAndSkills} →
+        </a>
       </div>
       <div role="tablist" className="mt-4 flex gap-0.5 border-b border-line px-5">
         {tabs.map((tb) => (
