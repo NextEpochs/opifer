@@ -146,10 +146,11 @@ export class Scheduler {
       if (!holding) return work.finishWakeup(wakeup.id, "skipped", "lease belongs to another session");
     } else if (task.status === "in_progress") {
       return work.finishWakeup(wakeup.id, "skipped", "task is being worked on elsewhere");
-    } else if (wakeup.reason !== "mention") {
+    } else if (wakeup.reason !== "mention" && !(wakeup.reason === "decision" && task.status === "in_review")) {
       return work.finishWakeup(wakeup.id, "skipped", `task is ${task.status}`);
     }
-    if (wakeup.reason === "decision" && !holding) return work.finishWakeup(wakeup.id, "skipped", "nothing to resume");
+    // A reviewer's turn on a task in review holds no lease: a decision still resumes it.
+    if (wakeup.reason === "decision" && !holding && task.status !== "in_review") return work.finishWakeup(wakeup.id, "skipped", "nothing to resume");
 
     const heartbeat = holding
       ? setInterval(

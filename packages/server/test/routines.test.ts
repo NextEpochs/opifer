@@ -40,8 +40,8 @@ describe("Routines: scheduled runs in their own session", () => {
           return { kind: "tools", calls: [{ name: "task_deliver", arguments: { summary: "Weekly digest: 16 packages, 134 tests green", verification: "read the subtask" } }] };
         if (r.startsWith("Task:") && r.includes("run of the routine"))
           return { kind: "tools", calls: [{ name: "task_create", arguments: { title: "Collect the week's numbers", assignee: "Dev" } }] };
-        if (r.startsWith("Task:") && r.includes("Numbers:"))
-          return { kind: "tools", calls: [{ name: "task_approve", arguments: { verification: "the numbers match pnpm test" } }] };
+        if (r.startsWith("Task:") && r.includes("Numbers:")) return { kind: "tools", calls: [{ name: "terminal", arguments: { command: "echo check-ok" } }] };
+        if (r.includes("check-ok")) return { kind: "tools", calls: [{ name: "task_approve", arguments: { verification: "the numbers match pnpm test" } }] };
         if (r.startsWith("Task:"))
           return { kind: "tools", calls: [{ name: "task_deliver", arguments: { summary: "Numbers: 16 packages, 134 tests green", verification: "pnpm test" } }] };
         if (r.startsWith("Subtask created")) return { kind: "tools", calls: [{ name: "task_deliver", arguments: { summary: "too early", verification: "none" } }] };
@@ -190,7 +190,7 @@ describe("Routines: scheduled runs in their own session", () => {
     // The task went to Sam, who delegated the numbers to Dev, was refused an early delivery and waited; Dev delivered for Sam's
     // review; Sam approved; the closed subtask woke Sam up, who delivered the digest.
     const taskUrl = `/v1/tasks/${run!.taskId}`;
-    const task = (await app.inject({ method: "GET", url: taskUrl })).json() as {
+    let task = (await app.inject({ method: "GET", url: taskUrl })).json() as {
       title: string;
       status: string;
       assigneeAgentId: string;
@@ -201,7 +201,8 @@ describe("Routines: scheduled runs in their own session", () => {
     expect(task.assigneeAgentId).toBe(sam);
     expect(task.description).toContain("Write the weekly digest");
     expect(task.comments.some((c) => c.body.startsWith("Sam is waiting for 1 subtask"))).toBe(true);
-    const [sub] = (await app.inject({ method: "GET", url: `/v1/companies/${companyId}/tasks?parentId=${run!.taskId}` })).json() as Array<{
+    expect(task.status).toBe("todo");
+    let [sub] = (await app.inject({ method: "GET", url: `/v1/companies/${companyId}/tasks?parentId=${run!.taskId}` })).json() as Array<{
       id: string;
       title: string;
       assigneeAgentId: string;
@@ -209,8 +210,16 @@ describe("Routines: scheduled runs in their own session", () => {
       status: string;
       result: { summary: string; verification: string };
     }>;
-    expect(sub).toMatchObject({ title: "Collect the week's numbers", assigneeAgentId: dev, reviewerAgentId: sam, status: "done" });
+    // Sam, reviewing, checked the numbers with a command that needs approval: the decision resumes a reviewer's turn too.
+    expect(sub).toMatchObject({ title: "Collect the week's numbers", assigneeAgentId: dev, reviewerAgentId: sam, status: "in_review" });
+    const [pending] = (await app.inject({ method: "GET", url: `/v1/companies/${companyId}/approvals?status=pending` })).json() as Array<{ id: string; agentId: string }>;
+    expect(pending?.agentId).toBe(sam);
+    expect((await app.inject({ method: "POST", url: `/v1/approvals/${pending!.id}/decide`, payload: { status: "approved" } })).statusCode).toBe(200);
+    await runScheduler();
+    sub = ((await app.inject({ method: "GET", url: `/v1/companies/${companyId}/tasks?parentId=${run!.taskId}` })).json() as (typeof sub)[])[0];
+    expect(sub!.status).toBe("done");
     expect(sub!.result).toEqual({ summary: "Numbers: 16 packages, 134 tests green", verification: "the numbers match pnpm test" });
+    task = (await app.inject({ method: "GET", url: taskUrl })).json() as typeof task;
     expect(task.status).toBe("in_review");
     expect(delivered.some((d) => d.routine === "Weekly digest")).toBe(false);
     // A person verifies the digest: the run closes with the task and is delivered.
