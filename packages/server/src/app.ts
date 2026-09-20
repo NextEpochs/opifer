@@ -20,7 +20,8 @@ export interface AppOptions {
   bus?: EventBus;
   /** Folder with the compiled UI; if it exists it is served at the root. */
   uiDir?: string;
-  logger?: boolean;
+  /** Fastify logger: `true`, `false`, or pino options (e.g. `{ level: "warn" }`). */
+  logger?: boolean | { level: string };
   /** Model providers and default model; without them, sessions are not available. */
   providers?: ProviderSetup;
   /** Root folder of the sessions' working directories. */

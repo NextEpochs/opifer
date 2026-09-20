@@ -68,11 +68,13 @@ export function Chat({ company, t }: { company: Company; t: Strings }) {
         case "fallback":
           setLive((l) => ({ ...l, notices: [...l.notices, String(e["message"] ?? e["reason"] ?? e["type"])] }));
           break;
-        case "done":
-          setLive(emptyLive);
+        case "done": {
+          const run = e["run"] as { status?: string; error?: string | null; stopReason?: string | null } | undefined;
+          setLive(run && run.status === "failed" ? { ...emptyLive, notices: [`${t.turnFailed}: ${run.error ?? run.stopReason ?? "?"}`] } : emptyLive);
           void loadDetail(selected);
           void loadLists();
           break;
+        }
         default:
           break;
       }
@@ -189,6 +191,11 @@ export function Chat({ company, t }: { company: Company; t: Strings }) {
                   {n}
                 </p>
               ))}
+              {live.notices.length === 0 && detail.runs.at(-1)?.status === "failed" && (
+                <p role="alert" className="rounded border border-red-300 bg-red-50 px-2 py-1 text-xs text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-200">
+                  {t.turnFailed}: {detail.runs.at(-1)?.error ?? detail.runs.at(-1)?.stopReason}
+                </p>
+              )}
               <div ref={bottom} />
             </div>
             {error && (

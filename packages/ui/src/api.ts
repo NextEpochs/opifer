@@ -53,7 +53,7 @@ export interface StoredMessage {
 export interface SessionDetail extends Session {
   running: boolean;
   messages: StoredMessage[];
-  runs: Array<{ id: string; status: string; stopReason: string | null; inputTokens: number; outputTokens: number }>;
+  runs: Array<{ id: string; status: string; stopReason: string | null; error: string | null; inputTokens: number; outputTokens: number }>;
 }
 
 export interface AuditEntry {

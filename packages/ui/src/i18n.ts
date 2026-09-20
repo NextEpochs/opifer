@@ -10,6 +10,7 @@ export interface Strings {
   audit: string; milestone: string; modes: Record<string, string>;
   chat: string; newSession: string; noSessions: string; untitled: string; pickSession: string; working: string;
   message: string; messageHint: string; injectHint: string; send: string; stop: string; you: string; toolResults: string;
+  turnFailed: string;
 }
 
 const strings: Record<Locale, Strings> = {
@@ -55,6 +56,7 @@ const strings: Record<Locale, Strings> = {
     stop: "Stop",
     you: "You",
     toolResults: "Tool results",
+    turnFailed: "The turn failed",
   },
   it: {
     tagline: "Agenti AI che lavorano, imparano e vengono governati come un'organizzazione",
@@ -98,6 +100,7 @@ const strings: Record<Locale, Strings> = {
     stop: "Ferma",
     you: "Tu",
     toolResults: "Risultati dei tool",
+    turnFailed: "Il turno è fallito",
   },
 };
 
