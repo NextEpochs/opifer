@@ -41,6 +41,9 @@ importers:
       '@opifer/db':
         specifier: workspace:*
         version: link:../db
+      '@opifer/runtime':
+        specifier: workspace:*
+        version: link:../runtime
 
   packages/db:
     dependencies:
@@ -71,6 +74,13 @@ importers:
       '@opifer/sdk':
         specifier: workspace:*
         version: link:../sdk
+      postgres:
+        specifier: ^3.4.7
+        version: 3.4.9
+    devDependencies:
+      '@opifer/db':
+        specifier: workspace:*
+        version: link:../db
 
   packages/sdk: {}
 

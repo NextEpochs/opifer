@@ -3,7 +3,18 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { schema } from "../src/index.js";
 import { createTestDatabase, type TestDatabase } from "../src/testing.js";
 
-const DRIZZLE_TABLES = [schema.companies, schema.users, schema.memberships, schema.agents, schema.agentRevisions, schema.auditLog];
+const DRIZZLE_TABLES = [
+  schema.companies,
+  schema.users,
+  schema.memberships,
+  schema.agents,
+  schema.agentRevisions,
+  schema.auditLog,
+  schema.sessions,
+  schema.runs,
+  schema.messages,
+  schema.runEvents,
+];
 
 describe("lo schema Drizzle rispecchia le migrazioni", () => {
   let db: TestDatabase;

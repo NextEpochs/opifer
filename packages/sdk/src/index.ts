@@ -96,11 +96,44 @@ export type StreamEvent =
   | { type: "usage"; usage: Usage }
   | { type: "done"; stopReason: "end_turn" | "tool_use" | "max_tokens" | "aborted" };
 
+export interface ModelInfo {
+  id: string;
+  capabilities: ModelCapabilities;
+  price: ModelPrice;
+}
+
 export interface ModelProvider {
+  /** Identificativo del provider, prefisso dei modelli: `anthropic/claude-...`. */
   readonly id: string;
-  listModels(): Promise<Array<{ id: string; capabilities: ModelCapabilities; price: ModelPrice }>>;
+  listModels(): Promise<ModelInfo[]>;
+  /** Stima dei token in ingresso; i provider senza contatore usano un'approssimazione. */
   countTokens(request: CompletionRequest): Promise<number>;
   complete(request: CompletionRequest): AsyncIterable<StreamEvent>;
+}
+
+export type ProviderErrorKind = "transitorio" | "limite" | "autenticazione" | "richiesta" | "sconosciuto";
+
+/** Errore di un provider, classificato per decidere ritentativi e riserva. */
+export class ProviderError extends Error {
+  readonly kind: ProviderErrorKind;
+  readonly status: number | undefined;
+  constructor(message: string, kind: ProviderErrorKind, status?: number) {
+    super(message);
+    this.name = "ProviderError";
+    this.kind = kind;
+    this.status = status;
+  }
+  /** Transitori e limiti di velocità si ritentano; il resto no. */
+  get retryable(): boolean {
+    return this.kind === "transitorio" || this.kind === "limite";
+  }
+  static fromStatus(status: number, message: string): ProviderError {
+    if (status === 401 || status === 403) return new ProviderError(message, "autenticazione", status);
+    if (status === 429) return new ProviderError(message, "limite", status);
+    if (status === 408 || status === 409 || status >= 500) return new ProviderError(message, "transitorio", status);
+    if (status >= 400) return new ProviderError(message, "richiesta", status);
+    return new ProviderError(message, "sconosciuto", status);
+  }
 }
 
 // --- Ambienti di esecuzione (M0 interfaccia, M5 Docker) --------------------

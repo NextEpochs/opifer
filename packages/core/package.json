@@ -13,12 +13,15 @@
       "default": "./dist/index.js"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc -b"
   },
   "devDependencies": {
-    "@opifer/db": "workspace:*"
+    "@opifer/db": "workspace:*",
+    "@opifer/runtime": "workspace:*"
   }
 }

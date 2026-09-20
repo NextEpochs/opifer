@@ -85,7 +85,7 @@ export async function registerAgentRoutes(app: FastifyInstance): Promise<void> {
         `;
         await tx`
           INSERT INTO agent_revisions (company_id, agent_id, revision, config, author_kind, note)
-          VALUES (${companyId}, ${row!.id}, 1, ${JSON.stringify(config)}::jsonb, 'persona', 'creazione')
+          VALUES (${companyId}, ${row!.id}, 1, ${config as never}::jsonb, 'persona', 'creazione')
         `;
         await audit(tx, {
           companyId,

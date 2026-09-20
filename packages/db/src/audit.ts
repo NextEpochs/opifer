@@ -28,8 +28,8 @@ export async function audit(sql: Sql | TransactionSql, entry: AuditInput): Promi
       ${entry.subjectKind},
       ${entry.subjectId ?? null},
       ${entry.taskId ?? null},
-      ${entry.before === undefined ? null : JSON.stringify(entry.before)}::jsonb,
-      ${entry.after === undefined ? null : JSON.stringify(entry.after)}::jsonb
+      ${(entry.before === undefined ? null : entry.before) as never}::jsonb,
+      ${(entry.after === undefined ? null : entry.after) as never}::jsonb
     )
     RETURNING id
   `;

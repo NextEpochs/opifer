@@ -1,0 +1,89 @@
+/**
+ * Ambiente di esecuzione locale: i comandi girano sulla macchina di Opifer,
+ * nella cartella di lavoro della sessione. È il backend della modalità locale
+ * fidata; Docker (M5) diventa il default con rete limitata.
+ */
+
+import { spawn } from "node:child_process";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import path from "node:path";
+import type { CommandResult, ExecutionEnvironment } from "@opifer/sdk";
+
+const OUTPUT_CAP = 64 * 1024;
+
+function capped(text: string): string {
+  return text.length > OUTPUT_CAP ? `${text.slice(0, OUTPUT_CAP)}\n[... output troncato a ${OUTPUT_CAP} caratteri ...]` : text;
+}
+
+export class LocalEnvironment implements ExecutionEnvironment {
+  readonly id = "locale";
+  private workdir = process.cwd();
+
+  async prepare(workdir: string): Promise<void> {
+    await mkdir(workdir, { recursive: true });
+    this.workdir = workdir;
+  }
+
+  resolve(p: string): string {
+    const full = path.resolve(this.workdir, p);
+    if (full !== this.workdir && !full.startsWith(this.workdir + path.sep)) {
+      throw new Error(`Percorso fuori dalla cartella di lavoro: ${p}`);
+    }
+    return full;
+  }
+
+  run(command: string[], options: { cwd?: string; timeoutMs?: number; env?: Record<string, string>; signal?: AbortSignal } = {}): Promise<CommandResult> {
+    const started = Date.now();
+    const cwd = options.cwd ? this.resolve(options.cwd) : this.workdir;
+    const timeoutMs = options.timeoutMs ?? 120_000;
+    return new Promise((resolve) => {
+      const [file, ...args] = command;
+      const child = spawn(file!, args, {
+        cwd,
+        env: { ...process.env, ...options.env },
+        stdio: ["ignore", "pipe", "pipe"],
+      });
+      let stdout = "";
+      let stderr = "";
+      let done = false;
+      const finish = (exitCode: number, note?: string) => {
+        if (done) return;
+        done = true;
+        clearTimeout(timer);
+        options.signal?.removeEventListener("abort", onAbort);
+        resolve({ exitCode, stdout: capped(stdout), stderr: capped(note ? `${stderr}\n${note}` : stderr), durationMs: Date.now() - started });
+      };
+      const timer = setTimeout(() => {
+        child.kill("SIGKILL");
+        finish(124, `[comando interrotto dopo ${timeoutMs} ms]`);
+      }, timeoutMs);
+      const onAbort = () => {
+        child.kill("SIGKILL");
+        finish(130, "[comando interrotto dall'operatore]");
+      };
+      options.signal?.addEventListener("abort", onAbort, { once: true });
+      child.stdout.on("data", (chunk: Buffer) => {
+        if (stdout.length < OUTPUT_CAP * 2) stdout += chunk.toString("utf8");
+      });
+      child.stderr.on("data", (chunk: Buffer) => {
+        if (stderr.length < OUTPUT_CAP * 2) stderr += chunk.toString("utf8");
+      });
+      child.on("error", (error) => finish(127, error.message));
+      child.on("close", (code) => finish(code ?? 1));
+    });
+  }
+
+  async readFile(p: string): Promise<Uint8Array> {
+    return readFile(this.resolve(p));
+  }
+
+  async writeFile(p: string, content: Uint8Array): Promise<void> {
+    const full = this.resolve(p);
+    await mkdir(path.dirname(full), { recursive: true });
+    await writeFile(full, content);
+  }
+
+  async dispose(): Promise<void> {
+    // niente da liberare in locale
+  }
+}

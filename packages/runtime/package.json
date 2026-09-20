@@ -7,8 +7,29 @@
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } },
-  "files": ["dist"],
-  "scripts": { "build": "tsc -b", "typecheck": "tsc -b" },
-  "dependencies": { "@opifer/core": "workspace:*", "@opifer/sdk": "workspace:*" }
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./testing": {
+      "types": "./dist/testing.d.ts",
+      "default": "./dist/testing.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc -b"
+  },
+  "dependencies": {
+    "@opifer/core": "workspace:*",
+    "@opifer/sdk": "workspace:*",
+    "postgres": "^3.4.7"
+  },
+  "devDependencies": {
+    "@opifer/db": "workspace:*"
+  }
 }

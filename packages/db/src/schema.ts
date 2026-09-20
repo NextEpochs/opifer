@@ -117,3 +117,97 @@ export const auditLog = pgTable(
 
 /** Tabelle di dominio: tutte devono portare company_id (le aziende sono la radice, le persone sono globali). */
 export const DOMAIN_TABLES_WITHOUT_COMPANY_ID: readonly string[] = ["companies", "users", "schema_migrations"];
+
+// --- Sessioni (0002) -------------------------------------------------------
+
+export const sessions = pgTable(
+  "sessions",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+    agentId: uuid("agent_id")
+      .notNull()
+      .references(() => agents.id, { onDelete: "cascade" }),
+    kind: text("kind", { enum: ["chat", "task", "routine"] }).notNull().default("chat"),
+    title: text("title"),
+    systemPrompt: text("system_prompt").notNull(),
+    systemPromptHash: text("system_prompt_hash").notNull(),
+    model: text("model").notNull(),
+    fallbackModel: text("fallback_model"),
+    status: text("status", { enum: ["attiva", "sospesa", "chiusa"] }).notNull().default("attiva"),
+    workdir: text("workdir"),
+    lastSeq: integer("last_seq").notNull().default(0),
+    ...timestamps,
+  },
+  (t) => [index("sessions_company_agent_idx").on(t.companyId, t.agentId, t.createdAt)],
+);
+
+export const runs = pgTable(
+  "runs",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+    sessionId: uuid("session_id")
+      .notNull()
+      .references(() => sessions.id, { onDelete: "cascade" }),
+    agentId: uuid("agent_id")
+      .notNull()
+      .references(() => agents.id, { onDelete: "cascade" }),
+    status: text("status", { enum: ["in_corso", "conclusa", "interrotta", "fallita", "in_attesa"] })
+      .notNull()
+      .default("in_corso"),
+    stopReason: text("stop_reason"),
+    iterations: integer("iterations").notNull().default(0),
+    inputTokens: integer("input_tokens").notNull().default(0),
+    outputTokens: integer("output_tokens").notNull().default(0),
+    cachedInputTokens: integer("cached_input_tokens").notNull().default(0),
+    error: text("error"),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (t) => [index("runs_session_idx").on(t.sessionId, t.startedAt), index("runs_company_status_idx").on(t.companyId, t.status)],
+);
+
+export const messages = pgTable(
+  "messages",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+    sessionId: uuid("session_id")
+      .notNull()
+      .references(() => sessions.id, { onDelete: "cascade" }),
+    runId: uuid("run_id").references(() => runs.id, { onDelete: "set null" }),
+    seq: integer("seq").notNull(),
+    role: text("role", { enum: ["user", "assistant", "tool"] }).notNull(),
+    content: jsonb("content").$type<unknown[]>().notNull(),
+    usage: jsonb("usage").$type<Record<string, number>>(),
+    ...timestamps,
+  },
+  (t) => [index("messages_company_idx").on(t.companyId), unique().on(t.sessionId, t.seq)],
+);
+
+export const runEvents = pgTable(
+  "run_events",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+    runId: uuid("run_id")
+      .notNull()
+      .references(() => runs.id, { onDelete: "cascade" }),
+    seq: integer("seq").notNull(),
+    type: text("type").notNull(),
+    payload: jsonb("payload").$type<Record<string, unknown>>().notNull().default({}),
+    occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull().defaultNow(),
+    ...timestamps,
+  },
+  (t) => [index("run_events_company_idx").on(t.companyId), unique().on(t.runId, t.seq)],
+);

@@ -1,44 +1,19 @@
-/**
- * Runtime dell'agente (M1).
- *
- * Il turno è una sequenza di fasi separate, ognuna sostituibile e testabile
- * da sola; ogni fase che costa denaro passa prima dal governo. In M0 sono
- * fissati i nomi delle fasi e i limiti di default; il loop arriva in M1.
- */
-
-export const TURN_PHASES = [
-  "preflight",
-  "assemblaggio",
-  "chiamata",
-  "errori",
-  "lettura",
-  "tool",
-  "overflow",
-  "compressione",
-  "recupero",
-  "chiusura",
-] as const;
-
-export type TurnPhase = (typeof TURN_PHASES)[number];
-
-export interface TurnLimits {
-  maxIterations: number;
-  maxDurationMs: number;
-  /** Tetto di spesa del turno, nella valuta dell'azienda. */
-  budget: number | null;
-}
-
-export const DEFAULT_TURN_LIMITS: TurnLimits = {
-  maxIterations: 200,
-  maxDurationMs: 60 * 60 * 1000,
-  budget: null,
-};
-
-export type StopReason =
-  | "risposta_finale"
-  | "interruzione"
-  | "limite_iterazioni"
-  | "limite_tempo"
-  | "budget_esaurito"
-  | "approvazione_in_attesa"
-  | "errore";
+export { TURN_PHASES, DEFAULT_TURN_LIMITS } from "./limits.js";
+export type { TurnPhase, TurnLimits, StopReason } from "./limits.js";
+export { AgentRuntime } from "./runtime.js";
+export type { RuntimeOptions, StartSessionInput, TurnInput, TurnResult } from "./runtime.js";
+export { SessionStore } from "./store.js";
+export type { CreateSessionInput } from "./store.js";
+export { ProviderRegistry } from "./providers.js";
+export type { ResolvedModel } from "./providers.js";
+export { assembleSystemPrompt, hashPrompt, loadContextFiles, CONTEXT_FILE_NAMES, CONTEXT_FILE_MAX_CHARS } from "./prompt.js";
+export type { PromptInput, PromptAgent, PromptCompany } from "./prompt.js";
+export { completeWithRecovery, DEFAULT_RECOVERY } from "./recovery.js";
+export type { RecoveryOptions, CompletionOutcome } from "./recovery.js";
+export { NativeToolExecutor } from "./tools/types.js";
+export type { NativeTool, ToolContext, ToolOutcome, ToolExecutor } from "./tools/types.js";
+export { NATIVE_TOOLS, terminalTool, readFileTool, writeFileTool, listFilesTool, searchFilesTool, askUserTool } from "./tools/native.js";
+export { checkCommand } from "./tools/safety.js";
+export type { CommandVerdict } from "./tools/safety.js";
+export { LocalEnvironment } from "./environments/local.js";
+export type { RunRecord, RunStatus, RuntimeEvent, RuntimeEventListener, SessionKind, SessionRecord, SessionStatus, StoredMessage, StoredRole } from "./types.js";

@@ -91,9 +91,49 @@ describe("le venti invarianti", () => {
   });
 
   describe("conversazione e costi", () => {
-    it.todo(invariantById("prefisso-stabile").title);
+    let db: TestDatabase;
+    let session: { id: string; companyId: string };
+
+    beforeAll(async () => {
+      db = await createTestDatabase();
+      const [company] = await db.sql<{ id: string }[]>`INSERT INTO companies (name) VALUES ('Prova') RETURNING id`;
+      const [agent] = await db.sql<{ id: string }[]>`INSERT INTO agents (company_id, name) VALUES (${company!.id}, 'Agente') RETURNING id`;
+      const [row] = await db.sql<{ id: string }[]>`
+        INSERT INTO sessions (company_id, agent_id, system_prompt, system_prompt_hash, model)
+        VALUES (${company!.id}, ${agent!.id}, 'prefisso', 'abc', 'finto/eco') RETURNING id
+      `;
+      session = { id: row!.id, companyId: company!.id };
+    }, 120_000);
+
+    afterAll(async () => {
+      await db?.destroy();
+    });
+
+    it(invariantById("prefisso-stabile").title, async () => {
+      // Il prompt di sistema di una sessione non cambia: il database lo rifiuta.
+      await expect(db.sql`UPDATE sessions SET system_prompt = 'altro' WHERE id = ${session.id}`).rejects.toThrow(/prefisso stabile/);
+      await expect(db.sql`UPDATE sessions SET system_prompt_hash = 'zzz' WHERE id = ${session.id}`).rejects.toThrow(/prefisso stabile/);
+      await db.sql`UPDATE sessions SET title = 'titolo' WHERE id = ${session.id}`;
+      const [row] = await db.sql<{ system_prompt: string }[]>`SELECT system_prompt FROM sessions WHERE id = ${session.id}`;
+      expect(row?.system_prompt).toBe("prefisso");
+    });
+
     it.todo(invariantById("una-sola-rottura").title);
-    it.todo(invariantById("alternanza-dei-ruoli").title);
+
+    it(invariantById("alternanza-dei-ruoli").title, async () => {
+      const insert = (seq: number, role: string) =>
+        db.sql`INSERT INTO messages (company_id, session_id, seq, role, content) VALUES (${session.companyId}, ${session.id}, ${seq}, ${role}, '[]'::jsonb)`;
+      await expect(insert(1, "assistant")).rejects.toThrow(/inizia sempre con un messaggio utente/);
+      await insert(1, "user");
+      await expect(insert(2, "user")).rejects.toThrow(/alternanza dei ruoli/);
+      await insert(2, "assistant");
+      await expect(insert(3, "assistant")).rejects.toThrow(/alternanza dei ruoli/);
+      await insert(3, "tool");
+      await insert(4, "assistant");
+      const roles = (await db.sql<{ role: string }[]>`SELECT role FROM messages WHERE session_id = ${session.id} ORDER BY seq`).map((r) => r.role);
+      expect(roles).toEqual(["user", "assistant", "tool", "assistant"]);
+    });
+
     it.todo(invariantById("budget-prima-della-chiamata").title);
   });
 
@@ -101,7 +141,50 @@ describe("le venti invarianti", () => {
     it.todo(invariantById("checkout-atomico").title);
     it.todo(invariantById("ogni-task-conosce-il-suo-perche").title);
     it.todo(invariantById("al-piu-una-volta").title);
-    it.todo(invariantById("niente-replay-dei-tool").title);
+    it(invariantById("niente-replay-dei-tool").title, async () => {
+      // Un turno muore dopo che il modello ha chiesto un tool: alla ripresa il tool non viene rieseguito.
+      const { AgentRuntime, NATIVE_TOOLS, NativeToolExecutor, ProviderRegistry } = await import("@opifer/runtime");
+      const { FakeProvider } = await import("@opifer/runtime/testing");
+      const { mkdtemp } = await import("node:fs/promises");
+      const { tmpdir } = await import("node:os");
+      const db = await createTestDatabase();
+      try {
+        const [company] = await db.sql<{ id: string }[]>`INSERT INTO companies (name) VALUES ('Prova') RETURNING id`;
+        const [agent] = await db.sql<{ id: string }[]>`INSERT INTO agents (company_id, name) VALUES (${company!.id}, 'Agente') RETURNING id`;
+        const executions: string[] = [];
+        const tools = new NativeToolExecutor(NATIVE_TOOLS);
+        const spied = {
+          definitions: () => tools.definitions(),
+          execute: async (name: string, args: Record<string, unknown>, ctx: Parameters<typeof tools.execute>[2]) => {
+            executions.push(name);
+            return tools.execute(name, args, ctx);
+          },
+        };
+        const provider = new FakeProvider((request) => (request.messages.at(-1)!.role === "tool" ? { kind: "text", text: "fatto" } : { kind: "tools", calls: [{ name: "list_files", arguments: {} }] }));
+        const build = () =>
+          new AgentRuntime({ sql: db.sql, providers: new ProviderRegistry().register(provider), tools: spied, workRoot: "", defaultModel: "finto/eco" });
+        const workdir = await mkdtemp(path.join(tmpdir(), "opifer-replay-"));
+        const session = await build().startSession({ companyId: company!.id, agentId: agent!.id, workdir });
+        // crash simulato: utente + chiamata a tool senza risultato, esecuzione rimasta "in corso"
+        const store = build().store;
+        const crashed = await store.createRun(session);
+        await store.appendMessage(session, "user", [{ type: "text", text: "elenca" }], { runId: crashed.id });
+        await store.appendMessage(session, "assistant", [{ type: "tool_call", id: "c1", name: "list_files", arguments: {} }], { runId: crashed.id });
+
+        const restarted = build();
+        await restarted.recoverSession(session.id);
+        const result = await restarted.runTurn({ sessionId: session.id, text: "continua" });
+        expect(result.run.status).toBe("conclusa");
+        // il tool della chiamata appesa non è stato rieseguito: l'unica esecuzione è quella del nuovo turno
+        expect(executions).toEqual(["list_files"]);
+        const messages = await restarted.store.listMessages(session.id);
+        const settled = messages[2]!;
+        expect(settled.role).toBe("tool");
+        expect(settled.content[0]).toMatchObject({ type: "tool_result", toolCallId: "c1", isError: true });
+      } finally {
+        await db.destroy();
+      }
+    });
     it.todo(invariantById("finito-significa-verificato").title);
   });
 
