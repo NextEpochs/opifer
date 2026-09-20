@@ -9,13 +9,7 @@
 import type { Sql } from "postgres";
 import type { Embedder } from "@opifer/sdk";
 import { audit } from "@opifer/db";
-import {
-  LearningError,
-  type Actor,
-  type Memory,
-  type MemoryKind,
-  type Scope,
-} from "./types.js";
+import { LearningError, type Actor, type Memory, type MemoryKind, type Scope } from "./types.js";
 
 interface MemoryRow {
   id: string;
@@ -89,14 +83,8 @@ export interface MemorySearchHit {
 }
 
 /** The scopes an agent reads: its own, the teams it belongs to (every ancestor's), the company. */
-export async function visibleScopes(
-  sql: Sql,
-  companyId: string,
-  agentId: string,
-): Promise<{ agentIds: string[] }> {
-  const rows = await sql<
-    { id: string; reports_to_agent_id: string | null }[]
-  >`SELECT id, reports_to_agent_id FROM agents WHERE company_id = ${companyId}`;
+export async function visibleScopes(sql: Sql, companyId: string, agentId: string): Promise<{ agentIds: string[] }> {
+  const rows = await sql<{ id: string; reports_to_agent_id: string | null }[]>`SELECT id, reports_to_agent_id FROM agents WHERE company_id = ${companyId}`;
   const parents = new Map(rows.map((r) => [r.id, r.reports_to_agent_id]));
   const chain: string[] = [];
   let current: string | null | undefined = agentId;
@@ -136,18 +124,9 @@ export class MemoryService {
   async remember(input: RememberInput, actor: Actor): Promise<Memory> {
     const content = input.content.trim();
     if (!content) throw new LearningError("invalid_input", "an empty memory");
-    if (content.length > 4000)
-      throw new LearningError(
-        "invalid_input",
-        "a memory is a note, not a document: keep it under 4000 characters",
-      );
-    const scopeAgentId =
-      input.scope === "company" ? null : (input.scopeAgentId ?? null);
-    if (input.scope !== "company" && !scopeAgentId)
-      throw new LearningError(
-        "invalid_input",
-        `scope ${input.scope} needs an agent`,
-      );
+    if (content.length > 4000) throw new LearningError("invalid_input", "a memory is a note, not a document: keep it under 4000 characters");
+    const scopeAgentId = input.scope === "company" ? null : (input.scopeAgentId ?? null);
+    if (input.scope !== "company" && !scopeAgentId) throw new LearningError("invalid_input", `scope ${input.scope} needs an agent`);
     const embedding = await this.embed(`${input.subject ?? ""} ${content}`);
     const [row] = await this.sql<MemoryRow[]>`
       INSERT INTO memories (company_id, scope, scope_agent_id, kind, subject, content, pinned, source_session_id, source_run_id, source_task_id, author_kind, author_id, embedding)
@@ -174,9 +153,7 @@ export class MemoryService {
   }
 
   async get(companyId: string, id: string): Promise<Memory | null> {
-    const [row] = await this.sql<
-      MemoryRow[]
-    >`SELECT ${this.sql.unsafe(COLUMNS)} FROM memories WHERE id = ${id} AND company_id = ${companyId}`;
+    const [row] = await this.sql<MemoryRow[]>`SELECT ${this.sql.unsafe(COLUMNS)} FROM memories WHERE id = ${id} AND company_id = ${companyId}`;
     return row ? toMemory(row) : null;
   }
 
@@ -193,19 +170,10 @@ export class MemoryService {
     const statuses = filter.status ?? ["active"];
     let scopeFilter = this.sql``;
     if (filter.agentView) {
-      const { agentIds } = await visibleScopes(
-        this.sql,
-        companyId,
-        filter.agentView,
-      );
-      scopeFilter = this
-        .sql`AND ((scope = 'agent' AND scope_agent_id = ${filter.agentView}) OR (scope = 'team' AND scope_agent_id = ANY(${agentIds})) OR scope = 'company')`;
+      const { agentIds } = await visibleScopes(this.sql, companyId, filter.agentView);
+      scopeFilter = this.sql`AND ((scope = 'agent' AND scope_agent_id = ${filter.agentView}) OR (scope = 'team' AND scope_agent_id = ANY(${agentIds})) OR scope = 'company')`;
     } else if (filter.scope) {
-      scopeFilter =
-        filter.scope === "company"
-          ? this.sql`AND scope = 'company'`
-          : this
-              .sql`AND scope = ${filter.scope} AND scope_agent_id = ${filter.scopeAgentId ?? null}`;
+      scopeFilter = filter.scope === "company" ? this.sql`AND scope = 'company'` : this.sql`AND scope = ${filter.scope} AND scope_agent_id = ${filter.scopeAgentId ?? null}`;
     }
     const rows = await this.sql<MemoryRow[]>`
       SELECT ${this.sql.unsafe(COLUMNS)} FROM memories
@@ -216,19 +184,12 @@ export class MemoryService {
   }
 
   /** A correction: the new entry supersedes the old one, which stays readable. */
-  async correct(
-    companyId: string,
-    id: string,
-    content: string,
-    actor: Actor,
-  ): Promise<Memory> {
+  async correct(companyId: string, id: string, content: string, actor: Actor): Promise<Memory> {
     const old = await this.get(companyId, id);
     if (!old) throw new LearningError("not_found", "memory not found");
-    if (old.status !== "active")
-      throw new LearningError("conflict", `memory is ${old.status}`);
+    if (old.status !== "active") throw new LearningError("conflict", `memory is ${old.status}`);
     const trimmed = content.trim();
-    if (!trimmed)
-      throw new LearningError("invalid_input", "an empty correction");
+    if (!trimmed) throw new LearningError("invalid_input", "an empty correction");
     const embedding = await this.embed(`${old.subject} ${trimmed}`);
     const next = await this.sql.begin(async (tx) => {
       const [row] = await tx<MemoryRow[]>`
@@ -253,17 +214,11 @@ export class MemoryService {
   }
 
   /** Retires an entry with a reason; it stays in the record. */
-  async retire(
-    companyId: string,
-    id: string,
-    reason: string,
-    actor: Actor,
-  ): Promise<Memory> {
+  async retire(companyId: string, id: string, reason: string, actor: Actor): Promise<Memory> {
     const old = await this.get(companyId, id);
     if (!old) throw new LearningError("not_found", "memory not found");
     if (old.status !== "active") return old;
-    if (!reason.trim())
-      throw new LearningError("invalid_input", "say why the memory is retired");
+    if (!reason.trim()) throw new LearningError("invalid_input", "say why the memory is retired");
     const [row] = await this.sql<MemoryRow[]>`
       UPDATE memories SET status = 'retired', retired_reason = ${reason.trim()}, retired_at = now() WHERE id = ${id} RETURNING ${this.sql.unsafe(COLUMNS)}
     `;
@@ -279,15 +234,8 @@ export class MemoryService {
     return toMemory(row!);
   }
 
-  async pin(
-    companyId: string,
-    id: string,
-    pinned: boolean,
-    actor: Actor,
-  ): Promise<Memory> {
-    const [row] = await this.sql<
-      MemoryRow[]
-    >`UPDATE memories SET pinned = ${pinned} WHERE id = ${id} AND company_id = ${companyId} RETURNING ${this.sql.unsafe(COLUMNS)}`;
+  async pin(companyId: string, id: string, pinned: boolean, actor: Actor): Promise<Memory> {
+    const [row] = await this.sql<MemoryRow[]>`UPDATE memories SET pinned = ${pinned} WHERE id = ${id} AND company_id = ${companyId} RETURNING ${this.sql.unsafe(COLUMNS)}`;
     if (!row) throw new LearningError("not_found", "memory not found");
     await audit(this.sql, {
       companyId,
@@ -301,13 +249,7 @@ export class MemoryService {
   }
 
   /** Changes the scope of an entry (a promotion writes a copy instead; this is for corrections by a person). */
-  async rescope(
-    companyId: string,
-    id: string,
-    scope: Scope,
-    scopeAgentId: string | null,
-    actor: Actor,
-  ): Promise<Memory> {
+  async rescope(companyId: string, id: string, scope: Scope, scopeAgentId: string | null, actor: Actor): Promise<Memory> {
     const [row] = await this.sql<MemoryRow[]>`
       UPDATE memories SET scope = ${scope}, scope_agent_id = ${scope === "company" ? null : scopeAgentId} WHERE id = ${id} AND company_id = ${companyId} RETURNING ${this.sql.unsafe(COLUMNS)}
     `;
@@ -328,33 +270,19 @@ export class MemoryService {
    * The text that enters the prompt: the agent's own entries first, then its
    * teams', then the company's; pinned first, newest first; cut at the cap.
    */
-  async snapshot(
-    companyId: string,
-    agentId: string,
-    maxChars: number,
-  ): Promise<{ text: string; count: number; truncated: boolean }> {
+  async snapshot(companyId: string, agentId: string, maxChars: number): Promise<{ text: string; count: number; truncated: boolean }> {
     const entries = await this.list(companyId, {
       agentView: agentId,
       limit: 500,
     });
     const order: Record<Scope, number> = { agent: 0, team: 1, company: 2 };
-    entries.sort(
-      (a, b) =>
-        Number(b.pinned) - Number(a.pinned) ||
-        order[a.scope] - order[b.scope] ||
-        b.createdAt.getTime() - a.createdAt.getTime(),
-    );
+    entries.sort((a, b) => Number(b.pinned) - Number(a.pinned) || order[a.scope] - order[b.scope] || b.createdAt.getTime() - a.createdAt.getTime());
     const lines: string[] = [];
     let used = 0;
     let count = 0;
     let truncated = false;
     for (const m of entries) {
-      const prefix =
-        m.scope === "agent"
-          ? ""
-          : m.scope === "team"
-            ? "[team] "
-            : "[company] ";
+      const prefix = m.scope === "agent" ? "" : m.scope === "team" ? "[team] " : "[company] ";
       const subject = m.kind === "profile" && m.subject ? `${m.subject}: ` : "";
       const line = `- ${prefix}${subject}${m.content.replace(/\s+/g, " ").trim()}`;
       if (used + line.length + 1 > maxChars) {
@@ -365,28 +293,17 @@ export class MemoryService {
       used += line.length + 1;
       count++;
     }
-    const text =
-      lines.join("\n") +
-      (truncated
-        ? `\n(${entries.length - count} more entries: use memory_search)`
-        : "");
+    const text = lines.join("\n") + (truncated ? `\n(${entries.length - count} more entries: use memory_search)` : "");
     return { text, count, truncated };
   }
 
   /** Full-text search over the agent's visible memories, reranked semantically when possible. */
-  async search(
-    companyId: string,
-    agentId: string,
-    query: string,
-    options: { limit?: number; includeRetired?: boolean } = {},
-  ): Promise<MemorySearchHit[]> {
+  async search(companyId: string, agentId: string, query: string, options: { limit?: number; includeRetired?: boolean } = {}): Promise<MemorySearchHit[]> {
     const q = query.trim();
     if (!q) return [];
     const limit = options.limit ?? 8;
     const { agentIds } = await visibleScopes(this.sql, companyId, agentId);
-    const statuses = options.includeRetired
-      ? ["active", "retired", "superseded"]
-      : ["active"];
+    const statuses = options.includeRetired ? ["active", "retired", "superseded"] : ["active"];
     const visible = this
       .sql`company_id = ${companyId} AND status = ANY(${statuses}) AND ((scope = 'agent' AND scope_agent_id = ${agentId}) OR (scope = 'team' AND scope_agent_id = ANY(${agentIds})) OR scope = 'company')`;
     const textual = await this.sql<(MemoryRow & { rank: number })[]>`
@@ -394,16 +311,11 @@ export class MemoryService {
       FROM memories WHERE ${visible} AND search @@ websearch_to_tsquery('english', ${q})
       ORDER BY rank DESC, created_at DESC LIMIT ${Math.max(limit * 4, 40)}
     `;
-    if (!this.embedder)
-      return textual
-        .slice(0, limit)
-        .map((r) => ({ memory: toMemory(r), score: Number(r.rank) }));
+    if (!this.embedder) return textual.slice(0, limit).map((r) => ({ memory: toMemory(r), score: Number(r.rank) }));
 
     // Semantic pass: the textual candidates plus the most recent entries, scored by cosine.
     const [vector] = await this.embedder.embed([q]);
-    const candidates = await this.sql<
-      (MemoryRow & { embedding: number[] | null })[]
-    >`
+    const candidates = await this.sql<(MemoryRow & { embedding: number[] | null })[]>`
       SELECT ${this.sql.unsafe(COLUMNS)}, embedding FROM memories
       WHERE ${visible} AND embedding IS NOT NULL AND (id = ANY(${textual.map((r) => r.id)}) OR created_at > now() - interval '180 days')
       ORDER BY created_at DESC LIMIT 400
@@ -431,12 +343,8 @@ export class MemoryService {
       { id: string; subject: string; content: string }[]
     >`SELECT id, subject, content FROM memories WHERE company_id = ${companyId} AND embedding IS NULL AND status = 'active' LIMIT ${batch}`;
     if (rows.length === 0) return 0;
-    const vectors = await this.embedder.embed(
-      rows.map((r) => `${r.subject} ${r.content}`),
-    );
-    for (let i = 0; i < rows.length; i++)
-      await this
-        .sql`UPDATE memories SET embedding = ${vectors[i]!} WHERE id = ${rows[i]!.id}`;
+    const vectors = await this.embedder.embed(rows.map((r) => `${r.subject} ${r.content}`));
+    for (let i = 0; i < rows.length; i++) await this.sql`UPDATE memories SET embedding = ${vectors[i]!} WHERE id = ${rows[i]!.id}`;
     return rows.length;
   }
 

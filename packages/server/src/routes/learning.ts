@@ -5,13 +5,7 @@
  * settings.
  */
 
-import {
-  LearningError,
-  parseSkillMarkdown,
-  renderSkillMarkdown,
-  type LearningService,
-  type Scope,
-} from "@opifer/learning";
+import { LearningError, parseSkillMarkdown, renderSkillMarkdown, type LearningService, type Scope } from "@opifer/learning";
 import type { FastifyInstance, FastifyReply } from "fastify";
 import type { Governance } from "../governance.js";
 
@@ -29,45 +23,28 @@ function message(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-async function handle<T>(
-  reply: FastifyReply,
-  fn: () => Promise<T>,
-): Promise<T | FastifyReply> {
+async function handle<T>(reply: FastifyReply, fn: () => Promise<T>): Promise<T | FastifyReply> {
   try {
     return await fn();
   } catch (error) {
     if (error instanceof LearningError)
       return reply
-        .code(
-          error.code === "not_found"
-            ? 404
-            : error.code === "forbidden"
-              ? 403
-              : error.code === "conflict"
-                ? 409
-                : 400,
-        )
+        .code(error.code === "not_found" ? 404 : error.code === "forbidden" ? 403 : error.code === "conflict" ? 409 : 400)
         .send({ error: error.message, code: error.code });
     return reply.code(400).send({ error: message(error) });
   }
 }
 
-export function registerLearningRoutes(
-  app: FastifyInstance,
-  options: LearningRoutesOptions,
-): void {
+export function registerLearningRoutes(app: FastifyInstance, options: LearningRoutesOptions): void {
   const { learning } = options;
   const bus = app.opifer.bus;
 
   // --- Settings ---------------------------------------------------------------
 
-  app.get<{ Params: { id: string } }>(
-    "/companies/:id/learning",
-    async (request) => ({
-      ...(await learning.settings.get(request.params.id)),
-      semanticSearch: learning.memories.semantic,
-    }),
-  );
+  app.get<{ Params: { id: string } }>("/companies/:id/learning", async (request) => ({
+    ...(await learning.settings.get(request.params.id)),
+    semanticSearch: learning.memories.semantic,
+  }));
 
   app.put<{ Params: { id: string }; Body: Record<string, unknown> }>(
     "/companies/:id/learning",
@@ -94,14 +71,7 @@ export function registerLearningRoutes(
         },
       },
     },
-    async (request, reply) =>
-      handle(reply, () =>
-        learning.settings.update(
-          request.params.id,
-          request.body as never,
-          person,
-        ),
-      ),
+    async (request, reply) => handle(reply, () => learning.settings.update(request.params.id, request.body as never, person)),
   );
 
   // --- Memories ----------------------------------------------------------------
@@ -118,9 +88,7 @@ export function registerLearningRoutes(
     };
   }>("/companies/:id/memories", async (request) => {
     const { agent, q, status, limit } = request.query;
-    const statuses = status
-      ? (status.split(",") as Array<"active" | "retired" | "superseded">)
-      : undefined;
+    const statuses = status ? (status.split(",") as Array<"active" | "retired" | "superseded">) : undefined;
     if (q && agent)
       return (
         await learning.memories.search(request.params.id, agent, q, {
@@ -131,9 +99,7 @@ export function registerLearningRoutes(
     return learning.memories.list(request.params.id, {
       ...(agent ? { agentView: agent } : {}),
       ...(request.query.scope ? { scope: request.query.scope } : {}),
-      ...(request.query.scopeAgentId
-        ? { scopeAgentId: request.query.scopeAgentId }
-        : {}),
+      ...(request.query.scopeAgentId ? { scopeAgentId: request.query.scopeAgentId } : {}),
       ...(statuses ? { status: statuses } : {}),
       ...(limit ? { limit: Number(limit) } : {}),
     });
@@ -170,10 +136,7 @@ export function registerLearningRoutes(
     },
     async (request, reply) =>
       handle(reply, async () => {
-        const memory = await learning.memories.remember(
-          { companyId: request.params.id, ...request.body },
-          person,
-        );
+        const memory = await learning.memories.remember({ companyId: request.params.id, ...request.body }, person);
         bus.publish("memory.saved", request.params.id, {
           memoryId: memory.id,
           scope: memory.scope,
@@ -199,15 +162,7 @@ export function registerLearningRoutes(
         },
       },
     },
-    async (request, reply) =>
-      handle(reply, () =>
-        learning.memories.correct(
-          request.params.id,
-          request.params.memoryId,
-          request.body.content,
-          person,
-        ),
-      ),
+    async (request, reply) => handle(reply, () => learning.memories.correct(request.params.id, request.params.memoryId, request.body.content, person)),
   );
   app.post<{
     Params: { id: string; memoryId: string };
@@ -226,15 +181,7 @@ export function registerLearningRoutes(
         },
       },
     },
-    async (request, reply) =>
-      handle(reply, () =>
-        learning.memories.retire(
-          request.params.id,
-          request.params.memoryId,
-          request.body.reason,
-          person,
-        ),
-      ),
+    async (request, reply) => handle(reply, () => learning.memories.retire(request.params.id, request.params.memoryId, request.body.reason, person)),
   );
   app.post<{
     Params: { id: string; memoryId: string };
@@ -251,15 +198,7 @@ export function registerLearningRoutes(
         },
       },
     },
-    async (request, reply) =>
-      handle(reply, () =>
-        learning.memories.pin(
-          request.params.id,
-          request.params.memoryId,
-          request.body.pinned,
-          person,
-        ),
-      ),
+    async (request, reply) => handle(reply, () => learning.memories.pin(request.params.id, request.params.memoryId, request.body.pinned, person)),
   );
   app.post<{
     Params: { id: string; memoryId: string };
@@ -280,13 +219,7 @@ export function registerLearningRoutes(
     },
     async (request, reply) =>
       handle(reply, async () => {
-        const promotion = await learning.promotions.propose(
-          request.params.id,
-          "memory",
-          request.params.memoryId,
-          request.body.toScope,
-          person,
-        );
+        const promotion = await learning.promotions.propose(request.params.id, "memory", request.params.memoryId, request.body.toScope, person);
         if (promotion.approvalId)
           bus.publish("approval.requested", request.params.id, {
             approvalId: promotion.approvalId,
@@ -307,18 +240,13 @@ export function registerLearningRoutes(
       status?: string;
     };
   }>("/companies/:id/skills", async (request) => {
-    const statuses: Array<"active" | "inactive" | "archived"> = request.query
-      .status
-      ? (request.query.status.split(",") as Array<
-          "active" | "inactive" | "archived"
-        >)
+    const statuses: Array<"active" | "inactive" | "archived"> = request.query.status
+      ? (request.query.status.split(",") as Array<"active" | "inactive" | "archived">)
       : ["active", "inactive", "archived"];
     return learning.skills.list(request.params.id, {
       ...(request.query.agent ? { agentView: request.query.agent } : {}),
       ...(request.query.scope ? { scope: request.query.scope } : {}),
-      ...(request.query.scopeAgentId
-        ? { scopeAgentId: request.query.scopeAgentId }
-        : {}),
+      ...(request.query.scopeAgentId ? { scopeAgentId: request.query.scopeAgentId } : {}),
       status: statuses,
     });
   });
@@ -363,10 +291,7 @@ export function registerLearningRoutes(
     async (request, reply) =>
       handle(reply, async () => {
         const { origin, ...rest } = request.body;
-        const skill = await learning.skills.create(
-          { companyId: request.params.id, ...rest, origin: origin ?? "person" },
-          person,
-        );
+        const skill = await learning.skills.create({ companyId: request.params.id, ...rest, origin: origin ?? "person" }, person);
         bus.publish("skill.created", request.params.id, {
           skillId: skill.id,
           name: skill.name,
@@ -408,11 +333,7 @@ export function registerLearningRoutes(
       handle(reply, async () => {
         const parsed = parseSkillMarkdown(request.body.markdown);
         const name = request.body.name ?? parsed.name;
-        if (!name)
-          throw new LearningError(
-            "invalid_input",
-            "the SKILL.md header has no name: pass one",
-          );
+        if (!name) throw new LearningError("invalid_input", "the SKILL.md header has no name: pass one");
         const skill = await learning.skills.create(
           {
             companyId: request.params.id,
@@ -432,54 +353,41 @@ export function registerLearningRoutes(
       }),
   );
 
-  app.get<{ Params: { id: string; skillId: string } }>(
-    "/companies/:id/skills/:skillId",
-    async (request, reply) => {
-      const skill = await learning.skills.get(
-        request.params.id,
-        request.params.skillId,
-      );
-      if (!skill) return reply.code(404).send({ error: "skill not found" });
-      const [version, versions, usage, promotions] = await Promise.all([
-        learning.skills.version(request.params.id, skill.id),
-        learning.skills.versions(request.params.id, skill.id),
-        learning.skills.usage(request.params.id, skill.id),
-        learning.promotions.list(request.params.id),
-      ]);
-      return {
-        ...skill,
-        version,
-        versions: versions.map((v) => ({
-          version: v.version,
-          note: v.note,
-          createdAt: v.createdAt,
-          createdByKind: v.createdByKind,
-          description: v.description,
-        })),
-        usage: {
-          successes: usage.successes,
-          failures: usage.failures,
-          recent: usage.uses.slice(0, 20),
-        },
-        promotions: promotions.filter((p) => p.subjectId === skill.id),
-      };
-    },
-  );
+  app.get<{ Params: { id: string; skillId: string } }>("/companies/:id/skills/:skillId", async (request, reply) => {
+    const skill = await learning.skills.get(request.params.id, request.params.skillId);
+    if (!skill) return reply.code(404).send({ error: "skill not found" });
+    const [version, versions, usage, promotions] = await Promise.all([
+      learning.skills.version(request.params.id, skill.id),
+      learning.skills.versions(request.params.id, skill.id),
+      learning.skills.usage(request.params.id, skill.id),
+      learning.promotions.list(request.params.id),
+    ]);
+    return {
+      ...skill,
+      version,
+      versions: versions.map((v) => ({
+        version: v.version,
+        note: v.note,
+        createdAt: v.createdAt,
+        createdByKind: v.createdByKind,
+        description: v.description,
+      })),
+      usage: {
+        successes: usage.successes,
+        failures: usage.failures,
+        recent: usage.uses.slice(0, 20),
+      },
+      promotions: promotions.filter((p) => p.subjectId === skill.id),
+    };
+  });
 
   app.get<{
     Params: { id: string; skillId: string };
     Querystring: { version?: string };
   }>("/companies/:id/skills/:skillId/export", async (request, reply) => {
-    const skill = await learning.skills.get(
-      request.params.id,
-      request.params.skillId,
-    );
+    const skill = await learning.skills.get(request.params.id, request.params.skillId);
     if (!skill) return reply.code(404).send({ error: "skill not found" });
-    const version = await learning.skills.version(
-      request.params.id,
-      skill.id,
-      request.query.version ? Number(request.query.version) : undefined,
-    );
+    const version = await learning.skills.version(request.params.id, skill.id, request.query.version ? Number(request.query.version) : undefined);
     if (!version) return reply.code(404).send({ error: "version not found" });
     return {
       name: skill.name,
@@ -488,17 +396,10 @@ export function registerLearningRoutes(
     };
   });
 
-  app.get<{ Params: { id: string; skillId: string; version: string } }>(
-    "/companies/:id/skills/:skillId/versions/:version",
-    async (request, reply) => {
-      const version = await learning.skills.version(
-        request.params.id,
-        request.params.skillId,
-        Number(request.params.version),
-      );
-      return version ?? reply.code(404).send({ error: "version not found" });
-    },
-  );
+  app.get<{ Params: { id: string; skillId: string; version: string } }>("/companies/:id/skills/:skillId/versions/:version", async (request, reply) => {
+    const version = await learning.skills.version(request.params.id, request.params.skillId, Number(request.params.version));
+    return version ?? reply.code(404).send({ error: "version not found" });
+  });
 
   app.post<{
     Params: { id: string; skillId: string };
@@ -527,27 +428,10 @@ export function registerLearningRoutes(
         },
       },
     },
-    async (request, reply) =>
-      handle(reply, () =>
-        learning.skills.update(
-          request.params.id,
-          request.params.skillId,
-          request.body,
-          person,
-        ),
-      ),
+    async (request, reply) => handle(reply, () => learning.skills.update(request.params.id, request.params.skillId, request.body, person)),
   );
-  app.post<{ Params: { id: string; skillId: string; version: string } }>(
-    "/companies/:id/skills/:skillId/versions/:version/restore",
-    async (request, reply) =>
-      handle(reply, () =>
-        learning.skills.restore(
-          request.params.id,
-          request.params.skillId,
-          Number(request.params.version),
-          person,
-        ),
-      ),
+  app.post<{ Params: { id: string; skillId: string; version: string } }>("/companies/:id/skills/:skillId/versions/:version/restore", async (request, reply) =>
+    handle(reply, () => learning.skills.restore(request.params.id, request.params.skillId, Number(request.params.version), person)),
   );
   app.post<{
     Params: { id: string; skillId: string };
@@ -570,16 +454,7 @@ export function registerLearningRoutes(
         },
       },
     },
-    async (request, reply) =>
-      handle(reply, () =>
-        learning.skills.setStatus(
-          request.params.id,
-          request.params.skillId,
-          request.body.status,
-          person,
-          request.body.reason ?? "",
-        ),
-      ),
+    async (request, reply) => handle(reply, () => learning.skills.setStatus(request.params.id, request.params.skillId, request.body.status, person, request.body.reason ?? "")),
   );
   app.post<{
     Params: { id: string; skillId: string };
@@ -596,15 +471,7 @@ export function registerLearningRoutes(
         },
       },
     },
-    async (request, reply) =>
-      handle(reply, () =>
-        learning.skills.pin(
-          request.params.id,
-          request.params.skillId,
-          request.body.pinned,
-          person,
-        ),
-      ),
+    async (request, reply) => handle(reply, () => learning.skills.pin(request.params.id, request.params.skillId, request.body.pinned, person)),
   );
   app.post<{
     Params: { id: string; skillId: string };
@@ -625,13 +492,7 @@ export function registerLearningRoutes(
     },
     async (request, reply) =>
       handle(reply, async () => {
-        const promotion = await learning.promotions.propose(
-          request.params.id,
-          "skill",
-          request.params.skillId,
-          request.body.toScope,
-          person,
-        );
+        const promotion = await learning.promotions.propose(request.params.id, "skill", request.params.skillId, request.body.toScope, person);
         if (promotion.approvalId)
           bus.publish("approval.requested", request.params.id, {
             approvalId: promotion.approvalId,
@@ -643,15 +504,8 @@ export function registerLearningRoutes(
 
   // --- Promotions, reviews, curator ------------------------------------------
 
-  app.get<{ Params: { id: string }; Querystring: { status?: string } }>(
-    "/companies/:id/promotions",
-    async (request) =>
-      learning.promotions.list(
-        request.params.id,
-        request.query.status
-          ? (request.query.status.split(",") as never)
-          : undefined,
-      ),
+  app.get<{ Params: { id: string }; Querystring: { status?: string } }>("/companies/:id/promotions", async (request) =>
+    learning.promotions.list(request.params.id, request.query.status ? (request.query.status.split(",") as never) : undefined),
   );
   app.get<{
     Params: { id: string };
@@ -662,28 +516,21 @@ export function registerLearningRoutes(
       ...(request.query.limit ? { limit: Number(request.query.limit) } : {}),
     }),
   );
-  app.post<{ Params: { id: string } }>(
-    "/companies/:id/learning/curate",
-    async (request, reply) =>
-      handle(reply, async () => {
-        const settings = await learning.settings.get(request.params.id);
-        return learning.skills.curate(request.params.id, {
-          inactiveAfterDays: settings.inactiveAfterDays,
-          archiveAfterDays: settings.archiveAfterDays,
-        });
-      }),
+  app.post<{ Params: { id: string } }>("/companies/:id/learning/curate", async (request, reply) =>
+    handle(reply, async () => {
+      const settings = await learning.settings.get(request.params.id);
+      return learning.skills.curate(request.params.id, {
+        inactiveAfterDays: settings.inactiveAfterDays,
+        archiveAfterDays: settings.archiveAfterDays,
+      });
+    }),
   );
   /** Runs pending reviews now (the worker does it by itself every few seconds). */
-  app.post<{ Params: { id: string } }>(
-    "/companies/:id/learning/reviews/run",
-    async () => ({ done: (await app.opifer.learningWorker?.tick()) ?? 0 }),
-  );
+  app.post<{ Params: { id: string } }>("/companies/:id/learning/reviews/run", async () => ({ done: (await app.opifer.learningWorker?.tick()) ?? 0 }));
 
   /** What an agent would see at the start of its next session. */
-  app.get<{ Params: { id: string; agentId: string } }>(
-    "/companies/:id/agents/:agentId/learning-snapshot",
-    async (request) =>
-      learning.snapshot(request.params.id, request.params.agentId),
+  app.get<{ Params: { id: string; agentId: string } }>("/companies/:id/agents/:agentId/learning-snapshot", async (request) =>
+    learning.snapshot(request.params.id, request.params.agentId),
   );
   void uuid;
 }

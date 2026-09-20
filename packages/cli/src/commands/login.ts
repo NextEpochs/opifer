@@ -8,14 +8,7 @@
 import { spawn } from "node:child_process";
 import { createInterface } from "node:readline/promises";
 import { stdin, stdout } from "node:process";
-import {
-  FileCredentialStore,
-  buildAuthorizationRequest,
-  exchangeCode,
-  parseCallbackURL,
-  startCallbackServer,
-  DEFAULT_OAUTH,
-} from "@opifer/provider-openai";
+import { FileCredentialStore, buildAuthorizationRequest, exchangeCode, parseCallbackURL, startCallbackServer, DEFAULT_OAUTH } from "@opifer/provider-openai";
 import { chatgptCredentialsFile } from "@opifer/server";
 import { resolveHome } from "../home.js";
 import { c, say } from "../output.js";

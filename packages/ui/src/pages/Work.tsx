@@ -1,44 +1,14 @@
-import {
-  Fragment,
-  useCallback,
-  useEffect,
-  useState,
-  type FormEvent,
-  type ReactNode,
-} from "react";
-import {
-  DndContext,
-  DragOverlay,
-  PointerSensor,
-  useDraggable,
-  useDroppable,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-  type DragStartEvent,
-} from "@dnd-kit/core";
+import { Fragment, useCallback, useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { DndContext, DragOverlay, PointerSensor, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent, type DragStartEvent } from "@dnd-kit/core";
 import { Plus, X } from "lucide-react";
-import {
-  api,
-  eventsSocket,
-  type Goal,
-  type Project,
-  type Task,
-  type TaskStatus,
-} from "../api";
+import { api, eventsSocket, type Goal, type Project, type Task, type TaskStatus } from "../api";
 import { Button, Card, Chip, Input, Segmented } from "../ui";
 import { STATUS_ORDER, TaskCard, TaskForm } from "../components/TaskBits";
 import { TaskDrawer } from "../components/TaskDrawer";
 import type { Workspace } from "../App";
 
 /** The Work page: a board by state (drag by hand only where a person decides), a list, goals and projects. */
-export function WorkPage({
-  ws,
-  param,
-}: {
-  ws: Workspace;
-  param: string | null;
-}) {
+export function WorkPage({ ws, param }: { ws: Workspace; param: string | null }) {
   const { t, company } = ws;
   const [tasks, setTasks] = useState<Task[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
@@ -49,16 +19,10 @@ export function WorkPage({
   const [notice, setNotice] = useState<string | null>(null);
   const [dragging, setDragging] = useState<Task | null>(null);
   const selected = param && param !== "new" ? param : null;
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-  );
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
 
   const load = useCallback(async () => {
-    const [ts, gs, ps] = await Promise.all([
-      api.tasks(company.id, projectFilter ? { projectId: projectFilter } : {}),
-      api.goals(company.id),
-      api.projects(company.id),
-    ]);
+    const [ts, gs, ps] = await Promise.all([api.tasks(company.id, projectFilter ? { projectId: projectFilter } : {}), api.goals(company.id), api.projects(company.id)]);
     setTasks(ts);
     setGoals(gs);
     setProjects(ps);
@@ -68,13 +32,8 @@ export function WorkPage({
     void load();
     return eventsSocket(
       (event) => {
-        if (event.companyId === company.id && event.type.startsWith("task."))
-          void load();
-        if (
-          event.companyId === company.id &&
-          (event.type.startsWith("goal.") || event.type.startsWith("project."))
-        )
-          void load();
+        if (event.companyId === company.id && event.type.startsWith("task.")) void load();
+        if (event.companyId === company.id && (event.type.startsWith("goal.") || event.type.startsWith("project."))) void load();
       },
       () => {},
     );
@@ -84,18 +43,10 @@ export function WorkPage({
     setCreating(param === "new");
   }, [param]);
 
-  const byStatus = (s: TaskStatus) =>
-    tasks.filter(
-      (x) =>
-        x.status === s &&
-        (s !== "done" ||
-          !x.finishedAt ||
-          Date.now() - new Date(x.finishedAt).getTime() < 7 * 86_400_000),
-    );
+  const byStatus = (s: TaskStatus) => tasks.filter((x) => x.status === s && (s !== "done" || !x.finishedAt || Date.now() - new Date(x.finishedAt).getTime() < 7 * 86_400_000));
   const open = (id: string) => ws.go("work", id);
 
-  const onDragStart = (e: DragStartEvent) =>
-    setDragging(tasks.find((x) => x.id === e.active.id) ?? null);
+  const onDragStart = (e: DragStartEvent) => setDragging(tasks.find((x) => x.id === e.active.id) ?? null);
   const onDragEnd = async (e: DragEndEvent) => {
     setDragging(null);
     const task = tasks.find((x) => x.id === e.active.id);
@@ -143,9 +94,7 @@ export function WorkPage({
       <div className="flex min-w-0 flex-1 flex-col gap-5 p-6 sm:p-9">
         <header className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <h1 className="m-0 font-display text-[34px] font-bold leading-[1.1] tracking-tight">
-              {t.workTitle}
-            </h1>
+            <h1 className="m-0 font-display text-[34px] font-bold leading-[1.1] tracking-tight">{t.workTitle}</h1>
             <p className="mt-1.5 text-[15px] text-mute">{t.workSub}</p>
           </div>
           <div className="flex items-center gap-2">
@@ -177,84 +126,39 @@ export function WorkPage({
             </Button>
           </div>
         </header>
-        {notice && (
-          <p className="m-0 rounded-control border border-warn/40 bg-warn-soft px-3 py-2 text-[13px] text-warn">
-            {notice}
-          </p>
-        )}
-        {tasks.length === 0 && !creating && (
-          <p className="text-sm text-mute">{t.noTasks}</p>
-        )}
+        {notice && <p className="m-0 rounded-control border border-warn/40 bg-warn-soft px-3 py-2 text-[13px] text-warn">{notice}</p>}
+        {tasks.length === 0 && !creating && <p className="text-sm text-mute">{t.noTasks}</p>}
 
         {view === "board" ? (
-          <DndContext
-            sensors={sensors}
-            onDragStart={onDragStart}
-            onDragEnd={(e) => void onDragEnd(e)}
-          >
+          <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={(e) => void onDragEnd(e)}>
             <div className="grid grid-cols-1 gap-3 md:grid-cols-3 2xl:grid-cols-5">
               {STATUS_ORDER.map((status) => (
-                <Column
-                  key={status}
-                  status={status}
-                  ws={ws}
-                  tasks={byStatus(status)}
-                  onOpen={open}
-                  active={dragging !== null}
-                />
+                <Column key={status} status={status} ws={ws} tasks={byStatus(status)} onOpen={open} active={dragging !== null} />
               ))}
             </div>
-            <DragOverlay>
-              {dragging ? (
-                <TaskCard task={dragging} ws={ws} onOpen={() => {}} dragging />
-              ) : null}
-            </DragOverlay>
+            <DragOverlay>{dragging ? <TaskCard task={dragging} ws={ws} onOpen={() => {}} dragging /> : null}</DragOverlay>
           </DndContext>
         ) : (
           <ListView ws={ws} tasks={tasks} projects={projects} onOpen={open} />
         )}
 
-        <GoalsPanel
-          ws={ws}
-          goals={goals}
-          projects={projects}
-          onChanged={load}
-        />
+        <GoalsPanel ws={ws} goals={goals} projects={projects} onChanged={load} />
       </div>
 
       {(selected || creating) && (
-        <aside
-          className="m-4 flex w-[440px] shrink-0 flex-col overflow-hidden rounded-[22px] border border-line bg-card shadow-card"
-          aria-label={t.workTitle}
-        >
+        <aside className="m-4 flex w-[440px] shrink-0 flex-col overflow-hidden rounded-[22px] border border-line bg-card shadow-card" aria-label={t.workTitle}>
           {creating ? (
             <div className="flex flex-col gap-3 p-5">
               <div className="flex items-center">
-                <h2 className="m-0 font-display text-2xl font-semibold">
-                  {t.newTask}
-                </h2>
-                <button
-                  type="button"
-                  aria-label={t.cancel}
-                  onClick={() => ws.go("work")}
-                  className="ml-auto rounded p-1 text-faint hover:bg-hover hover:text-ink"
-                >
+                <h2 className="m-0 font-display text-2xl font-semibold">{t.newTask}</h2>
+                <button type="button" aria-label={t.cancel} onClick={() => ws.go("work")} className="ml-auto rounded p-1 text-faint hover:bg-hover hover:text-ink">
                   <X size={16} />
                 </button>
               </div>
-              <TaskForm
-                ws={ws}
-                onCreated={(task) => ws.go("work", task.id)}
-                onCancel={() => ws.go("work")}
-              />
+              <TaskForm ws={ws} onCreated={(task) => ws.go("work", task.id)} onCancel={() => ws.go("work")} />
             </div>
           ) : selected ? (
-            <TaskDrawer
-              key={selected}
-              ws={ws}
-              taskId={selected}
-              onClose={() => ws.go("work")}
-            />
+            <TaskDrawer key={selected} ws={ws} taskId={selected} onClose={() => ws.go("work")} />
           ) : null}
         </aside>
       )}
@@ -262,19 +166,7 @@ export function WorkPage({
   );
 }
 
-function Column({
-  status,
-  ws,
-  tasks,
-  onOpen,
-  active,
-}: {
-  status: TaskStatus;
-  ws: Workspace;
-  tasks: Task[];
-  onOpen: (id: string) => void;
-  active: boolean;
-}) {
+function Column({ status, ws, tasks, onOpen, active }: { status: TaskStatus; ws: Workspace; tasks: Task[]; onOpen: (id: string) => void; active: boolean }) {
   const { t } = ws;
   const { setNodeRef, isOver } = useDroppable({ id: status });
   return (
@@ -283,69 +175,34 @@ function Column({
       className={`flex min-h-40 flex-col gap-2 rounded-card border p-2.5 transition ${isOver ? "border-accent bg-accent-soft" : active ? "border-dashed border-line-strong bg-panel" : "border-line bg-panel"}`}
     >
       <div className="flex items-center gap-2 px-1 pt-1">
-        <span className="shrink-0 whitespace-nowrap text-[13px] font-bold">
-          {t.taskStatus[status]}
-        </span>
+        <span className="shrink-0 whitespace-nowrap text-[13px] font-bold">{t.taskStatus[status]}</span>
         <span className="text-[12px] text-faint">{tasks.length}</span>
-        <span
-          className="ml-auto min-w-0 truncate text-[11px] text-faint"
-          title={t.taskStatusHint[status]}
-        >
+        <span className="ml-auto min-w-0 truncate text-[11px] text-faint" title={t.taskStatusHint[status]}>
           {t.taskStatusHint[status]}
         </span>
       </div>
       {tasks.map((task) => (
         <Draggable key={task.id} task={task} ws={ws} onOpen={onOpen} />
       ))}
-      {isOver && (
-        <div className="rounded-control border-2 border-dashed border-accent py-3 text-center text-[12px] font-bold text-accent-text">
-          {t.dropToChange}
-        </div>
-      )}
+      {isOver && <div className="rounded-control border-2 border-dashed border-accent py-3 text-center text-[12px] font-bold text-accent-text">{t.dropToChange}</div>}
     </div>
   );
 }
 
-function Draggable({
-  task,
-  ws,
-  onOpen,
-}: {
-  task: Task;
-  ws: Workspace;
-  onOpen: (id: string) => void;
-}) {
+function Draggable({ task, ws, onOpen }: { task: Task; ws: Workspace; onOpen: (id: string) => void }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: task.id,
   });
   return (
-    <div
-      ref={setNodeRef}
-      {...listeners}
-      {...attributes}
-      className={isDragging ? "opacity-40" : ""}
-    >
+    <div ref={setNodeRef} {...listeners} {...attributes} className={isDragging ? "opacity-40" : ""}>
       <TaskCard task={task} ws={ws} onOpen={onOpen} />
     </div>
   );
 }
 
-function ListView({
-  ws,
-  tasks,
-  projects,
-  onOpen,
-}: {
-  ws: Workspace;
-  tasks: Task[];
-  projects: Project[];
-  onOpen: (id: string) => void;
-}) {
+function ListView({ ws, tasks, projects, onOpen }: { ws: Workspace; tasks: Task[]; projects: Project[]; onOpen: (id: string) => void }) {
   const { t } = ws;
-  const groups = [
-    ...projects.map((p) => ({ id: p.id, name: p.name })),
-    { id: null, name: t.noProject },
-  ];
+  const groups = [...projects.map((p) => ({ id: p.id, name: p.name })), { id: null, name: t.noProject }];
   const roots = tasks.filter((x) => !x.parentId);
   const childrenOf = (id: string) => tasks.filter((x) => x.parentId === id);
   const row = (task: Task, depth: number) => (
@@ -357,35 +214,15 @@ function ListView({
         style={{ paddingLeft: 8 + depth * 24 }}
       >
         <Chip
-          tone={
-            task.status === "in_progress"
-              ? "ok"
-              : task.status === "in_review"
-                ? "warn"
-                : task.status === "blocked"
-                  ? "danger"
-                  : task.status === "done"
-                    ? "accent"
-                    : "mute"
-          }
+          tone={task.status === "in_progress" ? "ok" : task.status === "in_review" ? "warn" : task.status === "blocked" ? "danger" : task.status === "done" ? "accent" : "mute"}
           dot
           pulse={task.status === "in_progress"}
         >
           {t.taskStatus[task.status]}
         </Chip>
-        <span
-          className={`min-w-0 flex-1 truncate text-sm font-bold ${task.status === "done" || task.status === "cancelled" ? "text-mute line-through" : ""}`}
-        >
-          {task.title}
-        </span>
-        <span className="text-[12px] text-mute">
-          {task.assigneeAgentId
-            ? ws.agentName(task.assigneeAgentId)
-            : t.unassigned}
-        </span>
-        <span className="w-16 text-right text-[12px] text-faint">
-          {t.priorities[task.priority]}
-        </span>
+        <span className={`min-w-0 flex-1 truncate text-sm font-bold ${task.status === "done" || task.status === "cancelled" ? "text-mute line-through" : ""}`}>{task.title}</span>
+        <span className="text-[12px] text-mute">{task.assigneeAgentId ? ws.agentName(task.assigneeAgentId) : t.unassigned}</span>
+        <span className="w-16 text-right text-[12px] text-faint">{t.priorities[task.priority]}</span>
       </button>
       {childrenOf(task.id).map((c) => row(c, depth + 1))}
     </div>
@@ -397,9 +234,7 @@ function ListView({
         if (items.length === 0) return null;
         return (
           <Card key={g.id ?? "none"} className="p-2">
-            <div className="px-2 pb-1 pt-1 text-[12px] font-bold uppercase tracking-wide text-mute">
-              {g.name}
-            </div>
+            <div className="px-2 pb-1 pt-1 text-[12px] font-bold uppercase tracking-wide text-mute">{g.name}</div>
             {items.map((x) => row(x, 0))}
           </Card>
         );
@@ -408,17 +243,7 @@ function ListView({
   );
 }
 
-function GoalsPanel({
-  ws,
-  goals,
-  projects,
-  onChanged,
-}: {
-  ws: Workspace;
-  goals: Goal[];
-  projects: Project[];
-  onChanged: () => Promise<void>;
-}) {
+function GoalsPanel({ ws, goals, projects, onChanged }: { ws: Workspace; goals: Goal[]; projects: Project[]; onChanged: () => Promise<void> }) {
   const { t, company } = ws;
   const [goalTitle, setGoalTitle] = useState("");
   const [goalMeasure, setGoalMeasure] = useState("");
@@ -450,32 +275,14 @@ function GoalsPanel({
   const childrenOf = (id: string) => goals.filter((g) => g.parentId === id);
   const goalRow = (g: Goal, depth: number): ReactNode => (
     <Fragment key={g.id}>
-      <div
-        className="flex items-center gap-2 py-1 text-sm"
-        style={{ paddingLeft: depth * 18 }}
-      >
-        <span
-          className={`h-2 w-2 shrink-0 rounded-full ${g.status === "reached" ? "bg-ok" : g.status === "dropped" ? "bg-faint" : "bg-accent"}`}
-          aria-hidden="true"
-        />
-        <span
-          className={`min-w-0 flex-1 truncate ${g.status !== "active" ? "text-mute line-through" : "font-bold"}`}
-        >
-          {g.title}
-        </span>
-        {g.measure && (
-          <span className="hidden min-w-0 max-w-[40%] truncate text-[12px] text-mute xl:inline">
-            {g.measure}
-          </span>
-        )}
+      <div className="flex items-center gap-2 py-1 text-sm" style={{ paddingLeft: depth * 18 }}>
+        <span className={`h-2 w-2 shrink-0 rounded-full ${g.status === "reached" ? "bg-ok" : g.status === "dropped" ? "bg-faint" : "bg-accent"}`} aria-hidden="true" />
+        <span className={`min-w-0 flex-1 truncate ${g.status !== "active" ? "text-mute line-through" : "font-bold"}`}>{g.title}</span>
+        {g.measure && <span className="hidden min-w-0 max-w-[40%] truncate text-[12px] text-mute xl:inline">{g.measure}</span>}
         {g.status === "active" && (
           <button
             type="button"
-            onClick={() =>
-              void api
-                .updateGoal(company.id, g.id, { status: "reached" })
-                .then(onChanged)
-            }
+            onClick={() => void api.updateGoal(company.id, g.id, { status: "reached" }).then(onChanged)}
             className="shrink-0 text-[12px] font-bold text-accent-text"
           >
             {t.markReached}
@@ -492,25 +299,12 @@ function GoalsPanel({
         <h2 className="m-0 mb-2 text-[15px] font-bold">{t.goals}</h2>
         {roots.length === 0 && <p className="m-0 text-[13px] text-mute">—</p>}
         {roots.map((g) => goalRow(g, 0))}
-        <form
-          onSubmit={addGoal}
-          className="mt-3 flex flex-wrap gap-2 border-t border-line pt-3"
-        >
+        <form onSubmit={addGoal} className="mt-3 flex flex-wrap gap-2 border-t border-line pt-3">
           <div className="min-w-40 flex-1">
-            <Input
-              value={goalTitle}
-              onChange={(e) => setGoalTitle(e.target.value)}
-              placeholder={t.newGoal}
-              aria-label={t.newGoal}
-            />
+            <Input value={goalTitle} onChange={(e) => setGoalTitle(e.target.value)} placeholder={t.newGoal} aria-label={t.newGoal} />
           </div>
           <div className="min-w-40 flex-1">
-            <Input
-              value={goalMeasure}
-              onChange={(e) => setGoalMeasure(e.target.value)}
-              placeholder={t.goalMeasure}
-              aria-label={t.goalMeasure}
-            />
+            <Input value={goalMeasure} onChange={(e) => setGoalMeasure(e.target.value)} placeholder={t.goalMeasure} aria-label={t.goalMeasure} />
           </div>
           <Button type="submit" variant="soft" disabled={!goalTitle.trim()}>
             <Plus size={14} /> {t.newGoal}
@@ -519,36 +313,19 @@ function GoalsPanel({
       </Card>
       <Card className="p-4">
         <h2 className="m-0 mb-2 text-[15px] font-bold">{t.projects}</h2>
-        {projects.length === 0 && (
-          <p className="m-0 text-[13px] text-mute">—</p>
-        )}
+        {projects.length === 0 && <p className="m-0 text-[13px] text-mute">—</p>}
         {projects.map((p) => (
           <div key={p.id} className="flex items-center gap-2 py-1 text-sm">
             <span className="font-bold">{p.name}</span>
-            {p.goalId && (
-              <span className="truncate text-[12px] text-mute">
-                → {goals.find((g) => g.id === p.goalId)?.title}
-              </span>
-            )}
-            <Chip
-              tone={p.status === "active" ? "ok" : "mute"}
-              className="ml-auto"
-            >
+            {p.goalId && <span className="truncate text-[12px] text-mute">→ {goals.find((g) => g.id === p.goalId)?.title}</span>}
+            <Chip tone={p.status === "active" ? "ok" : "mute"} className="ml-auto">
               {p.status}
             </Chip>
           </div>
         ))}
-        <form
-          onSubmit={addProject}
-          className="mt-3 flex flex-wrap gap-2 border-t border-line pt-3"
-        >
+        <form onSubmit={addProject} className="mt-3 flex flex-wrap gap-2 border-t border-line pt-3">
           <div className="min-w-40 flex-1">
-            <Input
-              value={projectName}
-              onChange={(e) => setProjectName(e.target.value)}
-              placeholder={t.newProject}
-              aria-label={t.newProject}
-            />
+            <Input value={projectName} onChange={(e) => setProjectName(e.target.value)} placeholder={t.newProject} aria-label={t.newProject} />
           </div>
           <select
             value={projectGoal}

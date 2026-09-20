@@ -41,8 +41,7 @@ const en = {
   },
   atWork: "{company} is at work.",
   quiet: "{company} is quiet right now.",
-  summary:
-    "{agents} agents · {working} working · {pending} decisions waiting for you",
+  summary: "{agents} agents · {working} working · {pending} decisions waiting for you",
   talkTo: "Talk to {agent}",
   giveTask: "Give a task",
   addWidget: "Add a widget",
@@ -68,8 +67,7 @@ const en = {
     activity: "The audit trail, in plain words.",
     models: "Which providers are connected and the default model.",
     costByAgent: "Where the money goes, per agent.",
-    learned:
-      "What the agents kept from their latest work: memories and skills.",
+    learned: "What the agents kept from their latest work: memories and skills.",
   },
   nothingToDecide: "Nothing to decide. Enjoy the quiet.",
   allClear: "All clear",
@@ -90,8 +88,7 @@ const en = {
   },
   // inbox
   inboxTitle: "Inbox",
-  inboxSub:
-    "Everything that needs a person. Nothing here runs until you say so.",
+  inboxSub: "Everything that needs a person. Nothing here runs until you say so.",
   inboxTabs: { pending: "Waiting", decided: "Decided" },
   approve: "Approve",
   deny: "Deny",
@@ -122,12 +119,9 @@ const en = {
     other: "{agent} asks for a decision",
   },
   explain: {
-    tool_use:
-      "This tool asks for approval for {agent}. Approving runs it once; ticking “always allow” makes it automatic from now on.",
-    dangerous_command:
-      "This command can delete or change things outside the task. It always asks, whatever the policy.",
-    budget_increase:
-      "{agent} is paused until the cap is raised. Raising it resumes exactly where the work stopped.",
+    tool_use: "This tool asks for approval for {agent}. Approving runs it once; ticking “always allow” makes it automatic from now on.",
+    dangerous_command: "This command can delete or change things outside the task. It always asks, whatever the policy.",
+    budget_increase: "{agent} is paused until the cap is raised. Raising it resumes exactly where the work stopped.",
     skill_promotion:
       "{agent} learned this and it worked {successes} times. Approving makes it available to every agent from their next session; {agent} keeps its own copy either way.",
   },
@@ -139,8 +133,7 @@ const en = {
   newAgent: "New agent",
   agentName: "Name",
   agentRole: "Job description",
-  agentRoleHint:
-    "What this agent does, in a sentence. It becomes part of the agent's identity.",
+  agentRoleHint: "What this agent does, in a sentence. It becomes part of the agent's identity.",
   reportsTo: "Reports to",
   you: "You",
   model: "Model",
@@ -156,8 +149,7 @@ const en = {
     history: "History",
   },
   permissionsIntro: "What {agent} may do alone. Anything else asks you first.",
-  dangerousAlwaysAsk:
-    "Dangerous commands (deleting folders, sudo, force push) always ask.",
+  dangerousAlwaysAsk: "Dangerous commands (deleting folders, sudo, force push) always ask.",
   perm: { automatic: "Auto", approval: "Ask", blocked: "Off" },
   permLong: {
     automatic: "runs automatically",
@@ -190,8 +182,7 @@ const en = {
   removeCap: "Remove cap",
   setCap: "Set cap",
   save: "Save",
-  revisions:
-    "Every change is a revision. Restore any of them: that is a new revision too.",
+  revisions: "Every change is a revision. Restore any of them: that is a new revision too.",
   restore: "Restore",
   current: "current",
   spentThisMonth: "spent this month",
@@ -204,14 +195,12 @@ const en = {
   working: "working",
   message: "Message",
   messageHint: "Write to {agent}…",
-  injectHint:
-    "Turn in progress: your message reaches {agent} in the next tool result",
+  injectHint: "Turn in progress: your message reaches {agent} in the next tool result",
   stop: "Stop",
   toolResults: "Tool results",
   turnFailed: "The turn failed",
   approvalPendingInChat: "{agent} is waiting for your decision below.",
-  budgetExhaustedInChat:
-    "Budget reached: {agent} is paused until you approve an increase.",
+  budgetExhaustedInChat: "Budget reached: {agent} is paused until you approve an increase.",
   workbench: "Workbench",
   thisConversation: "This conversation",
   calls: "calls",
@@ -262,8 +251,7 @@ const en = {
   taskTitle: "Title",
   taskDescription: "What to do",
   taskAcceptance: "Done when",
-  taskAcceptanceHint:
-    "What makes the result verifiable: a file, a number, a decision.",
+  taskAcceptanceHint: "What makes the result verifiable: a file, a number, a decision.",
   assignee: "Assignee",
   unassigned: "unassigned",
   nobodyYet: "nobody yet",
@@ -299,11 +287,9 @@ const en = {
   openConversation: "Open the conversation",
   noTasks: "No tasks yet. Give someone a task and watch it move.",
   dropToChange: "Drop here",
-  cannotDrop:
-    "Only these moves are possible by hand: verify and close, block, unblock, send back for changes.",
+  cannotDrop: "Only these moves are possible by hand: verify and close, block, unblock, send back for changes.",
   reviewTitle: "{agent} delivered “{task}”",
-  reviewHint:
-    "Read the result, check it against “done when”, then close it or send it back.",
+  reviewHint: "Read the result, check it against “done when”, then close it or send it back.",
   blockedTitle: "“{task}” is blocked",
   deliveredBy: "delivered by",
   delivered: "delivered",
@@ -312,8 +298,7 @@ const en = {
   // org chart
   orgChart: "Org chart",
   cards: "Cards",
-  dragRoleHint:
-    "Drag a role onto the chart to hire, under the one it should report to. Drag a person to change who they report to.",
+  dragRoleHint: "Drag a role onto the chart to hire, under the one it should report to. Drag a person to change who they report to.",
   roles: {
     researcher: {
       name: "Researcher",
@@ -423,8 +408,7 @@ const en = {
 
   // learning
   learningTitle: "Learning",
-  learningSub:
-    "What the company has learned: memories, skills, and what each job taught.",
+  learningSub: "What the company has learned: memories, skills, and what each job taught.",
   learningTabs: {
     memory: "Memory",
     skills: "Skills",
@@ -434,8 +418,7 @@ const en = {
   viewAs: "Seen by",
   scopeLabel: { agent: "personal", team: "team", company: "company" },
   searchMemory: "Search memory…",
-  noMemories:
-    "Nothing remembered yet. Agents learn from their work; you can add a note too.",
+  noMemories: "Nothing remembered yet. Agents learn from their work; you can add a note too.",
   addMemory: "Add a memory",
   memoryText: "What should the agents remember?",
   memoryFor: "For",
@@ -453,8 +436,7 @@ const en = {
   shared: "Shared",
   proposedShare: "Proposed: decide it in the Inbox",
   showRetired: "Show retired",
-  noSkills:
-    "No skills yet. When a job goes well, the review saves how it was done; you can also install one.",
+  noSkills: "No skills yet. When a job goes well, the review saves how it was done; you can also install one.",
   newSkill: "New skill",
   skillName: "Name (lowercase, dashes)",
   skillDescription: "When to use it (one line)",
@@ -472,13 +454,11 @@ const en = {
   restored: "Restored as a new version",
   archiveSkill: "Archive",
   unarchive: "Bring back",
-  archivedHint:
-    "Archived skills stay here and can come back at any time; nothing is deleted.",
+  archivedHint: "Archived skills stay here and can come back at any time; nothing is deleted.",
   improve: "Save as a new version",
   noteForVersion: "What changed?",
   learnedFrom: "learned from",
-  reviewsEmpty:
-    "Nothing reviewed yet. After every conversation or task, a review keeps what is worth keeping.",
+  reviewsEmpty: "Nothing reviewed yet. After every conversation or task, a review keeps what is worth keeping.",
   reviewKept: "{memories} memories{skill}",
   reviewSkill: ", skill “{name}”",
   reviewNothing: "nothing worth keeping",
@@ -499,8 +479,7 @@ const en = {
   },
   ruleThreshold: "It proves itself after {n} successful uses",
   ruleSnapshot: "Memory in the prompt: up to {n} characters",
-  ruleCurator:
-    "Unused learned skills: inactive after {inactive} days, archived after {archive}",
+  ruleCurator: "Unused learned skills: inactive after {inactive} days, archived after {archive}",
   semanticOn: "Search: full-text and by meaning",
   semanticOff: "Search: full-text only (no embedding model configured)",
   learnedRecently: "Learned recently",
@@ -510,8 +489,7 @@ const en = {
 export type Strings = typeof en;
 
 const it: Strings = {
-  tagline:
-    "Agenti AI che lavorano, imparano e vengono governati come un'organizzazione",
+  tagline: "Agenti AI che lavorano, imparano e vengono governati come un'organizzazione",
   nav: {
     home: "Home",
     inbox: "Inbox",
@@ -543,8 +521,7 @@ const it: Strings = {
   },
   atWork: "{company} è al lavoro.",
   quiet: "{company} è tranquilla in questo momento.",
-  summary:
-    "{agents} agenti · {working} al lavoro · {pending} decisioni in attesa",
+  summary: "{agents} agenti · {working} al lavoro · {pending} decisioni in attesa",
   talkTo: "Parla con {agent}",
   giveTask: "Assegna un compito",
   addWidget: "Aggiungi un widget",
@@ -563,15 +540,13 @@ const it: Strings = {
     learned: "Imparato di recente",
   },
   widgetBlurbs: {
-    needsYou:
-      "Approvazioni, budget esauriti e domande, con risposta in un clic.",
+    needsYou: "Approvazioni, budget esauriti e domande, con risposta in un clic.",
     spend: "Il mese rispetto al tetto aziendale.",
     team: "Chi lavora, chi aspetta, chi è in pausa.",
     done: "Gli ultimi risultati dei tuoi agenti.",
     activity: "Il registro di audit, in parole semplici.",
     models: "Quali provider sono collegati e il modello predefinito.",
-    learned:
-      "Cosa gli agenti hanno tenuto dagli ultimi lavori: memorie e skill.",
+    learned: "Cosa gli agenti hanno tenuto dagli ultimi lavori: memorie e skill.",
     costByAgent: "Dove vanno i soldi, per agente.",
   },
   nothingToDecide: "Niente da decidere. Goditi la calma.",
@@ -591,8 +566,7 @@ const it: Strings = {
     stopped: "fermo",
   },
   inboxTitle: "Inbox",
-  inboxSub:
-    "Tutto ciò che richiede una persona. Qui niente parte finché non lo dici tu.",
+  inboxSub: "Tutto ciò che richiede una persona. Qui niente parte finché non lo dici tu.",
   inboxTabs: { pending: "In attesa", decided: "Decise" },
   approve: "Approva",
   deny: "Nega",
@@ -627,12 +601,9 @@ const it: Strings = {
     other: "{agent} chiede una decisione",
   },
   explain: {
-    tool_use:
-      "Questo tool chiede approvazione per {agent}. Approvando lo esegui una volta; con “consenti sempre” diventa automatico da ora in poi.",
-    dangerous_command:
-      "Questo comando può cancellare o cambiare cose fuori dal compito. Chiede sempre, qualunque sia la policy.",
-    budget_increase:
-      "{agent} è in pausa finché il tetto non viene alzato. Alzandolo riprende esattamente da dove si era fermato.",
+    tool_use: "Questo tool chiede approvazione per {agent}. Approvando lo esegui una volta; con “consenti sempre” diventa automatico da ora in poi.",
+    dangerous_command: "Questo comando può cancellare o cambiare cose fuori dal compito. Chiede sempre, qualunque sia la policy.",
+    budget_increase: "{agent} è in pausa finché il tetto non viene alzato. Alzandolo riprende esattamente da dove si era fermato.",
     skill_promotion:
       "{agent} l'ha imparata e ha funzionato {successes} volte. Approvando diventa disponibile a tutti gli agenti dalla prossima sessione; {agent} tiene comunque la sua copia.",
   },
@@ -643,8 +614,7 @@ const it: Strings = {
   newAgent: "Nuovo agente",
   agentName: "Nome",
   agentRole: "Descrizione del ruolo",
-  agentRoleHint:
-    "Cosa fa questo agente, in una frase. Diventa parte della sua identità.",
+  agentRoleHint: "Cosa fa questo agente, in una frase. Diventa parte della sua identità.",
   reportsTo: "Risponde a",
   you: "Tu",
   model: "Modello",
@@ -659,10 +629,8 @@ const it: Strings = {
     budget: "Budget",
     history: "Storico",
   },
-  permissionsIntro:
-    "Cosa {agent} può fare da solo. Tutto il resto chiede prima a te.",
-  dangerousAlwaysAsk:
-    "I comandi pericolosi (cancellare cartelle, sudo, force push) chiedono sempre.",
+  permissionsIntro: "Cosa {agent} può fare da solo. Tutto il resto chiede prima a te.",
+  dangerousAlwaysAsk: "I comandi pericolosi (cancellare cartelle, sudo, force push) chiedono sempre.",
   perm: { automatic: "Auto", approval: "Chiedi", blocked: "Off" },
   permLong: {
     automatic: "va da solo",
@@ -695,8 +663,7 @@ const it: Strings = {
   removeCap: "Togli il tetto",
   setCap: "Imposta",
   save: "Salva",
-  revisions:
-    "Ogni modifica è una revisione. Puoi ripristinarne una qualsiasi: anche quella è una nuova revisione.",
+  revisions: "Ogni modifica è una revisione. Puoi ripristinarne una qualsiasi: anche quella è una nuova revisione.",
   restore: "Ripristina",
   current: "attuale",
   spentThisMonth: "spesi questo mese",
@@ -708,14 +675,12 @@ const it: Strings = {
   working: "al lavoro",
   message: "Messaggio",
   messageHint: "Scrivi a {agent}…",
-  injectHint:
-    "Turno in corso: il messaggio arriva a {agent} nel prossimo risultato di tool",
+  injectHint: "Turno in corso: il messaggio arriva a {agent} nel prossimo risultato di tool",
   stop: "Ferma",
   toolResults: "Risultati dei tool",
   turnFailed: "Il turno è fallito",
   approvalPendingInChat: "{agent} aspetta la tua decisione qui sotto.",
-  budgetExhaustedInChat:
-    "Budget raggiunto: {agent} è in pausa finché non approvi un aumento.",
+  budgetExhaustedInChat: "Budget raggiunto: {agent} è in pausa finché non approvi un aumento.",
   workbench: "Banco di lavoro",
   thisConversation: "Questa conversazione",
   calls: "chiamate",
@@ -769,8 +734,7 @@ const it: Strings = {
   taskTitle: "Titolo",
   taskDescription: "Cosa fare",
   taskAcceptance: "È fatto quando",
-  taskAcceptanceHint:
-    "Cosa rende verificabile il risultato: un file, un numero, una decisione.",
+  taskAcceptanceHint: "Cosa rende verificabile il risultato: un file, un numero, una decisione.",
   assignee: "Assegnatario",
   unassigned: "non assegnato",
   nobodyYet: "nessuno per ora",
@@ -806,11 +770,9 @@ const it: Strings = {
   openConversation: "Apri la conversazione",
   noTasks: "Nessun task. Assegna un compito a qualcuno e guardalo muoversi.",
   dropToChange: "Rilascia qui",
-  cannotDrop:
-    "A mano si può solo: verificare e chiudere, bloccare, sbloccare, rimandare per modifiche.",
+  cannotDrop: "A mano si può solo: verificare e chiudere, bloccare, sbloccare, rimandare per modifiche.",
   reviewTitle: "{agent} ha consegnato “{task}”",
-  reviewHint:
-    "Leggi il risultato, confrontalo con “è fatto quando”, poi chiudi o rimanda.",
+  reviewHint: "Leggi il risultato, confrontalo con “è fatto quando”, poi chiudi o rimanda.",
   blockedTitle: "“{task}” è bloccato",
   deliveredBy: "consegnato da",
   delivered: "consegnato",
@@ -818,8 +780,7 @@ const it: Strings = {
   attempts: "tentativi",
   orgChart: "Organigramma",
   cards: "Schede",
-  dragRoleHint:
-    "Trascina un ruolo sull'organigramma per assumere, sotto chi deve essere il suo responsabile. Trascina una persona per cambiare a chi risponde.",
+  dragRoleHint: "Trascina un ruolo sull'organigramma per assumere, sotto chi deve essere il suo responsabile. Trascina una persona per cambiare a chi risponde.",
   roles: {
     researcher: {
       name: "Ricercatore",
@@ -922,8 +883,7 @@ const it: Strings = {
   system: "il sistema",
 
   learningTitle: "Apprendimento",
-  learningSub:
-    "Cosa ha imparato l'azienda: memorie, skill e cosa ha insegnato ogni lavoro.",
+  learningSub: "Cosa ha imparato l'azienda: memorie, skill e cosa ha insegnato ogni lavoro.",
   learningTabs: {
     memory: "Memoria",
     skills: "Skill",
@@ -933,8 +893,7 @@ const it: Strings = {
   viewAs: "Vista da",
   scopeLabel: { agent: "personale", team: "team", company: "azienda" },
   searchMemory: "Cerca nella memoria…",
-  noMemories:
-    "Ancora nessun ricordo. Gli agenti imparano dal lavoro; puoi aggiungere una nota anche tu.",
+  noMemories: "Ancora nessun ricordo. Gli agenti imparano dal lavoro; puoi aggiungere una nota anche tu.",
   addMemory: "Aggiungi una memoria",
   memoryText: "Cosa devono ricordare gli agenti?",
   memoryFor: "Per",
@@ -952,8 +911,7 @@ const it: Strings = {
   shared: "Condivisa",
   proposedShare: "Proposta: decidila nell'Inbox",
   showRetired: "Mostra ritirate",
-  noSkills:
-    "Nessuna skill ancora. Quando un lavoro va bene, la revisione salva come è stato fatto; puoi anche installarne una.",
+  noSkills: "Nessuna skill ancora. Quando un lavoro va bene, la revisione salva come è stato fatto; puoi anche installarne una.",
   newSkill: "Nuova skill",
   skillName: "Nome (minuscolo, trattini)",
   skillDescription: "Quando usarla (una riga)",
@@ -975,13 +933,11 @@ const it: Strings = {
   restored: "Ripristinata come nuova versione",
   archiveSkill: "Archivia",
   unarchive: "Riporta in uso",
-  archivedHint:
-    "Le skill archiviate restano qui e possono tornare in qualsiasi momento; niente viene cancellato.",
+  archivedHint: "Le skill archiviate restano qui e possono tornare in qualsiasi momento; niente viene cancellato.",
   improve: "Salva come nuova versione",
   noteForVersion: "Cosa è cambiato?",
   learnedFrom: "imparata da",
-  reviewsEmpty:
-    "Niente ancora. Dopo ogni conversazione o task, una revisione tiene ciò che vale la pena.",
+  reviewsEmpty: "Niente ancora. Dopo ogni conversazione o task, una revisione tiene ciò che vale la pena.",
   reviewKept: "{memories} memorie{skill}",
   reviewSkill: ", skill “{name}”",
   reviewNothing: "niente da tenere",
@@ -994,8 +950,7 @@ const it: Strings = {
   },
   learningRules: "Regole",
   ruleReview: "Rivedi in background ogni lavoro concluso",
-  rulePromotion:
-    "Quando una skill si dimostra valida, condividila con l'azienda",
+  rulePromotion: "Quando una skill si dimostra valida, condividila con l'azienda",
   promotionPolicy: {
     automatic: "automaticamente",
     review: "dopo la mia approvazione",
@@ -1003,11 +958,9 @@ const it: Strings = {
   },
   ruleThreshold: "Si dimostra valida dopo {n} utilizzi riusciti",
   ruleSnapshot: "Memoria nel prompt: fino a {n} caratteri",
-  ruleCurator:
-    "Skill imparate e inutilizzate: inattive dopo {inactive} giorni, archiviate dopo {archive}",
+  ruleCurator: "Skill imparate e inutilizzate: inattive dopo {inactive} giorni, archiviate dopo {archive}",
   semanticOn: "Ricerca: testuale e per significato",
-  semanticOff:
-    "Ricerca: solo testuale (nessun modello di embedding configurato)",
+  semanticOff: "Ricerca: solo testuale (nessun modello di embedding configurato)",
   learnedRecently: "Imparato di recente",
   memoryAndSkills: "Memoria e skill",
 };
@@ -1019,13 +972,8 @@ export function stringsFor(locale: Locale): Strings {
 }
 
 /** Fills {placeholders} in a string. */
-export function fill(
-  template: string,
-  values: Record<string, string | number>,
-): string {
-  return template.replace(/\{(\w+)\}/g, (_, key: string) =>
-    String(values[key] ?? `{${key}}`),
-  );
+export function fill(template: string, values: Record<string, string | number>): string {
+  return template.replace(/\{(\w+)\}/g, (_, key: string) => String(values[key] ?? `{${key}}`));
 }
 
 export function detectLocale(): Locale {

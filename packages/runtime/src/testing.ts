@@ -19,7 +19,10 @@ export class FakeProvider implements ModelProvider {
   readonly requests: CompletionRequest[] = [];
   private calls = 0;
 
-  constructor(private readonly script: Script, id = "fake") {
+  constructor(
+    private readonly script: Script,
+    id = "fake",
+  ) {
     this.id = id;
   }
 

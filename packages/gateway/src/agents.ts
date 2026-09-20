@@ -57,11 +57,23 @@ export class AgentConfigService {
       SELECT revision, config, author_kind, author_id, note, created_at FROM agent_revisions
       WHERE company_id = ${companyId} AND agent_id = ${agentId} ORDER BY revision DESC
     `;
-    return rows.map((r) => ({ revision: r.revision, config: { name: "", role: "", model: null, reportsToAgentId: null, ...r.config }, authorKind: r.author_kind, authorId: r.author_id, note: r.note, createdAt: r.created_at }));
+    return rows.map((r) => ({
+      revision: r.revision,
+      config: { name: "", role: "", model: null, reportsToAgentId: null, ...r.config },
+      authorKind: r.author_kind,
+      authorId: r.author_id,
+      note: r.note,
+      createdAt: r.created_at,
+    }));
   }
 
   /** Applies a change as a new revision. Returns the new revision number. */
-  async update(companyId: string, agentId: string, patch: Partial<AgentConfig>, options: { actorKind?: "person" | "agent" | "system"; actorId?: string | null; note?: string | null } = {}): Promise<{ revision: number; config: AgentConfig }> {
+  async update(
+    companyId: string,
+    agentId: string,
+    patch: Partial<AgentConfig>,
+    options: { actorKind?: "person" | "agent" | "system"; actorId?: string | null; note?: string | null } = {},
+  ): Promise<{ revision: number; config: AgentConfig }> {
     return this.sql.begin(async (tx) => {
       const [row] = await tx<AgentRow[]>`SELECT * FROM agents WHERE id = ${agentId} AND company_id = ${companyId} FOR UPDATE`;
       if (!row) throw new Error("agent not found");
@@ -110,7 +122,12 @@ export class AgentConfigService {
     return this.update(companyId, agentId, patch, { actorId: options.actorId ?? null, note: `restored revision ${revision}` });
   }
 
-  async setStatus(companyId: string, agentId: string, status: AgentStatus, options: { actorKind?: "person" | "agent" | "system"; actorId?: string | null; reason?: string | null } = {}): Promise<AgentStatus> {
+  async setStatus(
+    companyId: string,
+    agentId: string,
+    status: AgentStatus,
+    options: { actorKind?: "person" | "agent" | "system"; actorId?: string | null; reason?: string | null } = {},
+  ): Promise<AgentStatus> {
     return this.sql.begin(async (tx) => {
       const [row] = await tx<AgentRow[]>`SELECT * FROM agents WHERE id = ${agentId} AND company_id = ${companyId} FOR UPDATE`;
       if (!row) throw new Error("agent not found");

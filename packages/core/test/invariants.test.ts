@@ -231,9 +231,10 @@ describe("the twenty invariants", () => {
             return tools.execute(name, args, ctx);
           },
         };
-        const provider = new FakeProvider((request) => (request.messages.at(-1)!.role === "tool" ? { kind: "text", text: "done" } : { kind: "tools", calls: [{ name: "list_files", arguments: {} }] }));
-        const build = () =>
-          new AgentRuntime({ sql: db.sql, providers: new ProviderRegistry().register(provider), tools: spied, workRoot: "", defaultModel: "fake/echo" });
+        const provider = new FakeProvider((request) =>
+          request.messages.at(-1)!.role === "tool" ? { kind: "text", text: "done" } : { kind: "tools", calls: [{ name: "list_files", arguments: {} }] },
+        );
+        const build = () => new AgentRuntime({ sql: db.sql, providers: new ProviderRegistry().register(provider), tools: spied, workRoot: "", defaultModel: "fake/echo" });
         const workdir = await mkdtemp(path.join(tmpdir(), "opifer-replay-"));
         const session = await build().startSession({ companyId: company!.id, agentId: agent!.id, workdir });
         // simulated crash: user + tool call without result, run left "running"
@@ -315,7 +316,9 @@ describe("the twenty invariants", () => {
       expect(await secrets.resolveFor({ companyId: company!.id, agentId: agent!.id, toolName: "terminal" })).toEqual({ API_TOKEN: value });
       expect(await secrets.resolveFor({ companyId: company!.id, agentId: other!.id, toolName: "terminal" })).toEqual({});
       expect(await secrets.accessLog(company!.id)).toMatchObject([{ secretName: "API_TOKEN", agentId: agent!.id, toolName: "terminal" }]);
-      const [leaks] = await db.sql<{ n: string }[]>`SELECT count(*)::text AS n FROM audit_log WHERE company_id = ${company!.id} AND (after::text LIKE ${"%" + value + "%"} OR before::text LIKE ${"%" + value + "%"})`;
+      const [leaks] = await db.sql<
+        { n: string }[]
+      >`SELECT count(*)::text AS n FROM audit_log WHERE company_id = ${company!.id} AND (after::text LIKE ${"%" + value + "%"} OR before::text LIKE ${"%" + value + "%"})`;
       expect(Number(leaks!.n)).toBe(0);
     });
 
@@ -343,7 +346,11 @@ describe("the twenty invariants", () => {
       const restored = await agents.restore(company!.id, agent!.id, 1);
       expect(restored).toMatchObject({ revision: 3, config: { role: "first role" } });
       const revisions = await agents.revisions(company!.id, agent!.id);
-      expect(revisions.map((r) => [r.revision, r.config.role])).toEqual([[3, "first role"], [2, "second role"], [1, "first role"]]);
+      expect(revisions.map((r) => [r.revision, r.config.role])).toEqual([
+        [3, "first role"],
+        [2, "second role"],
+        [1, "first role"],
+      ]);
       const [row] = await db.sql<{ role: string; current_revision: number }[]>`SELECT role, current_revision FROM agents WHERE id = ${agent!.id}`;
       expect(row).toEqual({ role: "first role", current_revision: 3 });
       const [audited] = await db.sql<{ n: string }[]>`SELECT count(*)::text AS n FROM audit_log WHERE subject_id = ${agent!.id} AND action = 'agent.updated'`;
@@ -369,7 +376,15 @@ describe("the twenty invariants", () => {
       companyId = company!.id;
       agentId = agent!.id;
       // The reviewer always proposes one memory and one skill.
-      const provider = new FakeProvider(() => ({ kind: "text", text: JSON.stringify({ memories: [{ kind: "note", content: "The build command is pnpm build." }], skill: { name: "rebuild-site", description: "Rebuild the site", content: "1. pnpm install\n2. pnpm build\n3. check the output" }, retire: [], reason: "repeatable" }) }));
+      const provider = new FakeProvider(() => ({
+        kind: "text",
+        text: JSON.stringify({
+          memories: [{ kind: "note", content: "The build command is pnpm build." }],
+          skill: { name: "rebuild-site", description: "Rebuild the site", content: "1. pnpm install\n2. pnpm build\n3. check the output" },
+          retire: [],
+          reason: "repeatable",
+        }),
+      }));
       store = new SessionStore(db.sql);
       learning = new LearningService(db.sql, store, new ProviderRegistry().register(provider), { approvals: new ApprovalService(db.sql) });
     }, 120_000);
@@ -380,7 +395,18 @@ describe("the twenty invariants", () => {
 
     it(invariantById("learn-outside-the-turn").title, async () => {
       // The review reads a copy: the session's messages, prompt and runs are identical before and after; the knowledge lands in the store.
-      const session = await store.createSession({ companyId, agentId, kind: "chat", title: null, systemPrompt: "PROMPT", systemPromptHash: "p1", model: "fake/echo", fallbackModel: null, workdir: null, taskId: null });
+      const session = await store.createSession({
+        companyId,
+        agentId,
+        kind: "chat",
+        title: null,
+        systemPrompt: "PROMPT",
+        systemPromptHash: "p1",
+        model: "fake/echo",
+        fallbackModel: null,
+        workdir: null,
+        taskId: null,
+      });
       const run = await store.createRun({ id: session.id, companyId, agentId });
       await store.appendMessage(session, "user", [{ type: "text", text: "Rebuild the website and make sure the build passes, then tell me." }], { runId: run.id });
       await store.appendMessage(session, "assistant", [{ type: "text", text: "Rebuilt with pnpm build; the build passes." }], { runId: run.id });
@@ -402,8 +428,14 @@ describe("the twenty invariants", () => {
       // Unused agent skills are archived, not deleted, and come back; pinned ones are untouched.
       const { skills } = learning;
       const old = new Date(Date.now() - 120 * 86_400_000);
-      const unused = await skills.create({ companyId, scope: "agent", scopeAgentId: agentId, name: "old-way", description: "an old way", content: "steps", origin: "agent" }, { kind: "agent", id: agentId });
-      const pinned = await skills.create({ companyId, scope: "agent", scopeAgentId: agentId, name: "keep-me", description: "pinned by Mike", content: "steps", origin: "agent", pinned: true }, { kind: "agent", id: agentId });
+      const unused = await skills.create(
+        { companyId, scope: "agent", scopeAgentId: agentId, name: "old-way", description: "an old way", content: "steps", origin: "agent" },
+        { kind: "agent", id: agentId },
+      );
+      const pinned = await skills.create(
+        { companyId, scope: "agent", scopeAgentId: agentId, name: "keep-me", description: "pinned by Mike", content: "steps", origin: "agent", pinned: true },
+        { kind: "agent", id: agentId },
+      );
       await db.sql`UPDATE skills SET created_at = ${old} WHERE id IN (${unused.id}, ${pinned.id})`;
       const pass = await skills.curate(companyId, { inactiveAfterDays: 30, archiveAfterDays: 90 });
       expect(pass.archived).toEqual([unused.id]);
@@ -415,7 +447,10 @@ describe("the twenty invariants", () => {
       const restored = await skills.setStatus(companyId, unused.id, "active", { kind: "person" });
       expect(restored.status).toBe("active");
       // Memories are retired with a reason, never removed.
-      const memory = await learning.memories.remember({ companyId, scope: "agent", scopeAgentId: agentId, content: "A fact that turned out wrong." }, { kind: "agent", id: agentId });
+      const memory = await learning.memories.remember(
+        { companyId, scope: "agent", scopeAgentId: agentId, content: "A fact that turned out wrong." },
+        { kind: "agent", id: agentId },
+      );
       await learning.memories.retire(companyId, memory.id, "proved wrong", { kind: "person" });
       expect((await learning.memories.get(companyId, memory.id))?.status).toBe("retired");
     });
@@ -424,7 +459,10 @@ describe("the twenty invariants", () => {
       // The company policy decides: forbidden never rises, review waits for a person, automatic rises by itself.
       const { skills, promotions, settings } = learning;
       const person = { kind: "person" as const };
-      const skill = await skills.create({ companyId, scope: "agent", scopeAgentId: agentId, name: "cite-sources", description: "Cite a source for every number", content: "steps", origin: "agent" }, { kind: "agent", id: agentId });
+      const skill = await skills.create(
+        { companyId, scope: "agent", scopeAgentId: agentId, name: "cite-sources", description: "Cite a source for every number", content: "steps", origin: "agent" },
+        { kind: "agent", id: agentId },
+      );
       const atCompany = async () => (await skills.list(companyId, { scope: "company" })).some((s) => s.name === "cite-sources");
 
       await settings.update(companyId, { promotion: "forbidden" }, person);

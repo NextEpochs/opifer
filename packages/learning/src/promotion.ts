@@ -9,14 +9,7 @@
 import type { Sql } from "postgres";
 import { audit } from "@opifer/db";
 import type { ApprovalService } from "@opifer/gateway";
-import {
-  LearningError,
-  type Actor,
-  type LearningSettings,
-  type Promotion,
-  type PromotionPolicy,
-  type Scope,
-} from "./types.js";
+import { LearningError, type Actor, type LearningSettings, type Promotion, type PromotionPolicy, type Scope } from "./types.js";
 import type { MemoryService } from "./memory.js";
 import type { SkillService } from "./skills.js";
 
@@ -84,11 +77,7 @@ export class LearningSettingsService {
     return toSettings(row!);
   }
 
-  async update(
-    companyId: string,
-    patch: Partial<Omit<LearningSettings, "companyId">>,
-    actor: Actor,
-  ): Promise<LearningSettings> {
+  async update(companyId: string, patch: Partial<Omit<LearningSettings, "companyId">>, actor: Actor): Promise<LearningSettings> {
     const before = await this.get(companyId);
     const next = { ...before, ...patch };
     const [row] = await this.sql<SettingsRow[]>`
@@ -120,33 +109,19 @@ export class PromotionService {
   ) {}
 
   async get(companyId: string, id: string): Promise<Promotion | null> {
-    const [row] = await this.sql<
-      PromotionRow[]
-    >`SELECT * FROM promotions WHERE id = ${id} AND company_id = ${companyId}`;
+    const [row] = await this.sql<PromotionRow[]>`SELECT * FROM promotions WHERE id = ${id} AND company_id = ${companyId}`;
     return row ? toPromotion(row) : null;
   }
 
-  async byApproval(
-    companyId: string,
-    approvalId: string,
-  ): Promise<Promotion | null> {
-    const [row] = await this.sql<
-      PromotionRow[]
-    >`SELECT * FROM promotions WHERE approval_id = ${approvalId} AND company_id = ${companyId}`;
+  async byApproval(companyId: string, approvalId: string): Promise<Promotion | null> {
+    const [row] = await this.sql<PromotionRow[]>`SELECT * FROM promotions WHERE approval_id = ${approvalId} AND company_id = ${companyId}`;
     return row ? toPromotion(row) : null;
   }
 
-  async list(
-    companyId: string,
-    status?: Promotion["status"][],
-  ): Promise<Promotion[]> {
+  async list(companyId: string, status?: Promotion["status"][]): Promise<Promotion[]> {
     const rows = status
-      ? await this.sql<
-          PromotionRow[]
-        >`SELECT * FROM promotions WHERE company_id = ${companyId} AND status = ANY(${status}) ORDER BY created_at DESC LIMIT 200`
-      : await this.sql<
-          PromotionRow[]
-        >`SELECT * FROM promotions WHERE company_id = ${companyId} ORDER BY created_at DESC LIMIT 200`;
+      ? await this.sql<PromotionRow[]>`SELECT * FROM promotions WHERE company_id = ${companyId} AND status = ANY(${status}) ORDER BY created_at DESC LIMIT 200`
+      : await this.sql<PromotionRow[]>`SELECT * FROM promotions WHERE company_id = ${companyId} ORDER BY created_at DESC LIMIT 200`;
     return rows.map(toPromotion);
   }
 
@@ -164,37 +139,22 @@ export class PromotionService {
     evidence: Record<string, unknown> = {},
   ): Promise<Promotion> {
     const policy = (await this.settings.get(companyId)).promotion;
-    const subject =
-      kind === "skill"
-        ? await this.skills.get(companyId, subjectId)
-        : await this.memories.get(companyId, subjectId);
+    const subject = kind === "skill" ? await this.skills.get(companyId, subjectId) : await this.memories.get(companyId, subjectId);
     if (!subject) throw new LearningError("not_found", `${kind} not found`);
-    if (subject.scope === "company")
-      throw new LearningError(
-        "invalid_input",
-        `the ${kind} is already company-wide`,
-      );
-    if (subject.scope === toScope)
-      throw new LearningError(
-        "invalid_input",
-        `the ${kind} is already at scope ${toScope}`,
-      );
+    if (subject.scope === "company") throw new LearningError("invalid_input", `the ${kind} is already company-wide`);
+    if (subject.scope === toScope) throw new LearningError("invalid_input", `the ${kind} is already at scope ${toScope}`);
     const [open] = await this.sql<
       PromotionRow[]
     >`SELECT * FROM promotions WHERE company_id = ${companyId} AND subject_id = ${subjectId} AND to_scope = ${toScope} AND status IN ('proposed', 'applied')`;
     if (open) return toPromotion(open);
     const fromScope = subject.scope as "agent" | "team";
-    const usage =
-      kind === "skill" ? await this.skills.usage(companyId, subjectId) : null;
+    const usage = kind === "skill" ? await this.skills.usage(companyId, subjectId) : null;
     const fullEvidence = {
       successes: usage?.successes ?? 0,
       failures: usage?.failures ?? 0,
       ...evidence,
       name: kind === "skill" ? (subject as { name: string }).name : undefined,
-      preview:
-        kind === "memory"
-          ? (subject as { content: string }).content.slice(0, 200)
-          : (subject as { description: string }).description,
+      preview: kind === "memory" ? (subject as { content: string }).content.slice(0, 200) : (subject as { description: string }).description,
     };
 
     if (policy === "forbidden") {
@@ -211,10 +171,7 @@ export class PromotionService {
         subjectId: row!.id,
         after: { kind, subjectId, toScope },
       });
-      throw new LearningError(
-        "forbidden",
-        "the company policy forbids promotions",
-      );
+      throw new LearningError("forbidden", "the company policy forbids promotions");
     }
 
     const [row] = await this.sql<PromotionRow[]>`
@@ -232,14 +189,9 @@ export class PromotionService {
       after: { kind, subjectId, fromScope, toScope, policy },
     });
 
-    if (policy === "automatic")
-      return this.apply(companyId, promotion.id, { kind: "system" });
+    if (policy === "automatic") return this.apply(companyId, promotion.id, { kind: "system" });
 
-    if (!this.approvals)
-      throw new LearningError(
-        "invalid_input",
-        "promotions need a person's review but approvals are not configured",
-      );
+    if (!this.approvals) throw new LearningError("invalid_input", "promotions need a person's review but approvals are not configured");
     const agentId = subject.scopeAgentId;
     const approval = await this.approvals.request({
       companyId,
@@ -255,32 +207,21 @@ export class PromotionService {
         toScope,
         evidence: fullEvidence,
       },
-      reason:
-        kind === "skill"
-          ? `Share the skill "${fullEvidence.name}" with the whole company`
-          : `Share a memory with the whole company`,
+      reason: kind === "skill" ? `Share the skill "${fullEvidence.name}" with the whole company` : `Share a memory with the whole company`,
       risk: "medium",
     });
-    await this
-      .sql`UPDATE promotions SET approval_id = ${approval.id} WHERE id = ${promotion.id}`;
+    await this.sql`UPDATE promotions SET approval_id = ${approval.id} WHERE id = ${promotion.id}`;
     promotion = { ...promotion, approvalId: approval.id };
     return promotion;
   }
 
   /** A person decided (through the approval): apply or deny. */
-  async decide(
-    companyId: string,
-    promotionId: string,
-    approved: boolean,
-    actor: Actor,
-  ): Promise<Promotion> {
+  async decide(companyId: string, promotionId: string, approved: boolean, actor: Actor): Promise<Promotion> {
     const promotion = await this.get(companyId, promotionId);
     if (!promotion) throw new LearningError("not_found", "promotion not found");
     if (promotion.status !== "proposed") return promotion;
     if (!approved) {
-      const [row] = await this.sql<
-        PromotionRow[]
-      >`UPDATE promotions SET status = 'denied', decided_at = now() WHERE id = ${promotionId} RETURNING *`;
+      const [row] = await this.sql<PromotionRow[]>`UPDATE promotions SET status = 'denied', decided_at = now() WHERE id = ${promotionId} RETURNING *`;
       await audit(this.sql, {
         companyId,
         actorKind: actor.kind,
@@ -295,22 +236,15 @@ export class PromotionService {
   }
 
   /** Writes the promoted copy at the target scope. The original stays where it was. */
-  private async apply(
-    companyId: string,
-    promotionId: string,
-    actor: Actor,
-  ): Promise<Promotion> {
+  private async apply(companyId: string, promotionId: string, actor: Actor): Promise<Promotion> {
     const promotion = await this.get(companyId, promotionId);
     if (!promotion) throw new LearningError("not_found", "promotion not found");
     const toScope: Scope = promotion.toScope;
     let resultId: string;
     if (promotion.kind === "skill") {
       const skill = await this.skills.get(companyId, promotion.subjectId);
-      const version = skill
-        ? await this.skills.version(companyId, skill.id)
-        : null;
-      if (!skill || !version)
-        throw new LearningError("not_found", "skill not found");
+      const version = skill ? await this.skills.version(companyId, skill.id) : null;
+      if (!skill || !version) throw new LearningError("not_found", "skill not found");
       const clash = (
         await this.skills.list(companyId, {
           scope: toScope,
@@ -319,12 +253,8 @@ export class PromotionService {
         })
       ).find((s) => s.name === skill.name);
       if (clash) {
-        await this
-          .sql`UPDATE promotions SET status = 'denied', decided_at = now(), evidence = evidence || ${{ conflict: clash.id } as never}::jsonb WHERE id = ${promotionId}`;
-        throw new LearningError(
-          "conflict",
-          `a ${toScope} skill named "${skill.name}" already exists: merge them by hand`,
-        );
+        await this.sql`UPDATE promotions SET status = 'denied', decided_at = now(), evidence = evidence || ${{ conflict: clash.id } as never}::jsonb WHERE id = ${promotionId}`;
+        throw new LearningError("conflict", `a ${toScope} skill named "${skill.name}" already exists: merge them by hand`);
       }
       const created = await this.skills.create(
         {
@@ -341,8 +271,7 @@ export class PromotionService {
         },
         actor,
       );
-      await this
-        .sql`UPDATE skills SET promoted_from_id = ${skill.id} WHERE id = ${created.id}`;
+      await this.sql`UPDATE skills SET promoted_from_id = ${skill.id} WHERE id = ${created.id}`;
       resultId = created.id;
     } else {
       const memory = await this.memories.get(companyId, promotion.subjectId);
@@ -365,9 +294,7 @@ export class PromotionService {
       );
       resultId = copy.id;
     }
-    const [row] = await this.sql<
-      PromotionRow[]
-    >`UPDATE promotions SET status = 'applied', result_id = ${resultId}, decided_at = now() WHERE id = ${promotionId} RETURNING *`;
+    const [row] = await this.sql<PromotionRow[]>`UPDATE promotions SET status = 'applied', result_id = ${resultId}, decided_at = now() WHERE id = ${promotionId} RETURNING *`;
     await audit(this.sql, {
       companyId,
       actorKind: actor.kind,
@@ -386,10 +313,7 @@ export class PromotionService {
   }
 
   /** After a successful task: agent skills past the threshold get proposed for the company. */
-  async proposeEligible(
-    companyId: string,
-    taskId: string,
-  ): Promise<Promotion[]> {
+  async proposeEligible(companyId: string, taskId: string): Promise<Promotion[]> {
     const settings = await this.settings.get(companyId);
     const rows = await this.sql<{ skill_id: string; successes: string }[]>`
       SELECT u.skill_id, count(*) FILTER (WHERE u.outcome = 'success')::text AS successes

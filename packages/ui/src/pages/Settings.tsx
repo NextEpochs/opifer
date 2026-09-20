@@ -28,8 +28,14 @@ export function SettingsPage(p: SettingsProps) {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    api.health().then(setHealth).catch(() => setHealth("error"));
-    api.models().then(setModels).catch(() => setModels(null));
+    api
+      .health()
+      .then(setHealth)
+      .catch(() => setHealth("error"));
+    api
+      .models()
+      .then(setModels)
+      .catch(() => setModels(null));
   }, []);
 
   const create = async (e: FormEvent) => {
@@ -58,7 +64,13 @@ export function SettingsPage(p: SettingsProps) {
           <div className="flex flex-col gap-2 px-[18px] pb-[18px] pt-2">
             {p.companies.length === 0 && <p className="m-0 text-sm text-mute">{t.noCompanies}</p>}
             {p.companies.map((c) => (
-              <button key={c.id} type="button" onClick={() => p.onCompanyChange(c.id)} aria-pressed={p.company?.id === c.id} className={`rounded-control px-3 py-2 text-left text-sm ${p.company?.id === c.id ? "bg-accent-soft text-ink" : "hover:bg-hover"}`}>
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => p.onCompanyChange(c.id)}
+                aria-pressed={p.company?.id === c.id}
+                className={`rounded-control px-3 py-2 text-left text-sm ${p.company?.id === c.id ? "bg-accent-soft text-ink" : "hover:bg-hover"}`}
+              >
                 <span className="font-bold">{c.name}</span>
                 {c.mission && <span className="block truncate text-[13px] text-mute">{c.mission}</span>}
               </button>
@@ -79,15 +91,39 @@ export function SettingsPage(p: SettingsProps) {
           <div className="flex flex-col gap-4 px-[18px] pb-[18px] pt-3">
             <label className="flex flex-col gap-1.5 text-sm">
               <span className="text-mute">{t.viewMode}</span>
-              <Segmented value={p.mode} onChange={p.onMode} label={t.viewMode} options={[{ value: "simple", label: t.simple }, { value: "advanced", label: t.advanced }]} />
+              <Segmented
+                value={p.mode}
+                onChange={p.onMode}
+                label={t.viewMode}
+                options={[
+                  { value: "simple", label: t.simple },
+                  { value: "advanced", label: t.advanced },
+                ]}
+              />
             </label>
             <label className="flex flex-col gap-1.5 text-sm">
               <span className="text-mute">{t.theme}</span>
-              <Segmented value={p.theme} onChange={p.onTheme} label={t.theme} options={[{ value: "dark", label: t.dark }, { value: "light", label: t.light }]} />
+              <Segmented
+                value={p.theme}
+                onChange={p.onTheme}
+                label={t.theme}
+                options={[
+                  { value: "dark", label: t.dark },
+                  { value: "light", label: t.light },
+                ]}
+              />
             </label>
             <label className="flex flex-col gap-1.5 text-sm">
               <span className="text-mute">{t.language}</span>
-              <Segmented value={p.locale} onChange={p.onLocale} label={t.language} options={[{ value: "en", label: "English" }, { value: "it", label: "Italiano" }]} />
+              <Segmented
+                value={p.locale}
+                onChange={p.onLocale}
+                label={t.language}
+                options={[
+                  { value: "en", label: "English" },
+                  { value: "it", label: "Italiano" },
+                ]}
+              />
             </label>
           </div>
         </Card>
@@ -98,7 +134,9 @@ export function SettingsPage(p: SettingsProps) {
             <dt className="text-mute">{t.server}</dt>
             <dd className="m-0">{health === null ? "…" : health === "error" ? <Chip tone="danger">{t.unreachable}</Chip> : <Chip tone="ok">{t.ok}</Chip>}</dd>
             <dt className="text-mute">{t.database}</dt>
-            <dd className="m-0">{typeof health === "object" && health ? <Chip tone={health.database === "ok" ? "ok" : "danger"}>{health.database === "ok" ? t.ok : t.degraded}</Chip> : "—"}</dd>
+            <dd className="m-0">
+              {typeof health === "object" && health ? <Chip tone={health.database === "ok" ? "ok" : "danger"}>{health.database === "ok" ? t.ok : t.degraded}</Chip> : "—"}
+            </dd>
             <dt className="text-mute">{t.version}</dt>
             <dd className="m-0 font-mono text-[13px]">{typeof health === "object" && health ? health.version : "—"}</dd>
             <dt className="text-mute">{t.mode}</dt>

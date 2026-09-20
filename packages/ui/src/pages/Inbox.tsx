@@ -14,7 +14,11 @@ export function InboxPage({ ws }: { ws: Workspace }) {
   const [focus, setFocus] = useState(0);
 
   useEffect(() => {
-    if (tab === "decided") api.approvals(company.id).then((list) => setDecided(list.filter((a) => a.status !== "pending"))).catch(() => setDecided([]));
+    if (tab === "decided")
+      api
+        .approvals(company.id)
+        .then((list) => setDecided(list.filter((a) => a.status !== "pending")))
+        .catch(() => setDecided([]));
   }, [tab, company.id, pending.length]);
 
   const list = tab === "pending" ? [...pending].reverse() : decided;
@@ -71,7 +75,12 @@ export function InboxPage({ ws }: { ws: Workspace }) {
       ) : (
         <div className="grid grid-cols-1 gap-4 2xl:grid-cols-2">
           {list.map((a, i) => (
-            <div key={a.id} className={`rounded-[16px] transition ${tab === "pending" && i === focus ? "ring-2 ring-accent" : ""}`} onFocusCapture={() => setFocus(i)} onMouseEnter={() => setFocus(i)}>
+            <div
+              key={a.id}
+              className={`rounded-[16px] transition ${tab === "pending" && i === focus ? "ring-2 ring-accent" : ""}`}
+              onFocusCapture={() => setFocus(i)}
+              onMouseEnter={() => setFocus(i)}
+            >
               <ApprovalCard approval={a} agentName={ws.agentName} companyId={company.id} t={t} onDecided={ws.refresh} />
             </div>
           ))}

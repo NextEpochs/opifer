@@ -38,7 +38,11 @@ export function TaskCard({ task, ws, onOpen, dragging = false }: { task: Task; w
   const { t } = ws;
   const assignee = task.assigneeAgentId ? ws.agentName(task.assigneeAgentId) : null;
   return (
-    <button type="button" onClick={() => onOpen(task.id)} className={`flex w-full flex-col gap-2 rounded-[14px] border border-line bg-card p-3 text-left shadow-card transition hover:border-accent ${dragging ? "opacity-60" : ""}`}>
+    <button
+      type="button"
+      onClick={() => onOpen(task.id)}
+      className={`flex w-full flex-col gap-2 rounded-[14px] border border-line bg-card p-3 text-left shadow-card transition hover:border-accent ${dragging ? "opacity-60" : ""}`}
+    >
       <div className="flex items-start gap-2">
         <span className="min-w-0 flex-1 text-sm font-bold leading-snug">{task.title}</span>
         {task.priority !== "normal" && <Chip tone={priorityTone(task.priority)}>{t.priorities[task.priority]}</Chip>}
@@ -61,7 +65,19 @@ export function TaskCard({ task, ws, onOpen, dragging = false }: { task: Task; w
 }
 
 /** Creating a task: title, what to do, done when, who, priority, project. */
-export function TaskForm({ ws, parentId, defaults, onCreated, onCancel }: { ws: Workspace; parentId?: string | null; defaults?: { assigneeAgentId?: string | null; projectId?: string | null }; onCreated: (task: Task) => void; onCancel?: () => void }) {
+export function TaskForm({
+  ws,
+  parentId,
+  defaults,
+  onCreated,
+  onCancel,
+}: {
+  ws: Workspace;
+  parentId?: string | null;
+  defaults?: { assigneeAgentId?: string | null; projectId?: string | null };
+  onCreated: (task: Task) => void;
+  onCancel?: () => void;
+}) {
   const { t, company, overview } = ws;
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -73,7 +89,10 @@ export function TaskForm({ ws, parentId, defaults, onCreated, onCancel }: { ws: 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
-    api.projects(company.id).then(setProjects).catch(() => setProjects([]));
+    api
+      .projects(company.id)
+      .then(setProjects)
+      .catch(() => setProjects([]));
   }, [company.id]);
 
   const submit = async (e: FormEvent) => {
@@ -233,7 +252,9 @@ export function ReviewCard({ task, ws, compact = false }: { task: Task; ws: Work
         <a href={`#/work/${task.id}`} className="ml-auto text-[13px] font-bold text-accent-text no-underline">
           {t.workTitle} →
         </a>
-        {!compact && <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder={blocked ? t.blockReason : t.changesNote} aria-label={t.changesNote} className="basis-full" />}
+        {!compact && (
+          <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder={blocked ? t.blockReason : t.changesNote} aria-label={t.changesNote} className="basis-full" />
+        )}
       </div>
     </article>
   );

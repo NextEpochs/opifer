@@ -6,15 +6,7 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import type { MessageParam, MessageStreamEvent, TextBlockParam, Tool, ToolResultBlockParam, ToolUseBlockParam } from "@anthropic-ai/sdk/resources/messages";
-import {
-  ProviderError,
-  type CompletionRequest,
-  type ContentToolCall,
-  type Message,
-  type ModelInfo,
-  type ModelProvider,
-  type StreamEvent,
-} from "@opifer/sdk";
+import { ProviderError, type CompletionRequest, type ContentToolCall, type Message, type ModelInfo, type ModelProvider, type StreamEvent } from "@opifer/sdk";
 
 export interface AnthropicProviderOptions {
   apiKey?: string;

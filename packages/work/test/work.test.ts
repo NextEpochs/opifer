@@ -43,7 +43,9 @@ describe("work: atomic checkout and leases", () => {
 
   it("100 concurrent checkouts of the same task: exactly one succeeds", async () => {
     const task = await f.work.createTask({ companyId: f.companyId, title: "Write the pricing page", assigneeAgentId: f.agentId }, { kind: "person" });
-    const outcomes = await Promise.all(Array.from({ length: 100 }, (_, i) => f.work.checkout(f.companyId, task.id, { agentId: f.agentId, runId: null, sessionId: null }, new Date(Date.now() + i))));
+    const outcomes = await Promise.all(
+      Array.from({ length: 100 }, (_, i) => f.work.checkout(f.companyId, task.id, { agentId: f.agentId, runId: null, sessionId: null }, new Date(Date.now() + i))),
+    );
     const winners = outcomes.filter((o) => o.ok);
     expect(winners).toHaveLength(1);
     expect(outcomes.filter((o) => !o.ok && o.reason === "taken")).toHaveLength(99);
@@ -92,7 +94,9 @@ describe("work: atomic checkout and leases", () => {
 
   it("a live heartbeat keeps the lease; an expired lease can be taken over by the assignee", async () => {
     const task = await f.work.createTask({ companyId: f.companyId, title: "Long job", assigneeAgentId: f.agentId }, { kind: "person" });
-    const [session] = await f.db.sql<{ id: string }[]>`INSERT INTO sessions (company_id, agent_id, system_prompt, system_prompt_hash, model, kind, task_id) VALUES (${f.companyId}, ${f.agentId}, 'p', 'h', 'fake/echo', 'task', ${task.id}) RETURNING id`;
+    const [session] = await f.db.sql<
+      { id: string }[]
+    >`INSERT INTO sessions (company_id, agent_id, system_prompt, system_prompt_hash, model, kind, task_id) VALUES (${f.companyId}, ${f.agentId}, 'p', 'h', 'fake/echo', 'task', ${task.id}) RETURNING id`;
     const [run] = await f.db.sql<{ id: string }[]>`INSERT INTO runs (company_id, session_id, agent_id) VALUES (${f.companyId}, ${session!.id}, ${f.agentId}) RETURNING id`;
     expect((await f.work.checkout(f.companyId, task.id, { agentId: f.agentId, sessionId: session!.id, runId: run!.id })).ok).toBe(true);
     for (let i = 0; i < 3; i++) {

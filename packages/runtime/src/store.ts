@@ -142,7 +142,9 @@ export class SessionStore {
 
   async listSessions(companyId: string, agentId?: string): Promise<SessionRecord[]> {
     const rows = agentId
-      ? await this.sql<SessionRow[]>`SELECT s.*, t.project_id FROM sessions s LEFT JOIN tasks t ON t.id = s.task_id WHERE s.company_id = ${companyId} AND s.agent_id = ${agentId} ORDER BY s.created_at DESC`
+      ? await this.sql<
+          SessionRow[]
+        >`SELECT s.*, t.project_id FROM sessions s LEFT JOIN tasks t ON t.id = s.task_id WHERE s.company_id = ${companyId} AND s.agent_id = ${agentId} ORDER BY s.created_at DESC`
       : await this.sql<SessionRow[]>`SELECT s.*, t.project_id FROM sessions s LEFT JOIN tasks t ON t.id = s.task_id WHERE s.company_id = ${companyId} ORDER BY s.created_at DESC`;
     return rows.map(toSession);
   }
@@ -166,7 +168,12 @@ export class SessionStore {
   }
 
   /** Appends a message with the next sequence number, in a single transaction. */
-  async appendMessage(session: { id: string; companyId: string }, role: StoredRole, content: ContentPart[], options: { runId?: string | null; usage?: Usage | null } = {}): Promise<StoredMessage> {
+  async appendMessage(
+    session: { id: string; companyId: string },
+    role: StoredRole,
+    content: ContentPart[],
+    options: { runId?: string | null; usage?: Usage | null } = {},
+  ): Promise<StoredMessage> {
     return this.sql.begin(async (tx) => {
       const [next] = await tx<{ last_seq: number }[]>`
         UPDATE sessions SET last_seq = last_seq + 1 WHERE id = ${session.id} RETURNING last_seq

@@ -88,17 +88,14 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
   // A JSON content type without a body is refused by the server: bodiless POSTs go without it.
   const res = await fetch(url, {
     ...init,
-    headers:
-      init?.body !== undefined ? { "content-type": "application/json" } : {},
+    headers: init?.body !== undefined ? { "content-type": "application/json" } : {},
   });
   if (!res.ok) {
     const body = (await res.json().catch(() => ({}))) as {
       error?: string;
       message?: string;
     };
-    throw new Error(
-      body.error ?? body.message ?? `${res.status} ${res.statusText}`,
-    );
+    throw new Error(body.error ?? body.message ?? `${res.status} ${res.statusText}`);
   }
   if (res.status === 204) return undefined as T;
   return (await res.json()) as T;
@@ -112,20 +109,14 @@ export const api = {
       method: "POST",
       body: JSON.stringify(mission ? { name, mission } : { name }),
     }),
-  agents: (companyId: string) =>
-    request<Agent[]>(`/v1/companies/${companyId}/agents`),
-  createAgent: (
-    companyId: string,
-    input: { name: string; role?: string; reportsToAgentId?: string },
-  ) =>
+  agents: (companyId: string) => request<Agent[]>(`/v1/companies/${companyId}/agents`),
+  createAgent: (companyId: string, input: { name: string; role?: string; reportsToAgentId?: string }) =>
     request<Agent>(`/v1/companies/${companyId}/agents`, {
       method: "POST",
       body: JSON.stringify(input),
     }),
-  audit: (companyId: string) =>
-    request<AuditEntry[]>(`/v1/companies/${companyId}/audit?limit=20`),
-  sessions: (companyId: string) =>
-    request<Session[]>(`/v1/companies/${companyId}/sessions`),
+  audit: (companyId: string) => request<AuditEntry[]>(`/v1/companies/${companyId}/audit?limit=20`),
+  sessions: (companyId: string) => request<Session[]>(`/v1/companies/${companyId}/sessions`),
   createSession: (companyId: string, agentId: string) =>
     request<Session>(`/v1/companies/${companyId}/sessions`, {
       method: "POST",
@@ -141,16 +132,8 @@ export const api = {
     request<{ interrupted: boolean }>(`/v1/sessions/${id}/interrupt`, {
       method: "POST",
     }),
-  approvals: (companyId: string, status?: string) =>
-    request<Approval[]>(
-      `/v1/companies/${companyId}/approvals${status ? `?status=${status}` : ""}`,
-    ),
-  decide: (
-    approvalId: string,
-    status: "approved" | "denied",
-    note?: string,
-    newCap?: number,
-  ) =>
+  approvals: (companyId: string, status?: string) => request<Approval[]>(`/v1/companies/${companyId}/approvals${status ? `?status=${status}` : ""}`),
+  decide: (approvalId: string, status: "approved" | "denied", note?: string, newCap?: number) =>
     request<Approval>(`/v1/approvals/${approvalId}/decide`, {
       method: "POST",
       body: JSON.stringify({
@@ -159,8 +142,7 @@ export const api = {
         ...(newCap !== undefined ? { newCap } : {}),
       }),
     }),
-  costs: (companyId: string) =>
-    request<CostReport>(`/v1/companies/${companyId}/costs`),
+  costs: (companyId: string) => request<CostReport>(`/v1/companies/${companyId}/costs`),
   setBudget: (
     companyId: string,
     input: {
@@ -179,8 +161,7 @@ export const api = {
     request<void>(`/v1/companies/${companyId}/budgets/${policyId}`, {
       method: "DELETE",
     }),
-  permissions: (agentId: string) =>
-    request<ToolPermissionView[]>(`/v1/agents/${agentId}/permissions`),
+  permissions: (agentId: string) => request<ToolPermissionView[]>(`/v1/agents/${agentId}/permissions`),
   setToolPolicy: (
     companyId: string,
     input: {
@@ -222,24 +203,13 @@ export const api = {
         createdAt: string;
       }>
     >(`/v1/agents/${agentId}/revisions`),
-  restoreRevision: (agentId: string, revision: number) =>
-    request<{ revision: number }>(
-      `/v1/agents/${agentId}/revisions/${revision}/restore`,
-      { method: "POST" },
-    ),
-  overview: (companyId: string) =>
-    request<Overview>(`/v1/companies/${companyId}/overview`),
+  restoreRevision: (agentId: string, revision: number) => request<{ revision: number }>(`/v1/agents/${agentId}/revisions/${revision}/restore`, { method: "POST" }),
+  overview: (companyId: string) => request<Overview>(`/v1/companies/${companyId}/overview`),
   models: () => request<ModelsInfo>("/v1/models"),
-  sessionsAll: (companyId: string) =>
-    request<Session[]>(`/v1/companies/${companyId}/sessions`),
+  sessionsAll: (companyId: string) => request<Session[]>(`/v1/companies/${companyId}/sessions`),
   // work
-  tasks: (
-    companyId: string,
-    query: { status?: string; agentId?: string; projectId?: string } = {},
-  ) => {
-    const params = new URLSearchParams(
-      Object.entries(query).filter(([, v]) => v) as [string, string][],
-    );
+  tasks: (companyId: string, query: { status?: string; agentId?: string; projectId?: string } = {}) => {
+    const params = new URLSearchParams(Object.entries(query).filter(([, v]) => v) as [string, string][]);
     return request<Task[]>(`/v1/companies/${companyId}/tasks?${params}`);
   },
   task: (id: string) => request<TaskDetail>(`/v1/tasks/${id}`),
@@ -261,38 +231,12 @@ export const api = {
       method: "POST",
       body: JSON.stringify(input),
     }),
-  updateTask: (
-    id: string,
-    patch: Partial<
-      Pick<
-        Task,
-        | "title"
-        | "description"
-        | "acceptance"
-        | "priority"
-        | "projectId"
-        | "goalId"
-        | "dueAt"
-      >
-    >,
-  ) =>
+  updateTask: (id: string, patch: Partial<Pick<Task, "title" | "description" | "acceptance" | "priority" | "projectId" | "goalId" | "dueAt">>) =>
     request<Task>(`/v1/tasks/${id}`, {
       method: "PATCH",
       body: JSON.stringify(patch),
     }),
-  taskAction: (
-    id: string,
-    action:
-      | "assign"
-      | "complete"
-      | "request-changes"
-      | "block"
-      | "unblock"
-      | "cancel"
-      | "release"
-      | "wake",
-    body: Record<string, unknown> = {},
-  ) =>
+  taskAction: (id: string, action: "assign" | "complete" | "request-changes" | "block" | "unblock" | "cancel" | "release" | "wake", body: Record<string, unknown> = {}) =>
     request<Task>(`/v1/tasks/${id}/${action}`, {
       method: "POST",
       body: JSON.stringify(body),
@@ -302,31 +246,19 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ body }),
     }),
-  goals: (companyId: string) =>
-    request<Goal[]>(`/v1/companies/${companyId}/goals`),
-  createGoal: (
-    companyId: string,
-    input: { title: string; measure?: string; parentId?: string | null },
-  ) =>
+  goals: (companyId: string) => request<Goal[]>(`/v1/companies/${companyId}/goals`),
+  createGoal: (companyId: string, input: { title: string; measure?: string; parentId?: string | null }) =>
     request<Goal>(`/v1/companies/${companyId}/goals`, {
       method: "POST",
       body: JSON.stringify(input),
     }),
-  updateGoal: (
-    companyId: string,
-    id: string,
-    patch: Partial<Pick<Goal, "title" | "measure" | "status">>,
-  ) =>
+  updateGoal: (companyId: string, id: string, patch: Partial<Pick<Goal, "title" | "measure" | "status">>) =>
     request<Goal>(`/v1/companies/${companyId}/goals/${id}`, {
       method: "PATCH",
       body: JSON.stringify(patch),
     }),
-  projects: (companyId: string) =>
-    request<Project[]>(`/v1/companies/${companyId}/projects`),
-  createProject: (
-    companyId: string,
-    input: { name: string; description?: string; goalId?: string | null },
-  ) =>
+  projects: (companyId: string) => request<Project[]>(`/v1/companies/${companyId}/projects`),
+  createProject: (companyId: string, input: { name: string; description?: string; goalId?: string | null }) =>
     request<Project>(`/v1/companies/${companyId}/projects`, {
       method: "POST",
       body: JSON.stringify(input),
@@ -344,8 +276,7 @@ export const api = {
     } = {},
   ) => {
     const params = new URLSearchParams();
-    for (const [k, v] of Object.entries(query))
-      if (v !== undefined && v !== "") params.set(k, String(v));
+    for (const [k, v] of Object.entries(query)) if (v !== undefined && v !== "") params.set(k, String(v));
     return request<Memory[]>(`/v1/companies/${companyId}/memories?${params}`);
   },
   saveMemory: (
@@ -363,16 +294,8 @@ export const api = {
       method: "POST",
       body: JSON.stringify(input),
     }),
-  memoryAction: (
-    companyId: string,
-    id: string,
-    action: "correct" | "retire" | "pin" | "promote",
-    body: Record<string, unknown>,
-  ) =>
-    request<Memory | Promotion>(
-      `/v1/companies/${companyId}/memories/${id}/${action}`,
-      { method: "POST", body: JSON.stringify(body) },
-    ),
+  memoryAction: (companyId: string, id: string, action: "correct" | "retire" | "pin" | "promote", body: Record<string, unknown>) =>
+    request<Memory | Promotion>(`/v1/companies/${companyId}/memories/${id}/${action}`, { method: "POST", body: JSON.stringify(body) }),
   skills: (
     companyId: string,
     query: {
@@ -383,16 +306,12 @@ export const api = {
     } = {},
   ) => {
     const params = new URLSearchParams();
-    for (const [k, v] of Object.entries(query))
-      if (v !== undefined && v !== "") params.set(k, String(v));
+    for (const [k, v] of Object.entries(query)) if (v !== undefined && v !== "") params.set(k, String(v));
     return request<Skill[]>(`/v1/companies/${companyId}/skills?${params}`);
   },
-  skill: (companyId: string, id: string) =>
-    request<SkillDetail>(`/v1/companies/${companyId}/skills/${id}`),
+  skill: (companyId: string, id: string) => request<SkillDetail>(`/v1/companies/${companyId}/skills/${id}`),
   skillVersion: (companyId: string, id: string, version: number) =>
-    request<{ version: number; content: string; note: string }>(
-      `/v1/companies/${companyId}/skills/${id}/versions/${version}`,
-    ),
+    request<{ version: number; content: string; note: string }>(`/v1/companies/${companyId}/skills/${id}/versions/${version}`),
   createSkill: (
     companyId: string,
     input: {
@@ -408,20 +327,10 @@ export const api = {
       method: "POST",
       body: JSON.stringify(input),
     }),
-  updateSkill: (
-    companyId: string,
-    id: string,
-    input: { description?: string; content: string; note?: string },
-  ) =>
-    request<{ skill: Skill; version: { version: number } }>(
-      `/v1/companies/${companyId}/skills/${id}/versions`,
-      { method: "POST", body: JSON.stringify(input) },
-    ),
+  updateSkill: (companyId: string, id: string, input: { description?: string; content: string; note?: string }) =>
+    request<{ skill: Skill; version: { version: number } }>(`/v1/companies/${companyId}/skills/${id}/versions`, { method: "POST", body: JSON.stringify(input) }),
   restoreSkill: (companyId: string, id: string, version: number) =>
-    request<{ skill: Skill; version: { version: number } }>(
-      `/v1/companies/${companyId}/skills/${id}/versions/${version}/restore`,
-      { method: "POST", body: "{}" },
-    ),
+    request<{ skill: Skill; version: { version: number } }>(`/v1/companies/${companyId}/skills/${id}/versions/${version}/restore`, { method: "POST", body: "{}" }),
   skillStatus: (companyId: string, id: string, status: Skill["status"]) =>
     request<Skill>(`/v1/companies/${companyId}/skills/${id}/status`, {
       method: "POST",
@@ -437,22 +346,14 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ toScope: "company" }),
     }),
-  learningReviews: (companyId: string, agent?: string) =>
-    request<LearningReview[]>(
-      `/v1/companies/${companyId}/learning/reviews?limit=40${agent ? `&agent=${agent}` : ""}`,
-    ),
-  learningSettings: (companyId: string) =>
-    request<LearningSettings>(`/v1/companies/${companyId}/learning`),
-  updateLearningSettings: (
-    companyId: string,
-    patch: Partial<Omit<LearningSettings, "semanticSearch">>,
-  ) =>
+  learningReviews: (companyId: string, agent?: string) => request<LearningReview[]>(`/v1/companies/${companyId}/learning/reviews?limit=40${agent ? `&agent=${agent}` : ""}`),
+  learningSettings: (companyId: string) => request<LearningSettings>(`/v1/companies/${companyId}/learning`),
+  updateLearningSettings: (companyId: string, patch: Partial<Omit<LearningSettings, "semanticSearch">>) =>
     request<LearningSettings>(`/v1/companies/${companyId}/learning`, {
       method: "PUT",
       body: JSON.stringify(patch),
     }),
-  promotions: (companyId: string) =>
-    request<Promotion[]>(`/v1/companies/${companyId}/promotions`),
+  promotions: (companyId: string) => request<Promotion[]>(`/v1/companies/${companyId}/promotions`),
 };
 
 // --- Learning (M4) -----------------------------------------------------------
@@ -613,8 +514,7 @@ export interface ToolPermissionView {
   source: "agent" | "role" | "company" | "risk";
 }
 
-export type AgentActivity =
-  "working" | "waiting" | "idle" | "paused" | "stopped";
+export type AgentActivity = "working" | "waiting" | "idle" | "paused" | "stopped";
 
 export interface AgentView extends Agent {
   activity: AgentActivity;
@@ -687,8 +587,7 @@ export interface ModelsInfo {
   }>;
 }
 
-export type TaskStatus =
-  "todo" | "in_progress" | "in_review" | "blocked" | "done" | "cancelled";
+export type TaskStatus = "todo" | "in_progress" | "in_review" | "blocked" | "done" | "cancelled";
 export type TaskPriority = "low" | "normal" | "high" | "urgent";
 
 export interface Task {
@@ -783,10 +682,7 @@ export interface BusEvent {
   payload?: unknown;
 }
 
-export function eventsSocket(
-  onEvent: (event: BusEvent) => void,
-  onState: (open: boolean) => void,
-): () => void {
+export function eventsSocket(onEvent: (event: BusEvent) => void, onState: (open: boolean) => void): () => void {
   const protocol = location.protocol === "https:" ? "wss" : "ws";
   const socket = new WebSocket(`${protocol}://${location.host}/v1/events`);
   socket.onopen = () => onState(true);

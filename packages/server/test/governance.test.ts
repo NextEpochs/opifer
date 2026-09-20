@@ -71,15 +71,27 @@ describe("Governance API", () => {
     await waitFor((e) => e.type === "session.event" && (e.payload["event"] as { type: string }).type === "approval_requested");
     await waitFor((e) => e.type === "session.event" && (e.payload["event"] as { type: string; run?: { stopReason: string } }).run?.stopReason === "approval_pending");
 
-    const pending = (await app.inject({ method: "GET", url: `/v1/companies/${companyId}/approvals?status=pending` })).json() as Array<{ id: string; kind: string; sessionId: string }>;
+    const pending = (await app.inject({ method: "GET", url: `/v1/companies/${companyId}/approvals?status=pending` })).json() as Array<{
+      id: string;
+      kind: string;
+      sessionId: string;
+    }>;
     expect(pending).toHaveLength(1);
     expect(pending[0]).toMatchObject({ kind: "tool_use", sessionId: session.id });
 
     const decided = await app.inject({ method: "POST", url: `/v1/approvals/${pending[0]!.id}/decide`, payload: { status: "approved", note: "ok" } });
     expect(decided.statusCode).toBe(200);
     expect(decided.json()).toMatchObject({ status: "approved", followUp: "session_resumed" });
-    await waitFor((e) => e.type === "session.event" && (e.payload["sessionId"] as string) === session.id && (e.payload["event"] as { type: string; run?: { stopReason: string } }).run?.stopReason === "final_answer");
-    const messages = (await app.inject({ method: "GET", url: `/v1/sessions/${session.id}/messages` })).json() as Array<{ role: string; content: Array<{ type: string; text?: string }> }>;
+    await waitFor(
+      (e) =>
+        e.type === "session.event" &&
+        (e.payload["sessionId"] as string) === session.id &&
+        (e.payload["event"] as { type: string; run?: { stopReason: string } }).run?.stopReason === "final_answer",
+    );
+    const messages = (await app.inject({ method: "GET", url: `/v1/sessions/${session.id}/messages` })).json() as Array<{
+      role: string;
+      content: Array<{ type: string; text?: string }>;
+    }>;
     expect(messages.at(-1)!.content[0]!.text).toMatch(/^done: hi/);
 
     const again = await app.inject({ method: "POST", url: `/v1/approvals/${pending[0]!.id}/decide`, payload: { status: "denied" } });
@@ -105,12 +117,21 @@ describe("Governance API", () => {
 
     const [increase] = (await app.inject({ method: "GET", url: `/v1/companies/${companyId}/approvals?status=pending` })).json() as Array<{ id: string; kind: string }>;
     expect(increase).toMatchObject({ kind: "budget_increase" });
-    const decided = (await app.inject({ method: "POST", url: `/v1/approvals/${increase!.id}/decide`, payload: { status: "approved", newCap: 1000 } })).json() as { followUp: string };
+    const decided = (await app.inject({ method: "POST", url: `/v1/approvals/${increase!.id}/decide`, payload: { status: "approved", newCap: 1000 } })).json() as {
+      followUp: string;
+    };
     expect(decided.followUp).toMatch(/cap raised to 1000 EUR/);
     const after = (await app.inject({ method: "GET", url: `/v1/companies/${companyId}/agents` })).json() as Array<{ id: string; status: string }>;
     expect(after.find((a) => a.id === agentId)?.status).toBe("active");
     // The pending turn ("second") resumed once the cap was raised.
-    await waitFor((e) => e.type === "session.event" && (e.payload["sessionId"] as string) === session.id && (e.payload["event"] as { type: string; run?: { stopReason: string } }).run?.stopReason === "final_answer" && (e.payload["runId"] as string | null) !== null, 15_000);
+    await waitFor(
+      (e) =>
+        e.type === "session.event" &&
+        (e.payload["sessionId"] as string) === session.id &&
+        (e.payload["event"] as { type: string; run?: { stopReason: string } }).run?.stopReason === "final_answer" &&
+        (e.payload["runId"] as string | null) !== null,
+      15_000,
+    );
   });
 
   it("summarises the company for the Home board", async () => {
@@ -159,7 +180,17 @@ describe("Governance API", () => {
 
     const audit = (await app.inject({ method: "GET", url: `/v1/companies/${companyId}/audit?limit=500` })).json() as Array<{ action: string }>;
     const actions = new Set(audit.map((a) => a.action));
-    for (const expected of ["approval.requested", "approval.decided", "budget.policy_set", "budget.blocked", "tool.executed", "secret.set", "secret.bound", "agent.updated", "agent.status_changed"]) {
+    for (const expected of [
+      "approval.requested",
+      "approval.decided",
+      "budget.policy_set",
+      "budget.blocked",
+      "tool.executed",
+      "secret.set",
+      "secret.bound",
+      "agent.updated",
+      "agent.status_changed",
+    ]) {
       expect(actions, expected).toContain(expected);
     }
     expect(JSON.stringify(audit)).not.toContain("very-secret-value");

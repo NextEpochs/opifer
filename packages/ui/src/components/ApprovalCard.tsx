@@ -68,7 +68,15 @@ export function ApprovalCard({ approval: a, agentName, companyId, t, onDecided, 
               : fill(t.wantsTo.skill_promotion, { name: promo.name ?? "" })
             : fill(t.wantsTo.other, { agent });
   const explanation =
-    a.kind === "tool_use" ? fill(t.explain.tool_use, { agent }) : a.kind === "dangerous_command" ? t.explain.dangerous_command : a.kind === "budget_increase" ? fill(t.explain.budget_increase, { agent }) : promo ? fill(t.explain.skill_promotion, { agent, successes: promo.evidence?.successes ?? 0 }) : null;
+    a.kind === "tool_use"
+      ? fill(t.explain.tool_use, { agent })
+      : a.kind === "dangerous_command"
+        ? t.explain.dangerous_command
+        : a.kind === "budget_increase"
+          ? fill(t.explain.budget_increase, { agent })
+          : promo
+            ? fill(t.explain.skill_promotion, { agent, successes: promo.evidence?.successes ?? 0 })
+            : null;
   const tone = a.risk === "high" ? "danger" : a.risk === "medium" ? "warn" : "mute";
   const pending = a.status === "pending";
 
@@ -99,7 +107,16 @@ export function ApprovalCard({ approval: a, agentName, companyId, t, onDecided, 
       {pending && a.kind === "budget_increase" && (
         <div className="flex items-center gap-3">
           <span className="text-[13px] text-mute">{t.newCap}</span>
-          <input type="range" min={Math.max(1, Math.ceil(s.cap))} max={Math.max(10, Math.ceil(s.cap * 10))} step="1" value={cap} onChange={(e) => setCap(Number(e.target.value))} aria-label={t.newCap} className="flex-1" />
+          <input
+            type="range"
+            min={Math.max(1, Math.ceil(s.cap))}
+            max={Math.max(10, Math.ceil(s.cap * 10))}
+            step="1"
+            value={cap}
+            onChange={(e) => setCap(Number(e.target.value))}
+            aria-label={t.newCap}
+            className="flex-1"
+          />
           <strong className="w-28 text-right">
             {money(cap, s.currency, 0)} {t.perMonth}
           </strong>
@@ -133,7 +150,15 @@ export function ApprovalCard({ approval: a, agentName, companyId, t, onDecided, 
               )}
             </>
           )}
-          {!compact && a.kind !== "budget_increase" && <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder={fill(t.noteFor, { agent })} aria-label={fill(t.noteFor, { agent })} className="basis-full sm:basis-64 sm:flex-1" />}
+          {!compact && a.kind !== "budget_increase" && (
+            <Input
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder={fill(t.noteFor, { agent })}
+              aria-label={fill(t.noteFor, { agent })}
+              className="basis-full sm:basis-64 sm:flex-1"
+            />
+          )}
         </div>
       ) : (
         <div className="text-[13px] text-mute">

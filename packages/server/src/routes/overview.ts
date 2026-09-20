@@ -62,7 +62,9 @@ export async function registerOverviewRoutes(app: FastifyInstance, options: Over
     if (!company) return reply.code(404).send({ error: "company not found" });
 
     const since = monthStart();
-    const agents = await sql<AgentRow[]>`SELECT id, name, role, status, model, reports_to_agent_id, current_revision FROM agents WHERE company_id = ${companyId} ORDER BY created_at`;
+    const agents = await sql<
+      AgentRow[]
+    >`SELECT id, name, role, status, model, reports_to_agent_id, current_revision FROM agents WHERE company_id = ${companyId} ORDER BY created_at`;
     const sessions = await runtime.store.listSessions(companyId);
     const spendRows = await sql<{ agent_id: string | null; eur: string; usd: string; calls: string }[]>`
       SELECT agent_id, coalesce(sum(amount_eur), 0)::text AS eur, coalesce(sum(amount_usd), 0)::text AS usd, count(*)::text AS calls
@@ -101,7 +103,15 @@ export async function registerOverviewRoutes(app: FastifyInstance, options: Over
       const spend = spendByAgent.get(a.id) ?? { eur: 0, usd: 0, calls: 0 };
       const cap = capByAgent.get(a.id);
       const activity: "working" | "waiting" | "idle" | "paused" | "stopped" =
-        a.status === "budget_stopped" ? "stopped" : a.status === "paused" || a.status === "archived" ? "paused" : running ? "working" : (pendingByAgent.get(a.id) ?? 0) > 0 ? "waiting" : "idle";
+        a.status === "budget_stopped"
+          ? "stopped"
+          : a.status === "paused" || a.status === "archived"
+            ? "paused"
+            : running
+              ? "working"
+              : (pendingByAgent.get(a.id) ?? 0) > 0
+                ? "waiting"
+                : "idle";
       const doing = running?.title ?? waitingRun?.title ?? null;
       return {
         id: a.id,
@@ -139,7 +149,16 @@ export async function registerOverviewRoutes(app: FastifyInstance, options: Over
         finishedAt: r.finished_at?.toISOString() ?? null,
         preview: r.preview,
       })),
-      activity: activity.map((e) => ({ id: e.id, actorKind: e.actor_kind, actorId: e.actor_id, action: e.action, subjectKind: e.subject_kind, subjectId: e.subject_id, after: e.after, occurredAt: e.occurred_at.toISOString() })),
+      activity: activity.map((e) => ({
+        id: e.id,
+        actorKind: e.actor_kind,
+        actorId: e.actor_id,
+        action: e.action,
+        subjectKind: e.subject_kind,
+        subjectId: e.subject_id,
+        after: e.after,
+        occurredAt: e.occurred_at.toISOString(),
+      })),
       working: runningSessions.length,
     };
   });

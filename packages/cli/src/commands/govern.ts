@@ -89,10 +89,11 @@ export async function runBudgetRemove(options: Common & { id: string }): Promise
 
 export async function runCosts(options: Common & { all?: boolean }): Promise<void> {
   const { base, company } = await connect(options);
-  const report = await api<{ total: { usd: number; eur: number }; byAgent: Array<{ agentName: string | null; eur: number; usd: number; calls: number }>; byModel: Array<{ model: string | null; eur: number; calls: number; inputTokens: number; outputTokens: number }> }>(
-    base,
-    `/v1/companies/${company.id}/costs${options.all ? "?since=all" : ""}`,
-  );
+  const report = await api<{
+    total: { usd: number; eur: number };
+    byAgent: Array<{ agentName: string | null; eur: number; usd: number; calls: number }>;
+    byModel: Array<{ model: string | null; eur: number; calls: number; inputTokens: number; outputTokens: number }>;
+  }>(base, `/v1/companies/${company.id}/costs${options.all ? "?since=all" : ""}`);
   say.info(`${c.bold(company.name)} ${options.all ? "all time" : "this month"}: ${c.bold(money(report.total.eur, "EUR"))} (${money(report.total.usd, "USD")})`);
   if (report.byAgent.length === 0) {
     say.info(c.dim("  no paid calls yet"));
@@ -230,7 +231,10 @@ export async function runSecretRemove(options: Common & { name: string }): Promi
 export async function runSecretBind(options: Common & { name: string; agent: string; tool?: string }): Promise<void> {
   const { base, company } = await connect(options);
   const agent = await resolveAgent(base, company.id, options.agent);
-  await api(base, `/v1/companies/${company.id}/secret-bindings`, { method: "POST", body: JSON.stringify({ secretName: options.name, agentId: agent.id, ...(options.tool ? { toolName: options.tool } : {}) }) });
+  await api(base, `/v1/companies/${company.id}/secret-bindings`, {
+    method: "POST",
+    body: JSON.stringify({ secretName: options.name, agentId: agent.id, ...(options.tool ? { toolName: options.tool } : {}) }),
+  });
   say.ok(`${options.name} is available to ${agent.name} in ${options.tool ?? "every tool"} as an environment variable`);
 }
 

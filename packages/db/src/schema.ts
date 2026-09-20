@@ -5,21 +5,7 @@
  */
 
 import { sql } from "drizzle-orm";
-import {
-  boolean,
-  customType,
-  index,
-  integer,
-  jsonb,
-  numeric,
-  pgTable,
-  primaryKey,
-  real,
-  text,
-  timestamp,
-  unique,
-  uuid,
-} from "drizzle-orm/pg-core";
+import { boolean, customType, index, integer, jsonb, numeric, pgTable, primaryKey, real, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
 
 const bytea = customType<{ data: Buffer; driverData: Buffer }>({
   dataType() {
@@ -33,16 +19,22 @@ const timestamps = {
 };
 
 export const companies = pgTable("companies", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: uuid("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
   mission: text("mission"),
-  status: text("status", { enum: ["active", "suspended", "archived"] }).notNull().default("active"),
+  status: text("status", { enum: ["active", "suspended", "archived"] })
+    .notNull()
+    .default("active"),
   settings: jsonb("settings").$type<Record<string, unknown>>().notNull().default({}),
   ...timestamps,
 });
 
 export const users = pgTable("users", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: uuid("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
   displayName: text("display_name").notNull(),
   email: text("email").unique(),
   ...timestamps,
@@ -66,7 +58,9 @@ export const memberships = pgTable(
 export const agents = pgTable(
   "agents",
   {
-    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
     companyId: uuid("company_id")
       .notNull()
       .references(() => companies.id, { onDelete: "cascade" }),
@@ -87,7 +81,9 @@ export const agents = pgTable(
 export const agentRevisions = pgTable(
   "agent_revisions",
   {
-    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
     companyId: uuid("company_id")
       .notNull()
       .references(() => companies.id, { onDelete: "cascade" }),
@@ -107,7 +103,9 @@ export const agentRevisions = pgTable(
 export const auditLog = pgTable(
   "audit_log",
   {
-    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
     companyId: uuid("company_id")
       .notNull()
       .references(() => companies.id, { onDelete: "restrict" }),
@@ -133,20 +131,26 @@ export const DOMAIN_TABLES_WITHOUT_COMPANY_ID: readonly string[] = ["companies",
 export const sessions = pgTable(
   "sessions",
   {
-    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
     companyId: uuid("company_id")
       .notNull()
       .references(() => companies.id, { onDelete: "cascade" }),
     agentId: uuid("agent_id")
       .notNull()
       .references(() => agents.id, { onDelete: "cascade" }),
-    kind: text("kind", { enum: ["chat", "task", "routine"] }).notNull().default("chat"),
+    kind: text("kind", { enum: ["chat", "task", "routine"] })
+      .notNull()
+      .default("chat"),
     title: text("title"),
     systemPrompt: text("system_prompt").notNull(),
     systemPromptHash: text("system_prompt_hash").notNull(),
     model: text("model").notNull(),
     fallbackModel: text("fallback_model"),
-    status: text("status", { enum: ["active", "suspended", "closed"] }).notNull().default("active"),
+    status: text("status", { enum: ["active", "suspended", "closed"] })
+      .notNull()
+      .default("active"),
     workdir: text("workdir"),
     lastSeq: integer("last_seq").notNull().default(0),
     // 0004: a session can belong to a task
@@ -159,7 +163,9 @@ export const sessions = pgTable(
 export const runs = pgTable(
   "runs",
   {
-    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
     companyId: uuid("company_id")
       .notNull()
       .references(() => companies.id, { onDelete: "cascade" }),
@@ -189,7 +195,9 @@ export const runs = pgTable(
 export const messages = pgTable(
   "messages",
   {
-    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
     companyId: uuid("company_id")
       .notNull()
       .references(() => companies.id, { onDelete: "cascade" }),
@@ -209,7 +217,9 @@ export const messages = pgTable(
 export const runEvents = pgTable(
   "run_events",
   {
-    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
     companyId: uuid("company_id")
       .notNull()
       .references(() => companies.id, { onDelete: "cascade" }),
@@ -230,15 +240,21 @@ export const runEvents = pgTable(
 export const budgetPolicies = pgTable(
   "budget_policies",
   {
-    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
     companyId: uuid("company_id")
       .notNull()
       .references(() => companies.id, { onDelete: "cascade" }),
     scopeKind: text("scope_kind", { enum: ["company", "project", "agent", "task", "turn"] }).notNull(),
     scopeId: uuid("scope_id"),
-    window: text("window", { enum: ["monthly", "daily", "lifetime"] }).notNull().default("monthly"),
+    window: text("window", { enum: ["monthly", "daily", "lifetime"] })
+      .notNull()
+      .default("monthly"),
     cap: numeric("cap", { precision: 14, scale: 6 }).notNull(),
-    currency: text("currency", { enum: ["EUR", "USD"] }).notNull().default("EUR"),
+    currency: text("currency", { enum: ["EUR", "USD"] })
+      .notNull()
+      .default("EUR"),
     warnRatio: numeric("warn_ratio", { precision: 4, scale: 3 }).notNull().default("0.8"),
     ...timestamps,
   },
@@ -248,7 +264,9 @@ export const budgetPolicies = pgTable(
 export const costEvents = pgTable(
   "cost_events",
   {
-    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
     companyId: uuid("company_id")
       .notNull()
       .references(() => companies.id, { onDelete: "cascade" }),
@@ -278,7 +296,9 @@ export const costEvents = pgTable(
 export const budgetReservations = pgTable(
   "budget_reservations",
   {
-    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
     companyId: uuid("company_id")
       .notNull()
       .references(() => companies.id, { onDelete: "cascade" }),
@@ -289,7 +309,9 @@ export const budgetReservations = pgTable(
     taskId: uuid("task_id"),
     estimatedUsd: numeric("estimated_usd", { precision: 14, scale: 6 }).notNull().default("0"),
     estimatedEur: numeric("estimated_eur", { precision: 14, scale: 6 }).notNull().default("0"),
-    status: text("status", { enum: ["open", "settled", "released"] }).notNull().default("open"),
+    status: text("status", { enum: ["open", "settled", "released"] })
+      .notNull()
+      .default("open"),
     costEventId: uuid("cost_event_id").references(() => costEvents.id, { onDelete: "set null" }),
     ...timestamps,
     settledAt: timestamp("settled_at", { withTimezone: true }),
@@ -300,7 +322,9 @@ export const budgetReservations = pgTable(
 export const approvals = pgTable(
   "approvals",
   {
-    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
     companyId: uuid("company_id")
       .notNull()
       .references(() => companies.id, { onDelete: "cascade" }),
@@ -312,8 +336,12 @@ export const approvals = pgTable(
     subject: jsonb("subject").$type<Record<string, unknown>>().notNull().default({}),
     reason: text("reason"),
     estimatedCost: numeric("estimated_cost", { precision: 14, scale: 6 }),
-    risk: text("risk", { enum: ["low", "medium", "high"] }).notNull().default("medium"),
-    status: text("status", { enum: ["pending", "approved", "denied", "expired"] }).notNull().default("pending"),
+    risk: text("risk", { enum: ["low", "medium", "high"] })
+      .notNull()
+      .default("medium"),
+    status: text("status", { enum: ["pending", "approved", "denied", "expired"] })
+      .notNull()
+      .default("pending"),
     decidedBy: uuid("decided_by").references(() => users.id, { onDelete: "set null" }),
     decisionNote: text("decision_note"),
     expiresAt: timestamp("expires_at", { withTimezone: true }),
@@ -326,7 +354,9 @@ export const approvals = pgTable(
 export const toolPolicies = pgTable(
   "tool_policies",
   {
-    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
     companyId: uuid("company_id")
       .notNull()
       .references(() => companies.id, { onDelete: "cascade" }),
@@ -342,7 +372,9 @@ export const toolPolicies = pgTable(
 export const secrets = pgTable(
   "secrets",
   {
-    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
     companyId: uuid("company_id")
       .notNull()
       .references(() => companies.id, { onDelete: "cascade" }),
@@ -359,7 +391,9 @@ export const secrets = pgTable(
 export const secretBindings = pgTable(
   "secret_bindings",
   {
-    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
     companyId: uuid("company_id")
       .notNull()
       .references(() => companies.id, { onDelete: "cascade" }),
@@ -374,7 +408,9 @@ export const secretBindings = pgTable(
 export const secretAccessEvents = pgTable(
   "secret_access_events",
   {
-    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
     companyId: uuid("company_id")
       .notNull()
       .references(() => companies.id, { onDelete: "cascade" }),
@@ -394,7 +430,9 @@ export const secretAccessEvents = pgTable(
 export const goals = pgTable(
   "goals",
   {
-    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
     companyId: uuid("company_id")
       .notNull()
       .references(() => companies.id, { onDelete: "cascade" }),
@@ -402,7 +440,9 @@ export const goals = pgTable(
     title: text("title").notNull(),
     description: text("description").notNull().default(""),
     measure: text("measure").notNull().default(""),
-    status: text("status", { enum: ["active", "reached", "dropped"] }).notNull().default("active"),
+    status: text("status", { enum: ["active", "reached", "dropped"] })
+      .notNull()
+      .default("active"),
     dueAt: timestamp("due_at", { withTimezone: true }),
     ...timestamps,
   },
@@ -412,14 +452,18 @@ export const goals = pgTable(
 export const projects = pgTable(
   "projects",
   {
-    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
     companyId: uuid("company_id")
       .notNull()
       .references(() => companies.id, { onDelete: "cascade" }),
     goalId: uuid("goal_id").references(() => goals.id, { onDelete: "set null" }),
     name: text("name").notNull(),
     description: text("description").notNull().default(""),
-    status: text("status", { enum: ["active", "paused", "done", "archived"] }).notNull().default("active"),
+    status: text("status", { enum: ["active", "paused", "done", "archived"] })
+      .notNull()
+      .default("active"),
     workdir: text("workdir"),
     ...timestamps,
   },
@@ -429,7 +473,9 @@ export const projects = pgTable(
 export const tasks = pgTable(
   "tasks",
   {
-    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
     companyId: uuid("company_id")
       .notNull()
       .references(() => companies.id, { onDelete: "cascade" }),
@@ -439,12 +485,18 @@ export const tasks = pgTable(
     title: text("title").notNull(),
     description: text("description").notNull().default(""),
     acceptance: text("acceptance").notNull().default(""),
-    status: text("status", { enum: ["todo", "in_progress", "in_review", "blocked", "done", "cancelled"] }).notNull().default("todo"),
-    priority: text("priority", { enum: ["low", "normal", "high", "urgent"] }).notNull().default("normal"),
+    status: text("status", { enum: ["todo", "in_progress", "in_review", "blocked", "done", "cancelled"] })
+      .notNull()
+      .default("todo"),
+    priority: text("priority", { enum: ["low", "normal", "high", "urgent"] })
+      .notNull()
+      .default("normal"),
     assigneeAgentId: uuid("assignee_agent_id").references(() => agents.id, { onDelete: "set null" }),
     assigneeUserId: uuid("assignee_user_id").references(() => users.id, { onDelete: "set null" }),
     reviewerAgentId: uuid("reviewer_agent_id").references(() => agents.id, { onDelete: "set null" }),
-    createdByKind: text("created_by_kind", { enum: ["person", "agent", "system"] }).notNull().default("person"),
+    createdByKind: text("created_by_kind", { enum: ["person", "agent", "system"] })
+      .notNull()
+      .default("person"),
     createdById: uuid("created_by_id"),
     dueAt: timestamp("due_at", { withTimezone: true }),
     leaseRunId: uuid("lease_run_id").references(() => runs.id, { onDelete: "set null" }),
@@ -469,7 +521,9 @@ export const tasks = pgTable(
 export const taskComments = pgTable(
   "task_comments",
   {
-    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
     companyId: uuid("company_id")
       .notNull()
       .references(() => companies.id, { onDelete: "cascade" }),
@@ -479,7 +533,9 @@ export const taskComments = pgTable(
     authorKind: text("author_kind", { enum: ["person", "agent", "system"] }).notNull(),
     authorId: uuid("author_id"),
     body: text("body").notNull(),
-    mentions: jsonb("mentions").notNull().default(sql`'[]'::jsonb`),
+    mentions: jsonb("mentions")
+      .notNull()
+      .default(sql`'[]'::jsonb`),
     ...timestamps,
   },
   (t) => [index("task_comments_task_idx").on(t.taskId, t.createdAt)],
@@ -488,7 +544,9 @@ export const taskComments = pgTable(
 export const taskRelations = pgTable(
   "task_relations",
   {
-    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
     companyId: uuid("company_id")
       .notNull()
       .references(() => companies.id, { onDelete: "cascade" }),
@@ -507,7 +565,9 @@ export const taskRelations = pgTable(
 export const workProducts = pgTable(
   "work_products",
   {
-    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
     companyId: uuid("company_id")
       .notNull()
       .references(() => companies.id, { onDelete: "cascade" }),
@@ -519,7 +579,9 @@ export const workProducts = pgTable(
     title: text("title").notNull(),
     ref: text("ref").notNull().default(""),
     summary: text("summary").notNull().default(""),
-    createdByKind: text("created_by_kind", { enum: ["person", "agent", "system"] }).notNull().default("agent"),
+    createdByKind: text("created_by_kind", { enum: ["person", "agent", "system"] })
+      .notNull()
+      .default("agent"),
     createdById: uuid("created_by_id"),
     ...timestamps,
   },
@@ -529,7 +591,9 @@ export const workProducts = pgTable(
 export const wakeups = pgTable(
   "wakeups",
   {
-    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
     companyId: uuid("company_id")
       .notNull()
       .references(() => companies.id, { onDelete: "cascade" }),
@@ -538,9 +602,13 @@ export const wakeups = pgTable(
       .references(() => agents.id, { onDelete: "cascade" }),
     reason: text("reason", { enum: ["assignment", "mention", "heartbeat", "routine", "external", "decision", "retry"] }).notNull(),
     taskId: uuid("task_id").references(() => tasks.id, { onDelete: "cascade" }),
-    payload: jsonb("payload").notNull().default(sql`'{}'::jsonb`),
+    payload: jsonb("payload")
+      .notNull()
+      .default(sql`'{}'::jsonb`),
     dedupeKey: text("dedupe_key"),
-    status: text("status", { enum: ["pending", "running", "done", "failed", "skipped"] }).notNull().default("pending"),
+    status: text("status", { enum: ["pending", "running", "done", "failed", "skipped"] })
+      .notNull()
+      .default("pending"),
     scheduledAt: timestamp("scheduled_at", { withTimezone: true }).notNull().defaultNow(),
     claimedAt: timestamp("claimed_at", { withTimezone: true }),
     finishedAt: timestamp("finished_at", { withTimezone: true }),
@@ -566,7 +634,9 @@ export const learningSettings = pgTable("learning_settings", {
     .primaryKey()
     .references(() => companies.id, { onDelete: "cascade" }),
   reviewEnabled: boolean("review_enabled").notNull().default(true),
-  promotion: text("promotion", { enum: ["automatic", "review", "forbidden"] }).notNull().default("review"),
+  promotion: text("promotion", { enum: ["automatic", "review", "forbidden"] })
+    .notNull()
+    .default("review"),
   promotionThreshold: integer("promotion_threshold").notNull().default(3),
   snapshotMaxChars: integer("snapshot_max_chars").notNull().default(6000),
   inactiveAfterDays: integer("inactive_after_days").notNull().default(30),
@@ -577,22 +647,30 @@ export const learningSettings = pgTable("learning_settings", {
 export const memories = pgTable(
   "memories",
   {
-    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
     companyId: uuid("company_id")
       .notNull()
       .references(() => companies.id, { onDelete: "cascade" }),
     scope: text("scope", { enum: ["agent", "team", "company"] }).notNull(),
     scopeAgentId: uuid("scope_agent_id").references(() => agents.id, { onDelete: "cascade" }),
-    kind: text("kind", { enum: ["note", "profile"] }).notNull().default("note"),
+    kind: text("kind", { enum: ["note", "profile"] })
+      .notNull()
+      .default("note"),
     subject: text("subject").notNull().default(""),
     content: text("content").notNull(),
-    status: text("status", { enum: ["active", "retired", "superseded"] }).notNull().default("active"),
+    status: text("status", { enum: ["active", "retired", "superseded"] })
+      .notNull()
+      .default("active"),
     supersedesId: uuid("supersedes_id"),
     pinned: boolean("pinned").notNull().default(false),
     sourceSessionId: uuid("source_session_id").references(() => sessions.id, { onDelete: "set null" }),
     sourceRunId: uuid("source_run_id").references(() => runs.id, { onDelete: "set null" }),
     sourceTaskId: uuid("source_task_id").references(() => tasks.id, { onDelete: "set null" }),
-    authorKind: text("author_kind", { enum: ["person", "agent", "system"] }).notNull().default("agent"),
+    authorKind: text("author_kind", { enum: ["person", "agent", "system"] })
+      .notNull()
+      .default("agent"),
     authorId: uuid("author_id"),
     embedding: real("embedding").array(),
     search: tsvector("search").generatedAlwaysAs(sql`to_tsvector('english', coalesce(subject, '') || ' ' || content)`),
@@ -606,7 +684,9 @@ export const memories = pgTable(
 export const skills = pgTable(
   "skills",
   {
-    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
     companyId: uuid("company_id")
       .notNull()
       .references(() => companies.id, { onDelete: "cascade" }),
@@ -614,15 +694,22 @@ export const skills = pgTable(
     scopeAgentId: uuid("scope_agent_id").references(() => agents.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
     description: text("description").notNull().default(""),
-    tags: text("tags").array().notNull().default(sql`'{}'`),
+    tags: text("tags")
+      .array()
+      .notNull()
+      .default(sql`'{}'`),
     origin: text("origin", { enum: ["agent", "person", "imported"] }).notNull(),
-    status: text("status", { enum: ["active", "inactive", "archived"] }).notNull().default("active"),
+    status: text("status", { enum: ["active", "inactive", "archived"] })
+      .notNull()
+      .default("active"),
     pinned: boolean("pinned").notNull().default(false),
     currentVersion: integer("current_version").notNull().default(1),
     uses: integer("uses").notNull().default(0),
     lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
     promotedFromId: uuid("promoted_from_id"),
-    createdByKind: text("created_by_kind", { enum: ["person", "agent", "system"] }).notNull().default("agent"),
+    createdByKind: text("created_by_kind", { enum: ["person", "agent", "system"] })
+      .notNull()
+      .default("agent"),
     createdById: uuid("created_by_id"),
     archivedAt: timestamp("archived_at", { withTimezone: true }),
     ...timestamps,
@@ -633,7 +720,9 @@ export const skills = pgTable(
 export const skillVersions = pgTable(
   "skill_versions",
   {
-    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
     companyId: uuid("company_id")
       .notNull()
       .references(() => companies.id, { onDelete: "cascade" }),
@@ -645,7 +734,9 @@ export const skillVersions = pgTable(
     content: text("content").notNull(),
     files: jsonb("files").$type<Record<string, string>>().notNull().default({}),
     note: text("note").notNull().default(""),
-    createdByKind: text("created_by_kind", { enum: ["person", "agent", "system"] }).notNull().default("agent"),
+    createdByKind: text("created_by_kind", { enum: ["person", "agent", "system"] })
+      .notNull()
+      .default("agent"),
     createdById: uuid("created_by_id"),
     ...timestamps,
   },
@@ -655,7 +746,9 @@ export const skillVersions = pgTable(
 export const skillUsage = pgTable(
   "skill_usage",
   {
-    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
     companyId: uuid("company_id")
       .notNull()
       .references(() => companies.id, { onDelete: "cascade" }),
@@ -669,7 +762,9 @@ export const skillUsage = pgTable(
     sessionId: uuid("session_id").references(() => sessions.id, { onDelete: "set null" }),
     runId: uuid("run_id").references(() => runs.id, { onDelete: "set null" }),
     taskId: uuid("task_id").references(() => tasks.id, { onDelete: "set null" }),
-    outcome: text("outcome", { enum: ["unknown", "success", "failure"] }).notNull().default("unknown"),
+    outcome: text("outcome", { enum: ["unknown", "success", "failure"] })
+      .notNull()
+      .default("unknown"),
     ...timestamps,
   },
   (t) => [index("skill_usage_skill_idx").on(t.skillId, t.outcome)],
@@ -678,7 +773,9 @@ export const skillUsage = pgTable(
 export const learningReviews = pgTable(
   "learning_reviews",
   {
-    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
     companyId: uuid("company_id")
       .notNull()
       .references(() => companies.id, { onDelete: "cascade" }),
@@ -690,7 +787,9 @@ export const learningReviews = pgTable(
       .references(() => sessions.id, { onDelete: "cascade" }),
     runId: uuid("run_id").references(() => runs.id, { onDelete: "set null" }),
     taskId: uuid("task_id").references(() => tasks.id, { onDelete: "set null" }),
-    status: text("status", { enum: ["pending", "running", "done", "failed", "skipped"] }).notNull().default("pending"),
+    status: text("status", { enum: ["pending", "running", "done", "failed", "skipped"] })
+      .notNull()
+      .default("pending"),
     proposals: jsonb("proposals").$type<Record<string, unknown>>().notNull().default({}),
     applied: jsonb("applied").$type<Record<string, unknown>>().notNull().default({}),
     costEur: numeric("cost_eur", { precision: 12, scale: 6 }).notNull().default("0"),
@@ -705,7 +804,9 @@ export const learningReviews = pgTable(
 export const promotions = pgTable(
   "promotions",
   {
-    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
     companyId: uuid("company_id")
       .notNull()
       .references(() => companies.id, { onDelete: "cascade" }),
@@ -713,11 +814,15 @@ export const promotions = pgTable(
     subjectId: uuid("subject_id").notNull(),
     fromScope: text("from_scope", { enum: ["agent", "team"] }).notNull(),
     toScope: text("to_scope", { enum: ["team", "company"] }).notNull(),
-    status: text("status", { enum: ["proposed", "approved", "denied", "applied", "forbidden"] }).notNull().default("proposed"),
+    status: text("status", { enum: ["proposed", "approved", "denied", "applied", "forbidden"] })
+      .notNull()
+      .default("proposed"),
     approvalId: uuid("approval_id").references(() => approvals.id, { onDelete: "set null" }),
     evidence: jsonb("evidence").$type<Record<string, unknown>>().notNull().default({}),
     resultId: uuid("result_id"),
-    proposedByKind: text("proposed_by_kind", { enum: ["person", "agent", "system"] }).notNull().default("system"),
+    proposedByKind: text("proposed_by_kind", { enum: ["person", "agent", "system"] })
+      .notNull()
+      .default("system"),
     proposedById: uuid("proposed_by_id"),
     decidedAt: timestamp("decided_at", { withTimezone: true }),
     ...timestamps,
@@ -728,7 +833,9 @@ export const promotions = pgTable(
 export const learningBackups = pgTable(
   "learning_backups",
   {
-    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
     companyId: uuid("company_id")
       .notNull()
       .references(() => companies.id, { onDelete: "cascade" }),

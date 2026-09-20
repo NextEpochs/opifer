@@ -36,10 +36,7 @@ export class LearningWorker {
     this.stopped = false;
     this.timer = setInterval(() => void this.tick(), this.tickMs);
     this.timer.unref();
-    this.curatorTimer = setInterval(
-      () => void this.curate(),
-      this.curatorEveryMs,
-    );
+    this.curatorTimer = setInterval(() => void this.curate(), this.curatorEveryMs);
     this.curatorTimer.unref();
     setTimeout(() => void this.curate(), 30_000).unref();
   }
@@ -70,11 +67,7 @@ export class LearningWorker {
           memories: result.applied.memoryIds?.length ?? 0,
           skill: result.applied.skill?.name ?? null,
         });
-        if (result.status === "failed")
-          this.options.log.warn(
-            { reviewId: result.id, error: result.error },
-            "learning review failed",
-          );
+        if (result.status === "failed") this.options.log.warn({ reviewId: result.id, error: result.error }, "learning review failed");
         if (this.stopped) break;
       }
     } catch (error) {
@@ -88,17 +81,14 @@ export class LearningWorker {
   /** The curator, for every company. */
   async curate(): Promise<void> {
     try {
-      const companies = await this.options.sql<
-        { id: string }[]
-      >`SELECT id FROM companies WHERE status = 'active'`;
+      const companies = await this.options.sql<{ id: string }[]>`SELECT id FROM companies WHERE status = 'active'`;
       for (const c of companies) {
         const settings = await this.options.learning.settings.get(c.id);
         const result = await this.options.learning.skills.curate(c.id, {
           inactiveAfterDays: settings.inactiveAfterDays,
           archiveAfterDays: settings.archiveAfterDays,
         });
-        if (result.archived.length > 0 || result.inactivated.length > 0)
-          this.options.bus.publish("learning.curated", c.id, result);
+        if (result.archived.length > 0 || result.inactivated.length > 0) this.options.bus.publish("learning.curated", c.id, result);
       }
     } catch (error) {
       this.options.log.error({ err: error }, "curator failed");

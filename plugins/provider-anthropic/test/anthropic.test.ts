@@ -38,7 +38,16 @@ beforeAll(async () => {
       res.writeHead(200, { "content-type": "text/event-stream" });
       const start = {
         type: "message_start",
-        message: { id: "m1", type: "message", role: "assistant", model: "claude-sonnet-5", content: [], stop_reason: null, stop_sequence: null, usage: { input_tokens: 30, output_tokens: 1, cache_read_input_tokens: 25, cache_creation_input_tokens: 0 } },
+        message: {
+          id: "m1",
+          type: "message",
+          role: "assistant",
+          model: "claude-sonnet-5",
+          content: [],
+          stop_reason: null,
+          stop_sequence: null,
+          usage: { input_tokens: 30, output_tokens: 1, cache_read_input_tokens: 25, cache_creation_input_tokens: 0 },
+        },
       };
       if (mode === "text") {
         res.end(
@@ -85,7 +94,13 @@ const request: CompletionRequest = {
   messages: [
     { role: "user", content: [{ type: "text", text: "list" }] },
     { role: "assistant", content: [{ type: "tool_call", id: "toolu_0", name: "terminal", arguments: { command: "ls" } }] },
-    { role: "tool", content: [{ type: "tool_result", toolCallId: "toolu_0", content: "a.txt", isError: false }, { type: "text", text: "[operator message] quick" }] },
+    {
+      role: "tool",
+      content: [
+        { type: "tool_result", toolCallId: "toolu_0", content: "a.txt", isError: false },
+        { type: "text", text: "[operator message] quick" },
+      ],
+    },
     { role: "assistant", content: [{ type: "text", text: "there is a.txt" }] },
     { role: "user", content: [{ type: "text", text: "thanks" }] },
   ],
@@ -104,7 +119,12 @@ describe("Anthropic provider", () => {
     mode = "text";
     const provider = new AnthropicProvider({ apiKey: "test", baseURL });
     const events = await collect(provider, request);
-    expect(events.filter((e) => e.type === "text_delta").map((e) => (e as { text: string }).text).join("")).toBe("Hello world");
+    expect(
+      events
+        .filter((e) => e.type === "text_delta")
+        .map((e) => (e as { text: string }).text)
+        .join(""),
+    ).toBe("Hello world");
     expect(events.find((e) => e.type === "usage")).toEqual({ type: "usage", usage: { inputTokens: 30, outputTokens: 3, cachedInputTokens: 25 } });
     expect(events.at(-1)).toEqual({ type: "done", stopReason: "end_turn" });
 

@@ -97,7 +97,9 @@ export class Scheduler {
     }
     const task = await work.getTask(wakeup.companyId, wakeup.taskId);
     if (!task) return work.finishWakeup(wakeup.id, "skipped", "task not found");
-    const [agent] = await sql<{ id: string; name: string; status: string }[]>`SELECT id, name, status FROM agents WHERE id = ${wakeup.agentId} AND company_id = ${wakeup.companyId}`;
+    const [agent] = await sql<
+      { id: string; name: string; status: string }[]
+    >`SELECT id, name, status FROM agents WHERE id = ${wakeup.agentId} AND company_id = ${wakeup.companyId}`;
     if (!agent) return work.finishWakeup(wakeup.id, "skipped", "agent not found");
     if (agent.status !== "active") return work.finishWakeup(wakeup.id, "skipped", `agent is ${agent.status}`);
 
@@ -134,11 +136,14 @@ export class Scheduler {
     if (wakeup.reason === "decision" && !holding) return work.finishWakeup(wakeup.id, "skipped", "nothing to resume");
 
     const heartbeat = holding
-      ? setInterval(() => {
-          void work.heartbeat(task.id, { sessionId: session.id }).then((ok) => {
-            if (!ok) this.o.log?.warn({ taskId: task.id }, "lost the task lease during the turn");
-          });
-        }, Math.max(1000, Math.floor(work.leaseMs / 3)))
+      ? setInterval(
+          () => {
+            void work.heartbeat(task.id, { sessionId: session.id }).then((ok) => {
+              if (!ok) this.o.log?.warn({ taskId: task.id }, "lost the task lease during the turn");
+            });
+          },
+          Math.max(1000, Math.floor(work.leaseMs / 3)),
+        )
       : null;
     heartbeat?.unref();
 
@@ -165,7 +170,15 @@ export class Scheduler {
   }
 
   /** What happens to the task after the turn, by how the turn ended. */
-  private async settle(task: Task, session: SessionRecord, agent: { id: string; name: string }, stopReason: string, failed: string | null, lastText: string, holding: boolean): Promise<void> {
+  private async settle(
+    task: Task,
+    session: SessionRecord,
+    agent: { id: string; name: string },
+    stopReason: string,
+    failed: string | null,
+    lastText: string,
+    holding: boolean,
+  ): Promise<void> {
     const { work } = this.o;
     const current = await work.getTask(task.companyId, task.id);
     if (!current) return;
@@ -201,7 +214,12 @@ export class Scheduler {
       default: {
         // The agent stopped talking without delivering or blocking: the task waits for a person.
         const released = await work.release(task.companyId, task.id, { kind: "paused", reason: stopReason }, system);
-        await work.comment(task.companyId, task.id, system, `${agent.name} stopped without delivering (${stopReason})${lastText.trim() ? `: ${lastText.trim().slice(0, 1000)}` : ""}. Comment to wake them up again.`);
+        await work.comment(
+          task.companyId,
+          task.id,
+          system,
+          `${agent.name} stopped without delivering (${stopReason})${lastText.trim() ? `: ${lastText.trim().slice(0, 1000)}` : ""}. Comment to wake them up again.`,
+        );
         publish(released.status, stopReason);
       }
     }
@@ -242,14 +260,19 @@ export class Scheduler {
       }
       case "mention": {
         const commentId = typeof wakeup.payload["commentId"] === "string" ? (wakeup.payload["commentId"] as string) : null;
-        const [c] = commentId ? await sql<{ author_kind: string; author_id: string | null; body: string }[]>`SELECT author_kind, author_id, body FROM task_comments WHERE id = ${commentId}` : [];
+        const [c] = commentId
+          ? await sql<{ author_kind: string; author_id: string | null; body: string }[]>`SELECT author_kind, author_id, body FROM task_comments WHERE id = ${commentId}`
+          : [];
         let author = "a person";
         if (c?.author_kind === "agent" && c.author_id) {
           const [a] = await sql<{ name: string }[]>`SELECT name FROM agents WHERE id = ${c.author_id}`;
           author = a?.name ?? "an agent";
         }
-        if (wakeup.payload["review"]) return `The task "${task.title}" was delivered for your review. Read it with task_status, check the result against the acceptance criterion, and comment your verdict.`;
-        return c ? `New comment on the task "${task.title}" from ${author}: ${c.body}\nAnswer with task_comment, or continue the work.` : `Someone mentioned you on the task "${task.title}". Read it with task_status.`;
+        if (wakeup.payload["review"])
+          return `The task "${task.title}" was delivered for your review. Read it with task_status, check the result against the acceptance criterion, and comment your verdict.`;
+        return c
+          ? `New comment on the task "${task.title}" from ${author}: ${c.body}\nAnswer with task_comment, or continue the work.`
+          : `Someone mentioned you on the task "${task.title}". Read it with task_status.`;
       }
       case "retry":
         return `Your previous attempt on "${task.title}" was interrupted. Check the state with task_status and the working folder, then continue; do not repeat what is already done.`;

@@ -1,5 +1,18 @@
 import { useCallback, useEffect, useMemo, useState, type DragEvent } from "react";
-import { Background, Controls, Handle, Position, ReactFlow, ReactFlowProvider, useReactFlow, type Edge, type Node, type NodeProps, type NodeTypes, type XYPosition } from "@xyflow/react";
+import {
+  Background,
+  Controls,
+  Handle,
+  Position,
+  ReactFlow,
+  ReactFlowProvider,
+  useReactFlow,
+  type Edge,
+  type Node,
+  type NodeProps,
+  type NodeTypes,
+  type XYPosition,
+} from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { api, type AgentView } from "../api";
 import { fill } from "../i18n";
@@ -76,7 +89,10 @@ function AgentNode({ data }: NodeProps<Node<AgentNodeData>>) {
     );
   }
   return (
-    <div className={`flex cursor-grab flex-col gap-2 rounded-[16px] border bg-card px-3.5 py-3 shadow-card transition active:cursor-grabbing ${selected ? "border-accent" : "border-line hover:border-accent"}`} style={{ width: NODE_W, height: NODE_H }}>
+    <div
+      className={`flex cursor-grab flex-col gap-2 rounded-[16px] border bg-card px-3.5 py-3 shadow-card transition active:cursor-grabbing ${selected ? "border-accent" : "border-line hover:border-accent"}`}
+      style={{ width: NODE_W, height: NODE_H }}
+    >
       {handles}
       <div className="flex items-center gap-2.5">
         <Avatar name={agent.name} size={34} />
@@ -107,7 +123,13 @@ function Chart({ ws, selectedId, templates, onHire }: { ws: Workspace; selectedI
       { id: "you", type: "agent", position: positions.get("you")!, data: { agent: null, ws, selected: false, label: t.you }, draggable: false },
       ...agents.map((a) => ({ id: a.id, type: "agent" as const, position: positions.get(a.id)!, data: { agent: a, ws, selected: a.id === selectedId, label: a.name } })),
     ];
-    const edges: Edge[] = agents.map((a) => ({ id: `e-${a.id}`, source: a.reportsToAgentId && agents.some((x) => x.id === a.reportsToAgentId) ? a.reportsToAgentId : "you", target: a.id, type: "smoothstep", style: { stroke: "var(--o-line-strong)", strokeWidth: 2 } }));
+    const edges: Edge[] = agents.map((a) => ({
+      id: `e-${a.id}`,
+      source: a.reportsToAgentId && agents.some((x) => x.id === a.reportsToAgentId) ? a.reportsToAgentId : "you",
+      target: a.id,
+      type: "smoothstep",
+      style: { stroke: "var(--o-line-strong)", strokeWidth: 2 },
+    }));
     return { nodes, edges };
   }, [agents, selectedId, ws, t.you]);
 
@@ -124,7 +146,11 @@ function Chart({ ws, selectedId, templates, onHire }: { ws: Workspace; selectedI
   /** The node under a flow-space point, other than the given ids. */
   const nodeAt = useCallback(
     (point: XYPosition, except: string[]) => {
-      return flow.getNodes().find((n) => !except.includes(n.id) && point.x >= n.position.x && point.x <= n.position.x + NODE_W && point.y >= n.position.y && point.y <= n.position.y + NODE_H) ?? null;
+      return (
+        flow
+          .getNodes()
+          .find((n) => !except.includes(n.id) && point.x >= n.position.x && point.x <= n.position.x + NODE_W && point.y >= n.position.y && point.y <= n.position.y + NODE_H) ?? null
+      );
     },
     [flow],
   );

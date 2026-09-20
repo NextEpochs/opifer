@@ -44,7 +44,16 @@ interface PolicyRow {
 }
 
 function toPolicy(r: PolicyRow): BudgetPolicy {
-  return { id: r.id, companyId: r.company_id, scopeKind: r.scope_kind, scopeId: r.scope_id, window: r.window, cap: Number(r.cap), currency: r.currency, warnRatio: Number(r.warn_ratio) };
+  return {
+    id: r.id,
+    companyId: r.company_id,
+    scopeKind: r.scope_kind,
+    scopeId: r.scope_id,
+    window: r.window,
+    cap: Number(r.cap),
+    currency: r.currency,
+    warnRatio: Number(r.warn_ratio),
+  };
 }
 
 function windowStart(window: BudgetWindow): Date | null {
@@ -65,7 +74,16 @@ export class BudgetService implements BudgetGate {
     return rows.map(toPolicy);
   }
 
-  async setPolicy(input: { companyId: string; scopeKind: BudgetScope; scopeId?: string | null; window?: BudgetWindow; cap: number; currency?: "EUR" | "USD"; warnRatio?: number; actorId?: string | null }): Promise<BudgetPolicy> {
+  async setPolicy(input: {
+    companyId: string;
+    scopeKind: BudgetScope;
+    scopeId?: string | null;
+    window?: BudgetWindow;
+    cap: number;
+    currency?: "EUR" | "USD";
+    warnRatio?: number;
+    actorId?: string | null;
+  }): Promise<BudgetPolicy> {
     const scopeId = input.scopeKind === "company" ? null : (input.scopeId ?? null);
     if (input.scopeKind !== "company" && !scopeId) throw new Error(`a ${input.scopeKind} budget needs the ${input.scopeKind} id`);
     const window = input.window ?? "monthly";
@@ -91,7 +109,15 @@ export class BudgetService implements BudgetGate {
   async removePolicy(companyId: string, policyId: string, actorId?: string | null): Promise<boolean> {
     const [row] = await this.sql<PolicyRow[]>`DELETE FROM budget_policies WHERE id = ${policyId} AND company_id = ${companyId} RETURNING *`;
     if (!row) return false;
-    await audit(this.sql, { companyId, actorKind: "person", actorId: actorId ?? null, action: "budget.policy_removed", subjectKind: "budget_policy", subjectId: policyId, before: toPolicy(row) });
+    await audit(this.sql, {
+      companyId,
+      actorKind: "person",
+      actorId: actorId ?? null,
+      action: "budget.policy_removed",
+      subjectKind: "budget_policy",
+      subjectId: policyId,
+      before: toPolicy(row),
+    });
     return true;
   }
 
@@ -191,7 +217,9 @@ export class BudgetService implements BudgetGate {
     const money = await this.prices.cost(modelId, usage);
     const slash = modelId.indexOf("/");
     await this.sql.begin(async (tx) => {
-      const [reservation] = await tx<{ id: string; company_id: string; agent_id: string | null; session_id: string | null; run_id: string | null; project_id: string | null; task_id: string | null }[]>`
+      const [reservation] = await tx<
+        { id: string; company_id: string; agent_id: string | null; session_id: string | null; run_id: string | null; project_id: string | null; task_id: string | null }[]
+      >`
         SELECT * FROM budget_reservations WHERE id = ${reservationId} AND status = 'open' FOR UPDATE
       `;
       if (!reservation) return;
@@ -214,7 +242,14 @@ export class BudgetService implements BudgetGate {
   }
 
   /** Spend report for the UI and the CLI. */
-  async report(companyId: string, options: { since?: Date | null } = {}): Promise<{ total: { usd: number; eur: number }; byAgent: Array<{ agentId: string | null; agentName: string | null; usd: number; eur: number; calls: number }>; byModel: Array<{ model: string | null; usd: number; eur: number; calls: number; inputTokens: number; outputTokens: number }> }> {
+  async report(
+    companyId: string,
+    options: { since?: Date | null } = {},
+  ): Promise<{
+    total: { usd: number; eur: number };
+    byAgent: Array<{ agentId: string | null; agentName: string | null; usd: number; eur: number; calls: number }>;
+    byModel: Array<{ model: string | null; usd: number; eur: number; calls: number; inputTokens: number; outputTokens: number }>;
+  }> {
     const since = options.since === undefined ? windowStart("monthly") : options.since;
     const sinceFilter = since ? this.sql`AND c.occurred_at >= ${since}` : this.sql``;
     const [total] = await this.sql<{ usd: string; eur: string }[]>`
@@ -234,7 +269,14 @@ export class BudgetService implements BudgetGate {
     return {
       total: { usd: Number(total?.usd ?? 0), eur: Number(total?.eur ?? 0) },
       byAgent: byAgent.map((r) => ({ agentId: r.agent_id, agentName: r.agent_name, usd: Number(r.usd), eur: Number(r.eur), calls: Number(r.calls) })),
-      byModel: byModel.map((r) => ({ model: r.model, usd: Number(r.usd), eur: Number(r.eur), calls: Number(r.calls), inputTokens: Number(r.input_tokens), outputTokens: Number(r.output_tokens) })),
+      byModel: byModel.map((r) => ({
+        model: r.model,
+        usd: Number(r.usd),
+        eur: Number(r.eur),
+        calls: Number(r.calls),
+        inputTokens: Number(r.input_tokens),
+        outputTokens: Number(r.output_tokens),
+      })),
     };
   }
 }

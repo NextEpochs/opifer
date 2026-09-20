@@ -60,47 +60,43 @@ export async function registerAgentRoutes(app: FastifyInstance): Promise<void> {
     return rows.map(toAgent);
   });
 
-  app.post<{ Params: { id: string }; Body: CreateAgentBody }>(
-    "/companies/:id/agents",
-    { schema: { body: createBody } },
-    async (request, reply) => {
-      const companyId = request.params.id;
-      const [company] = await sql<{ id: string }[]>`SELECT id FROM companies WHERE id = ${companyId}`;
-      if (!company) return reply.code(404).send({ error: "company not found" });
+  app.post<{ Params: { id: string }; Body: CreateAgentBody }>("/companies/:id/agents", { schema: { body: createBody } }, async (request, reply) => {
+    const companyId = request.params.id;
+    const [company] = await sql<{ id: string }[]>`SELECT id FROM companies WHERE id = ${companyId}`;
+    if (!company) return reply.code(404).send({ error: "company not found" });
 
-      const body = request.body;
-      if (body.reportsToAgentId) {
-        const [manager] = await sql<{ id: string }[]>`
+    const body = request.body;
+    if (body.reportsToAgentId) {
+      const [manager] = await sql<{ id: string }[]>`
           SELECT id FROM agents WHERE id = ${body.reportsToAgentId} AND company_id = ${companyId}
         `;
-        if (!manager) return reply.code(400).send({ error: "the given manager does not exist in this company" });
-      }
+      if (!manager) return reply.code(400).send({ error: "the given manager does not exist in this company" });
+    }
 
-      const config = { role: body.role ?? "", model: body.model ?? null };
-      const created = await sql.begin(async (tx) => {
-        const [row] = await tx<AgentRow[]>`
+    const config = { role: body.role ?? "", model: body.model ?? null };
+    const created = await sql.begin(async (tx) => {
+      const [row] = await tx<AgentRow[]>`
           INSERT INTO agents (company_id, name, role, model, reports_to_agent_id)
           VALUES (${companyId}, ${body.name}, ${config.role}, ${config.model}, ${body.reportsToAgentId ?? null})
           RETURNING *
         `;
-        await tx`
+      await tx`
           INSERT INTO agent_revisions (company_id, agent_id, revision, config, author_kind, note)
           VALUES (${companyId}, ${row!.id}, 1, ${config as never}::jsonb, 'person', 'creation')
         `;
-        await audit(tx, {
-          companyId,
-          actorKind: "person",
-          action: "agent.created",
-          subjectKind: "agent",
-          subjectId: row!.id,
-          after: { name: row!.name, ...config },
-        });
-        return row!;
+      await audit(tx, {
+        companyId,
+        actorKind: "person",
+        action: "agent.created",
+        subjectKind: "agent",
+        subjectId: row!.id,
+        after: { name: row!.name, ...config },
       });
+      return row!;
+    });
 
-      const agent = toAgent(created);
-      app.opifer.bus.publish("agent.created", companyId, agent);
-      return reply.code(201).send(agent);
-    },
-  );
+    const agent = toAgent(created);
+    app.opifer.bus.publish("agent.created", companyId, agent);
+    return reply.code(201).send(agent);
+  });
 }

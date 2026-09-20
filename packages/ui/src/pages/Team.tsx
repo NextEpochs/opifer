@@ -31,7 +31,16 @@ export function TeamPage({ ws, param }: { ws: Workspace; param: string | null })
             <p className="mt-1.5 text-[15px] text-mute">{t.teamSub}</p>
           </div>
           <div className="flex items-center gap-2">
-            <Segmented value={view} onChange={setView} label={t.teamTitle} options={[{ value: "chart", label: t.orgChart }, { value: "cards", label: t.cards }]} className="w-48" />
+            <Segmented
+              value={view}
+              onChange={setView}
+              label={t.teamTitle}
+              options={[
+                { value: "chart", label: t.orgChart },
+                { value: "cards", label: t.cards },
+              ]}
+              className="w-48"
+            />
             <Button variant="primary" onClick={() => hire({ role: "", reportsToAgentId: null })}>
               <Plus size={16} /> {t.hireAgent}
             </Button>
@@ -45,7 +54,12 @@ export function TeamPage({ ws, param }: { ws: Workspace; param: string | null })
         )}
         <div className={`grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3 ${view === "chart" ? "hidden" : ""}`}>
           {agents.map((a) => (
-            <button key={a.id} type="button" onClick={() => ws.go("team", a.id)} className={`flex flex-col gap-3 rounded-card border bg-card p-4 text-left shadow-card transition hover:border-accent ${selected?.id === a.id ? "border-accent" : "border-line"}`}>
+            <button
+              key={a.id}
+              type="button"
+              onClick={() => ws.go("team", a.id)}
+              className={`flex flex-col gap-3 rounded-card border bg-card p-4 text-left shadow-card transition hover:border-accent ${selected?.id === a.id ? "border-accent" : "border-line"}`}
+            >
               <div className="flex items-center gap-3">
                 <Avatar name={a.name} size={40} />
                 <div className="min-w-0 flex-1">
@@ -69,7 +83,10 @@ export function TeamPage({ ws, param }: { ws: Workspace; param: string | null })
         </div>
       </div>
       {(selected || hiring) && (
-        <aside className="m-4 flex w-[400px] shrink-0 flex-col overflow-hidden rounded-[22px] border border-line bg-card shadow-card" aria-label={selected ? selected.name : t.newAgent}>
+        <aside
+          className="m-4 flex w-[400px] shrink-0 flex-col overflow-hidden rounded-[22px] border border-line bg-card shadow-card"
+          aria-label={selected ? selected.name : t.newAgent}
+        >
           {hiring ? <HireForm ws={ws} defaults={hireDefaults} /> : selected ? <AgentDrawer key={selected.id} ws={ws} agent={selected} /> : null}
         </aside>
       )}
@@ -88,7 +105,10 @@ function HireForm({ ws, defaults }: { ws: Workspace; defaults: HireRequest | nul
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    api.models().then(setModels).catch(() => setModels(null));
+    api
+      .models()
+      .then(setModels)
+      .catch(() => setModels(null));
   }, []);
 
   const submit = async (e: FormEvent) => {
@@ -96,7 +116,12 @@ function HireForm({ ws, defaults }: { ws: Workspace; defaults: HireRequest | nul
     setBusy(true);
     setError(null);
     try {
-      const created = await api.createAgent(company.id, { name: name.trim(), ...(role.trim() ? { role: role.trim() } : {}), ...(model ? { model } : {}), ...(reportsTo ? { reportsToAgentId: reportsTo } : {}) });
+      const created = await api.createAgent(company.id, {
+        name: name.trim(),
+        ...(role.trim() ? { role: role.trim() } : {}),
+        ...(model ? { model } : {}),
+        ...(reportsTo ? { reportsToAgentId: reportsTo } : {}),
+      });
       await ws.refresh();
       ws.go("team", created.id);
     } catch (err) {
@@ -125,7 +150,10 @@ function HireForm({ ws, defaults }: { ws: Workspace; defaults: HireRequest | nul
       <label className="flex flex-col gap-1 text-sm">
         <span className="text-mute">{t.model}</span>
         <Select value={model} onChange={(e) => setModel(e.target.value)}>
-          <option value="">{t.defaultModel}{models ? ` (${models.default})` : ""}</option>
+          <option value="">
+            {t.defaultModel}
+            {models ? ` (${models.default})` : ""}
+          </option>
           {models?.models.map((m) => (
             <option key={m.id} value={m.id}>
               {m.id}
@@ -194,7 +222,14 @@ function AgentDrawer({ ws, agent }: { ws: Workspace; agent: AgentView }) {
       </div>
       <div role="tablist" className="mt-4 flex gap-0.5 border-b border-line px-5">
         {tabs.map((tb) => (
-          <button key={tb} type="button" role="tab" aria-selected={tab === tb} onClick={() => setTab(tb)} className={`border-b-2 px-2.5 py-2 text-[13px] font-bold ${tab === tb ? "border-accent text-ink" : "border-transparent text-mute hover:text-ink"}`}>
+          <button
+            key={tb}
+            type="button"
+            role="tab"
+            aria-selected={tab === tb}
+            onClick={() => setTab(tb)}
+            className={`border-b-2 px-2.5 py-2 text-[13px] font-bold ${tab === tb ? "border-accent text-ink" : "border-transparent text-mute hover:text-ink"}`}
+          >
             {t.tabs[tb]}
           </button>
         ))}
@@ -221,7 +256,10 @@ function OverviewTab({ ws, agent }: { ws: Workspace; agent: AgentView }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
-    api.models().then(setModels).catch(() => setModels(null));
+    api
+      .models()
+      .then(setModels)
+      .catch(() => setModels(null));
   }, []);
   const dirty = name !== agent.name || role !== agent.role || model !== (agent.model ?? "");
 
@@ -252,7 +290,10 @@ function OverviewTab({ ws, agent }: { ws: Workspace; agent: AgentView }) {
       <label className="flex flex-col gap-1 text-sm">
         <span className="text-mute">{t.model}</span>
         <Select value={model} onChange={(e) => setModel(e.target.value)}>
-          <option value="">{t.defaultModel}{models ? ` (${models.default})` : ""}</option>
+          <option value="">
+            {t.defaultModel}
+            {models ? ` (${models.default})` : ""}
+          </option>
           {models?.models.map((m) => (
             <option key={m.id} value={m.id}>
               {m.id}
@@ -278,7 +319,14 @@ function OverviewTab({ ws, agent }: { ws: Workspace; agent: AgentView }) {
 function PermissionsTab({ ws, agent }: { ws: Workspace; agent: AgentView }) {
   const { t, company } = ws;
   const [tools, setTools] = useState<ToolPermissionView[]>([]);
-  const load = useCallback(() => api.permissions(agent.id).then(setTools).catch(() => setTools([])), [agent.id]);
+  const load = useCallback(
+    () =>
+      api
+        .permissions(agent.id)
+        .then(setTools)
+        .catch(() => setTools([])),
+    [agent.id],
+  );
   useEffect(() => {
     void load();
   }, [load]);
@@ -299,7 +347,17 @@ function PermissionsTab({ ws, agent }: { ws: Workspace; agent: AgentView }) {
               {blurbs[tool.name] ?? tool.description} · {t.from[tool.source]}
             </div>
           </div>
-          <Segmented value={tool.permission} onChange={(v) => void change(tool.name, v)} label={`${labels[tool.name] ?? tool.name}`} options={[{ value: "automatic", label: t.perm.automatic }, { value: "approval", label: t.perm.approval }, { value: "blocked", label: t.perm.blocked }]} className="w-44" />
+          <Segmented
+            value={tool.permission}
+            onChange={(v) => void change(tool.name, v)}
+            label={`${labels[tool.name] ?? tool.name}`}
+            options={[
+              { value: "automatic", label: t.perm.automatic },
+              { value: "approval", label: t.perm.approval },
+              { value: "blocked", label: t.perm.blocked },
+            ]}
+            className="w-44"
+          />
         </div>
       ))}
       <p className="m-0 text-[12px] text-faint">{t.dangerousAlwaysAsk}</p>
@@ -334,7 +392,10 @@ function BudgetTab({ ws, agent }: { ws: Workspace; agent: AgentView }) {
         <div className="mt-1 text-[13px] text-mute">{agent.spend.cap ? fill(t.ofCap, { cap: money(agent.spend.cap, agent.spend.currency, 0) }) : t.noCap}</div>
         {agent.spend.cap ? (
           <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-raised">
-            <div className="h-full rounded-full" style={{ width: `${ratio * 100}%`, background: ratio >= 1 ? "var(--o-danger)" : ratio >= 0.8 ? "var(--o-warn)" : "var(--o-accent)" }} />
+            <div
+              className="h-full rounded-full"
+              style={{ width: `${ratio * 100}%`, background: ratio >= 1 ? "var(--o-danger)" : ratio >= 0.8 ? "var(--o-warn)" : "var(--o-accent)" }}
+            />
           </div>
         ) : null}
       </div>
@@ -362,7 +423,14 @@ function BudgetTab({ ws, agent }: { ws: Workspace; agent: AgentView }) {
 function HistoryTab({ ws, agent }: { ws: Workspace; agent: AgentView }) {
   const { t } = ws;
   const [revisions, setRevisions] = useState<Awaited<ReturnType<typeof api.revisions>>>([]);
-  const load = useCallback(() => api.revisions(agent.id).then(setRevisions).catch(() => setRevisions([])), [agent.id]);
+  const load = useCallback(
+    () =>
+      api
+        .revisions(agent.id)
+        .then(setRevisions)
+        .catch(() => setRevisions([])),
+    [agent.id],
+  );
   useEffect(() => {
     void load();
   }, [load, agent.currentRevision]);

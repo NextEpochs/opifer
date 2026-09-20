@@ -71,16 +71,16 @@ describe("the Drizzle schema mirrors the migrations", () => {
       SELECT table_name FROM information_schema.tables
       WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
     `;
-    const inDatabase = rows.map((r) => r.table_name).filter((t) => t !== "schema_migrations").sort();
+    const inDatabase = rows
+      .map((r) => r.table_name)
+      .filter((t) => t !== "schema_migrations")
+      .sort();
     const inDrizzle = DRIZZLE_TABLES.map((t) => getTableName(t)).sort();
     expect(inDatabase).toEqual(inDrizzle);
   });
 
   it("typed queries work (insert and read a company)", async () => {
-    const [inserted] = await db.db
-      .insert(schema.companies)
-      .values({ name: "Test company", mission: "Try out the schema" })
-      .returning();
+    const [inserted] = await db.db.insert(schema.companies).values({ name: "Test company", mission: "Try out the schema" }).returning();
     expect(inserted?.status).toBe("active");
     const found = await db.db.query.companies.findFirst();
     expect(found?.name).toBe("Test company");

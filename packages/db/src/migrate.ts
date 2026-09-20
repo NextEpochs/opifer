@@ -32,11 +32,7 @@ export interface MigrationStatus {
 const FILE_PATTERN = /^(\d{4})_([a-z0-9_]+)\.(up|down)\.sql$/;
 
 /** Migrations folder of the package, valid both from `src` and from `dist`. */
-export const DEFAULT_MIGRATIONS_DIR = path.resolve(
-  path.dirname(fileURLToPath(import.meta.url)),
-  "..",
-  "migrations",
-);
+export const DEFAULT_MIGRATIONS_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "migrations");
 
 export async function loadMigrations(dir: string = DEFAULT_MIGRATIONS_DIR): Promise<Migration[]> {
   const entries = await readdir(dir);

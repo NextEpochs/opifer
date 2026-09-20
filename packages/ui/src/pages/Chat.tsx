@@ -63,42 +63,61 @@ export function ChatPage({ ws, param }: { ws: Workspace; param: string | null })
     }
     setLive(emptyLive);
     void loadDetail(selected);
-    return eventsSocket((event) => {
-      const payload = event.payload as { sessionId?: string; event?: Record<string, unknown> } | undefined;
-      if (event.type === "session.created") void loadSessions();
-      if (event.type !== "session.event" || payload?.sessionId !== selected || !payload.event) return;
-      const e = payload.event;
-      switch (e["type"]) {
-        case "text":
-          setLive((l) => ({ ...l, streaming: l.streaming + String(e["text"] ?? "") }));
-          break;
-        case "tool_call":
-          setLive((l) => ({ ...l, tools: [...l.tools, { id: String(e["callId"]), name: String(e["name"]), status: "running", detail: JSON.stringify(e["arguments"] ?? {}).slice(0, 160) }] }));
-          break;
-        case "tool_result":
-          setLive((l) => ({ ...l, tools: l.tools.map((tool) => (tool.id === e["callId"] ? { ...tool, status: e["isError"] ? "error" : "ok", detail: String(e["content"] ?? "").split("\n")[0]!.slice(0, 160) } : tool)) }));
-          break;
-        case "message":
-          setLive((l) => ({ ...l, streaming: "" }));
-          void loadDetail(selected);
-          break;
-        case "notice":
-        case "retry":
-        case "fallback":
-          setLive((l) => ({ ...l, notices: [...l.notices, String(e["message"] ?? e["reason"] ?? e["type"])] }));
-          break;
-        case "done": {
-          const run = e["run"] as { status?: string; error?: string | null; stopReason?: string | null } | undefined;
-          const notice = run?.status === "failed" ? `${t.turnFailed}: ${run.error ?? run.stopReason ?? "?"}` : null;
-          setLive(notice ? { ...emptyLive, notices: [notice] } : emptyLive);
-          void loadDetail(selected);
-          void loadSessions();
-          break;
+    return eventsSocket(
+      (event) => {
+        const payload = event.payload as { sessionId?: string; event?: Record<string, unknown> } | undefined;
+        if (event.type === "session.created") void loadSessions();
+        if (event.type !== "session.event" || payload?.sessionId !== selected || !payload.event) return;
+        const e = payload.event;
+        switch (e["type"]) {
+          case "text":
+            setLive((l) => ({ ...l, streaming: l.streaming + String(e["text"] ?? "") }));
+            break;
+          case "tool_call":
+            setLive((l) => ({
+              ...l,
+              tools: [...l.tools, { id: String(e["callId"]), name: String(e["name"]), status: "running", detail: JSON.stringify(e["arguments"] ?? {}).slice(0, 160) }],
+            }));
+            break;
+          case "tool_result":
+            setLive((l) => ({
+              ...l,
+              tools: l.tools.map((tool) =>
+                tool.id === e["callId"]
+                  ? {
+                      ...tool,
+                      status: e["isError"] ? "error" : "ok",
+                      detail: String(e["content"] ?? "")
+                        .split("\n")[0]!
+                        .slice(0, 160),
+                    }
+                  : tool,
+              ),
+            }));
+            break;
+          case "message":
+            setLive((l) => ({ ...l, streaming: "" }));
+            void loadDetail(selected);
+            break;
+          case "notice":
+          case "retry":
+          case "fallback":
+            setLive((l) => ({ ...l, notices: [...l.notices, String(e["message"] ?? e["reason"] ?? e["type"])] }));
+            break;
+          case "done": {
+            const run = e["run"] as { status?: string; error?: string | null; stopReason?: string | null } | undefined;
+            const notice = run?.status === "failed" ? `${t.turnFailed}: ${run.error ?? run.stopReason ?? "?"}` : null;
+            setLive(notice ? { ...emptyLive, notices: [notice] } : emptyLive);
+            void loadDetail(selected);
+            void loadSessions();
+            break;
+          }
+          default:
+            break;
         }
-        default:
-          break;
-      }
-    }, () => {});
+      },
+      () => {},
+    );
   }, [selected, loadDetail, loadSessions, t.turnFailed]);
 
   useEffect(() => {
@@ -165,7 +184,12 @@ export function ChatPage({ ws, param }: { ws: Workspace; param: string | null })
                 <div key={g.label}>
                   <div className="px-2 pb-0.5 pt-3 text-[11px] font-bold uppercase tracking-wide text-mute">{g.label}</div>
                   {g.items.map((s) => (
-                    <a key={s.id} href={`#/chat/${s.id}`} aria-current={selected === s.id ? "true" : undefined} className={`block rounded-control px-3 py-2.5 no-underline ${selected === s.id ? "bg-accent-soft text-ink" : "text-ink hover:bg-hover"}`}>
+                    <a
+                      key={s.id}
+                      href={`#/chat/${s.id}`}
+                      aria-current={selected === s.id ? "true" : undefined}
+                      className={`block rounded-control px-3 py-2.5 no-underline ${selected === s.id ? "bg-accent-soft text-ink" : "text-ink hover:bg-hover"}`}
+                    >
                       <span className="block truncate text-sm font-bold">{s.title ?? t.untitled}</span>
                       <span className="block truncate text-[13px] text-mute">
                         {ws.agentName(s.agentId)} · {s.status}
@@ -257,7 +281,14 @@ export function ChatPage({ ws, param }: { ws: Workspace; param: string | null })
             )}
             <form onSubmit={send} className="flex items-center gap-2.5 px-7 pb-6 pt-3">
               <div className="flex flex-1 items-center gap-2 rounded-2xl border border-line-strong bg-card py-2 pl-4 pr-2">
-                <Input value={text} onChange={(e) => setText(e.target.value)} placeholder={running ? fill(t.injectHint, { agent: name }) : fill(t.messageHint, { agent: name })} aria-label={t.message} disabled={detail.status !== "active"} className="border-0 bg-transparent px-0 py-1 text-[15px] focus:ring-0" />
+                <Input
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                  placeholder={running ? fill(t.injectHint, { agent: name }) : fill(t.messageHint, { agent: name })}
+                  aria-label={t.message}
+                  disabled={detail.status !== "active"}
+                  className="border-0 bg-transparent px-0 py-1 text-[15px] focus:ring-0"
+                />
                 <Button type="submit" variant="primary" size="sm" disabled={detail.status !== "active" || !text.trim()}>
                   {t.send}
                 </Button>
@@ -316,7 +347,9 @@ function MessageView({ message, agent, t, advanced }: { message: StoredMessage; 
   if (message.role === "user") {
     return (
       <div className="flex justify-end">
-        <div className="accent-gradient max-w-[70%] whitespace-pre-wrap rounded-[18px_18px_4px_18px] px-4 py-3 text-[15px] leading-relaxed text-white">{message.content.map((p) => (p.type === "text" ? p.text : "")).join("")}</div>
+        <div className="accent-gradient max-w-[70%] whitespace-pre-wrap rounded-[18px_18px_4px_18px] px-4 py-3 text-[15px] leading-relaxed text-white">
+          {message.content.map((p) => (p.type === "text" ? p.text : "")).join("")}
+        </div>
       </div>
     );
   }
@@ -341,7 +374,12 @@ function MessageView({ message, agent, t, advanced }: { message: StoredMessage; 
       <Avatar name={agent} size={32} />
       <div className="flex min-w-0 flex-col gap-2">
         {message.content.map((part, i) => {
-          if (part.type === "text") return <p key={i} className="m-0 whitespace-pre-wrap rounded-[4px_18px_18px_18px] border border-line bg-card px-4 py-3 text-[15px] leading-relaxed">{part.text}</p>;
+          if (part.type === "text")
+            return (
+              <p key={i} className="m-0 whitespace-pre-wrap rounded-[4px_18px_18px_18px] border border-line bg-card px-4 py-3 text-[15px] leading-relaxed">
+                {part.text}
+              </p>
+            );
           if (part.type === "tool_call")
             return (
               <div key={i} className="text-[13px] text-mute">

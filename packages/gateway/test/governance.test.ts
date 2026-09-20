@@ -17,7 +17,10 @@ const script: Script = (request) => {
   const parts = last?.content ?? [];
   const toolResult = parts.find((p) => p.type === "tool_result");
   if (toolResult && toolResult.type === "tool_result") return { kind: "text", text: `done: ${toolResult.content}` };
-  const text = parts.map((p) => (p.type === "text" ? p.text : "")).join(" ").trim();
+  const text = parts
+    .map((p) => (p.type === "text" ? p.text : ""))
+    .join(" ")
+    .trim();
   if (text.startsWith("run:")) return { kind: "tools", calls: [{ name: "terminal", arguments: { command: text.slice(4).trim() } }] };
   if (text.startsWith("write:")) return { kind: "tools", calls: [{ name: "write_file", arguments: { path: "note.txt", content: text.slice(6).trim() } }] };
   return { kind: "text", text: `echo: ${text}` };
@@ -251,7 +254,9 @@ describe("gateway: permissions, approvals and secrets", () => {
     expect(await f.auditCount("secret.set")).toBe(2);
     expect(await f.auditCount("secret.bound")).toBe(1);
 
-    const [auditRows] = await f.db.sql<{ n: string }[]>`SELECT count(*)::text AS n FROM audit_log WHERE after::text LIKE ${"%" + value + "%"} OR before::text LIKE ${"%" + value + "%"}`;
+    const [auditRows] = await f.db.sql<
+      { n: string }[]
+    >`SELECT count(*)::text AS n FROM audit_log WHERE after::text LIKE ${"%" + value + "%"} OR before::text LIKE ${"%" + value + "%"}`;
     expect(Number(auditRows!.n)).toBe(0);
 
     const session = await f.runtime.startSession({ companyId: f.companyId, agentId: f.agentId });
@@ -282,7 +287,16 @@ describe("gateway: permissions, approvals and secrets", () => {
 
   it("pending approvals expire", async () => {
     const short = new ApprovalService(f.db.sql, { ttlMs: 1 });
-    await short.request({ companyId: f.companyId, agentId: f.agentId, sessionId: null, runId: null, kind: "budget_increase", subject: { cap: 10 }, reason: "cap reached", risk: "medium" });
+    await short.request({
+      companyId: f.companyId,
+      agentId: f.agentId,
+      sessionId: null,
+      runId: null,
+      kind: "budget_increase",
+      subject: { cap: 10 },
+      reason: "cap reached",
+      risk: "medium",
+    });
     await new Promise((r) => setTimeout(r, 5));
     expect(await short.expire()).toBe(1);
     expect(await f.auditCount("approval.expired")).toBe(1);

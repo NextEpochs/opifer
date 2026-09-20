@@ -9,14 +9,7 @@
  */
 
 import { randomUUID } from "node:crypto";
-import {
-  ProviderError,
-  type CompletionRequest,
-  type ContentToolCall,
-  type ModelInfo,
-  type ModelProvider,
-  type StreamEvent,
-} from "@opifer/sdk";
+import { ProviderError, type CompletionRequest, type ContentToolCall, type ModelInfo, type ModelProvider, type StreamEvent } from "@opifer/sdk";
 import type { ChatGPTCredentials, CredentialStore } from "./credentials.js";
 import { DEFAULT_OAUTH, refreshCredentials, type OAuthEndpoints } from "./oauth.js";
 
@@ -233,7 +226,8 @@ export class ChatGPTProvider implements ModelProvider {
             yield { type: "tool_call", call };
           }
         } else if (type === "response.completed" || type === "response.incomplete") {
-          const resp = event["response"] as { usage?: { input_tokens?: number; output_tokens?: number; input_tokens_details?: { cached_tokens?: number } }; incomplete_details?: { reason?: string } } | undefined;
+          const resp = event["response"] as
+            { usage?: { input_tokens?: number; output_tokens?: number; input_tokens_details?: { cached_tokens?: number } }; incomplete_details?: { reason?: string } } | undefined;
           if (resp?.usage) {
             usage = {
               inputTokens: resp.usage.input_tokens ?? 0,

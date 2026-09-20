@@ -60,12 +60,7 @@ function classify(error: unknown): { retryable: boolean; message: string } {
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
-async function attemptModel(
-  resolved: ResolvedModel,
-  request: Omit<CompletionRequest, "model">,
-  onText: (t: string) => void,
-  options: RecoveryOptions,
-): Promise<CompletionOutcome> {
+async function attemptModel(resolved: ResolvedModel, request: Omit<CompletionRequest, "model">, onText: (t: string) => void, options: RecoveryOptions): Promise<CompletionOutcome> {
   let emptyRetried = false;
   let lastError: unknown;
   for (let attempt = 1; attempt <= options.maxAttempts; attempt++) {

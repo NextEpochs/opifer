@@ -107,7 +107,13 @@ const request: CompletionRequest = {
   messages: [
     { role: "user", content: [{ type: "text", text: "list" }] },
     { role: "assistant", content: [{ type: "tool_call", id: "call_0", name: "terminal", arguments: { command: "ls" } }] },
-    { role: "tool", content: [{ type: "tool_result", toolCallId: "call_0", content: "a.txt" }, { type: "text", text: "[operator message] quick" }] },
+    {
+      role: "tool",
+      content: [
+        { type: "tool_result", toolCallId: "call_0", content: "a.txt" },
+        { type: "text", text: "[operator message] quick" },
+      ],
+    },
     { role: "assistant", content: [{ type: "text", text: "there is a.txt" }] },
     { role: "user", content: [{ type: "text", text: "thanks" }] },
   ],
@@ -181,7 +187,12 @@ describe("ChatGPT provider", () => {
     backendMode = "text";
     const provider = new ChatGPTProvider({ store: new MemoryCredentialStore(freshCredentials(3_600_000)), baseURL: `${base}/codex`, oauth: endpoints() });
     const events = await collect(provider, request);
-    expect(events.filter((e) => e.type === "text_delta").map((e) => (e as { text: string }).text).join("")).toBe("Hello there");
+    expect(
+      events
+        .filter((e) => e.type === "text_delta")
+        .map((e) => (e as { text: string }).text)
+        .join(""),
+    ).toBe("Hello there");
     expect(events.find((e) => e.type === "usage")).toEqual({ type: "usage", usage: { inputTokens: 40, outputTokens: 5, cachedInputTokens: 10 } });
     expect(events.at(-1)).toEqual({ type: "done", stopReason: "end_turn" });
 

@@ -139,12 +139,7 @@ async function postForm(url: string, form: Record<string, string>, fetchImpl: ty
   return body;
 }
 
-export async function exchangeCode(
-  code: string,
-  pkce: PkcePair,
-  endpoints: OAuthEndpoints = DEFAULT_OAUTH,
-  fetchImpl: typeof fetch = fetch,
-): Promise<ChatGPTCredentials> {
+export async function exchangeCode(code: string, pkce: PkcePair, endpoints: OAuthEndpoints = DEFAULT_OAUTH, fetchImpl: typeof fetch = fetch): Promise<ChatGPTCredentials> {
   const tokens = await postForm(
     endpoints.tokenURL,
     { grant_type: "authorization_code", client_id: endpoints.clientId, code, redirect_uri: endpoints.redirectURI, code_verifier: pkce.verifier },
@@ -153,11 +148,7 @@ export async function exchangeCode(
   return credentialsFromTokens(tokens);
 }
 
-export async function refreshCredentials(
-  current: ChatGPTCredentials,
-  endpoints: OAuthEndpoints = DEFAULT_OAUTH,
-  fetchImpl: typeof fetch = fetch,
-): Promise<ChatGPTCredentials> {
+export async function refreshCredentials(current: ChatGPTCredentials, endpoints: OAuthEndpoints = DEFAULT_OAUTH, fetchImpl: typeof fetch = fetch): Promise<ChatGPTCredentials> {
   const tokens = await postForm(
     endpoints.tokenURL,
     { grant_type: "refresh_token", client_id: endpoints.clientId, refresh_token: current.refreshToken, scope: endpoints.scope },

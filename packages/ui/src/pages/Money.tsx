@@ -12,7 +12,14 @@ export function MoneyPage({ ws }: { ws: Workspace }) {
   const [busy, setBusy] = useState(false);
   const agents = overview?.agents ?? [];
 
-  const load = useCallback(() => api.costs(company.id).then(setReport).catch(() => setReport(null)), [company.id]);
+  const load = useCallback(
+    () =>
+      api
+        .costs(company.id)
+        .then(setReport)
+        .catch(() => setReport(null)),
+    [company.id],
+  );
   useEffect(() => {
     void load();
   }, [load, overview]);
@@ -85,7 +92,9 @@ export function MoneyPage({ ws }: { ws: Workspace }) {
                   </span>
                 </div>
               ))}
-              <p className="m-0 mt-1 text-[12px] text-faint">{t.tokens}: {t.inOut}</p>
+              <p className="m-0 mt-1 text-[12px] text-faint">
+                {t.tokens}: {t.inOut}
+              </p>
             </div>
           ) : (
             <EmptyState>{t.noCosts}</EmptyState>
@@ -110,7 +119,10 @@ export function MoneyPage({ ws }: { ws: Workspace }) {
                     <div className="text-[12px] text-mute">{p.window}</div>
                   </div>
                   <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-raised">
-                    <div className="h-full rounded-full" style={{ width: `${ratio * 100}%`, background: ratio >= 1 ? "var(--o-danger)" : ratio >= p.warnRatio ? "var(--o-warn)" : "var(--o-accent)" }} />
+                    <div
+                      className="h-full rounded-full"
+                      style={{ width: `${ratio * 100}%`, background: ratio >= 1 ? "var(--o-danger)" : ratio >= p.warnRatio ? "var(--o-warn)" : "var(--o-accent)" }}
+                    />
                   </div>
                   <strong className="w-32 text-right text-sm">
                     {money(spent, p.currency)} / {money(p.cap, p.currency, 0)}
@@ -133,7 +145,16 @@ export function MoneyPage({ ws }: { ws: Workspace }) {
                 </Select>
               </div>
               <div className="w-48">
-                <Input value={cap} onChange={(e) => setCap(e.target.value)} type="number" min="0" step="0.5" placeholder={`${t.monthlyCap} (EUR)`} aria-label={t.monthlyCap} required />
+                <Input
+                  value={cap}
+                  onChange={(e) => setCap(e.target.value)}
+                  type="number"
+                  min="0"
+                  step="0.5"
+                  placeholder={`${t.monthlyCap} (EUR)`}
+                  aria-label={t.monthlyCap}
+                  required
+                />
               </div>
               <Button type="submit" variant="primary" disabled={busy}>
                 {t.addCap}

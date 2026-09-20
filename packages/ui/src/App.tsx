@@ -150,15 +150,30 @@ export function App() {
           >
             <Icon size={20} strokeWidth={1.8} aria-hidden="true" />
             <span>{label}</span>
-            {badge ? <span className="ml-auto flex h-[22px] min-w-[22px] items-center justify-center rounded-full bg-accent px-1.5 text-xs font-bold text-white">{badge}</span> : null}
+            {badge ? (
+              <span className="ml-auto flex h-[22px] min-w-[22px] items-center justify-center rounded-full bg-accent px-1.5 text-xs font-bold text-white">{badge}</span>
+            ) : null}
           </a>
         ))}
         <div className="grow" />
-        <a href="#/settings" aria-current={route.page === "settings" ? "page" : undefined} className={`flex items-center gap-3 rounded-control px-3 py-[11px] text-[15px] font-semibold no-underline transition ${route.page === "settings" ? "bg-accent-soft text-ink shadow-[inset_2px_0_0_var(--o-accent)]" : "text-ink-2 hover:bg-hover hover:text-ink"}`}>
+        <a
+          href="#/settings"
+          aria-current={route.page === "settings" ? "page" : undefined}
+          className={`flex items-center gap-3 rounded-control px-3 py-[11px] text-[15px] font-semibold no-underline transition ${route.page === "settings" ? "bg-accent-soft text-ink shadow-[inset_2px_0_0_var(--o-accent)]" : "text-ink-2 hover:bg-hover hover:text-ink"}`}
+        >
           <SettingsIcon size={20} strokeWidth={1.8} aria-hidden="true" />
           <span>{t.nav.settings}</span>
         </a>
-        <Segmented value={mode} onChange={setMode} label={t.viewMode} options={[{ value: "simple", label: t.simple }, { value: "advanced", label: t.advanced }]} className="mt-2" />
+        <Segmented
+          value={mode}
+          onChange={setMode}
+          label={t.viewMode}
+          options={[
+            { value: "simple", label: t.simple },
+            { value: "advanced", label: t.advanced },
+          ]}
+          className="mt-2"
+        />
         <div className="mt-2 flex items-center gap-2.5 px-2 pt-2 text-[13px] text-mute">
           <Avatar name="Mike" colour="#06B6D4" />
           <span>

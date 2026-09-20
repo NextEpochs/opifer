@@ -34,7 +34,8 @@ interface TaskDetail extends Task {
   cost: { eur: number; calls: number };
 }
 
-const statusColour = (s: string) => (s === "done" ? c.green(s) : s === "in_progress" ? c.cyan(s) : s === "in_review" || s === "blocked" ? c.yellow(s) : s === "cancelled" ? c.dim(s) : s);
+const statusColour = (s: string) =>
+  s === "done" ? c.green(s) : s === "in_progress" ? c.cyan(s) : s === "in_review" || s === "blocked" ? c.yellow(s) : s === "cancelled" ? c.dim(s) : s;
 
 async function connect(options: Common) {
   const base = await serverBase(options.home);
@@ -62,7 +63,9 @@ export async function runTaskList(options: Common & { status?: string; all?: boo
   }
 }
 
-export async function runTaskCreate(options: Common & { title: string; agent?: string; description?: string; acceptance?: string; priority?: string; project?: string; parent?: string }): Promise<void> {
+export async function runTaskCreate(
+  options: Common & { title: string; agent?: string; description?: string; acceptance?: string; priority?: string; project?: string; parent?: string },
+): Promise<void> {
   const { base, company } = await connect(options);
   const body: Record<string, unknown> = { title: options.title };
   if (options.description) body["description"] = options.description;
@@ -114,10 +117,21 @@ export async function runTaskComment(options: Common & { id: string; body: strin
   say.ok("Comment posted; mentioned agents and the assignee have been woken up");
 }
 
-export async function runTaskAction(action: "complete" | "request-changes" | "block" | "unblock" | "cancel" | "wake" | "release", options: Common & { id: string; note?: string; verification?: string }): Promise<void> {
+export async function runTaskAction(
+  action: "complete" | "request-changes" | "block" | "unblock" | "cancel" | "wake" | "release",
+  options: Common & { id: string; note?: string; verification?: string },
+): Promise<void> {
   const base = await serverBase(options.home);
   const body =
-    action === "complete" ? { summary: options.note ?? "Verified by a person", ...(options.verification ? { verification: options.verification } : {}) } : action === "request-changes" ? { note: options.note ?? "please revise" } : action === "block" ? { reason: options.note ?? "blocked by a person" } : action === "cancel" || action === "release" ? { reason: options.note ?? "" } : {};
+    action === "complete"
+      ? { summary: options.note ?? "Verified by a person", ...(options.verification ? { verification: options.verification } : {}) }
+      : action === "request-changes"
+        ? { note: options.note ?? "please revise" }
+        : action === "block"
+          ? { reason: options.note ?? "blocked by a person" }
+          : action === "cancel" || action === "release"
+            ? { reason: options.note ?? "" }
+            : {};
   const task = await api<Task>(base, `/v1/tasks/${options.id}/${action}`, { method: "POST", body: JSON.stringify(body) });
   say.ok(`${task.title}: ${statusColour(task.status)}`);
 }

@@ -24,7 +24,18 @@ import {
   runSecretUnbind,
 } from "./commands/govern.js";
 import { runTaskAction, runTaskAssign, runTaskComment, runTaskCreate, runTaskList, runTaskShow } from "./commands/task.js";
-import { runLearningSet, runLearningShow, runMemoryAction, runMemoryAdd, runMemoryList, runSkillAction, runSkillExport, runSkillInstall, runSkillList, runSkillShow } from "./commands/learning.js";
+import {
+  runLearningSet,
+  runLearningShow,
+  runMemoryAction,
+  runMemoryAdd,
+  runMemoryList,
+  runSkillAction,
+  runSkillExport,
+  runSkillInstall,
+  runSkillList,
+  runSkillShow,
+} from "./commands/learning.js";
 import { say, setColor } from "./output.js";
 
 const program = new Command();
@@ -174,7 +185,7 @@ policy
   .action(async (opts: { agent?: string; company?: string }) => runPolicyList({ ...opts, ...homeOf(program) }));
 policy
   .command("set <tool> <permission>")
-  .description("set a permission for the company, a role or an agent (tool \"*\" means every tool)")
+  .description('set a permission for the company, a role or an agent (tool "*" means every tool)')
   .option("--agent <name>", "apply to one agent")
   .option("--role <role>", "apply to every agent with this role")
   .option("--company <name>", "company (default: the first one)")
@@ -195,7 +206,9 @@ secret
   .command("set <name> [value]")
   .description("store a secret (prompted, or read from stdin, when the value is omitted)")
   .option("--company <name>", "company (default: the first one)")
-  .action(async (name: string, value: string | undefined, opts: { company?: string }) => runSecretSet({ name, ...(value !== undefined ? { value } : {}), ...opts, ...homeOf(program) }));
+  .action(async (name: string, value: string | undefined, opts: { company?: string }) =>
+    runSecretSet({ name, ...(value !== undefined ? { value } : {}), ...opts, ...homeOf(program) }),
+  );
 secret
   .command("remove <name>")
   .description("remove a secret and its bindings")
@@ -233,7 +246,9 @@ task
   .option("--project <name>", "project")
   .option("--parent <id>", "parent task id")
   .option("--company <name>", "company (default: the first one)")
-  .action(async (title: string, opts: { agent?: string; description?: string; acceptance?: string; priority?: string; project?: string; parent?: string; company?: string }) => runTaskCreate({ title, ...opts, ...homeOf(program) }));
+  .action(async (title: string, opts: { agent?: string; description?: string; acceptance?: string; priority?: string; project?: string; parent?: string; company?: string }) =>
+    runTaskCreate({ title, ...opts, ...homeOf(program) }),
+  );
 task
   .command("show <id>")
   .description("the task with its why chain, results, subtasks and comments")
@@ -282,7 +297,9 @@ memory
   .option("--subject <name>", "makes it a profile of a person or a system")
   .option("--pin", "keep it first in the snapshot")
   .option("--company <name>", "company (default: the first one)")
-  .action(async (content: string, opts: { agent?: string; scope?: string; subject?: string; pin?: boolean; company?: string }) => runMemoryAdd({ content, ...opts, ...homeOf(program) }));
+  .action(async (content: string, opts: { agent?: string; scope?: string; subject?: string; pin?: boolean; company?: string }) =>
+    runMemoryAdd({ content, ...opts, ...homeOf(program) }),
+  );
 for (const [name, description] of [
   ["retire", "retire a memory with a reason (it stays in the record)"],
   ["correct", "replace a memory with a corrected text"],
@@ -294,7 +311,9 @@ for (const [name, description] of [
     .command(`${name} <id> [text]`)
     .description(description)
     .option("--company <name>", "company (default: the first one)")
-    .action(async (id: string, text: string | undefined, opts: { company?: string }) => runMemoryAction({ action: name, id, ...(text ? { text } : {}), ...opts, ...homeOf(program) }));
+    .action(async (id: string, text: string | undefined, opts: { company?: string }) =>
+      runMemoryAction({ action: name, id, ...(text ? { text } : {}), ...opts, ...homeOf(program) }),
+    );
 }
 
 const skill = program.command("skill").description("reusable procedures the agents learn and use");
@@ -338,7 +357,9 @@ for (const [name, description] of [
     .description(description)
     .option("--agent <name>", "the agent's own copy")
     .option("--company <name>", "company (default: the first one)")
-    .action(async (skillName: string, version: string | undefined, opts: { agent?: string; company?: string }) => runSkillAction({ action: name, name: skillName, ...(version ? { version } : {}), ...opts, ...homeOf(program) }));
+    .action(async (skillName: string, version: string | undefined, opts: { agent?: string; company?: string }) =>
+      runSkillAction({ action: name, name: skillName, ...(version ? { version } : {}), ...opts, ...homeOf(program) }),
+    );
 }
 
 const learning = program.command("learning").description("how the company learns: review, promotion policy, curator");

@@ -9,11 +9,7 @@ import type { MemoryService } from "./memory.js";
 import { renderSkillMarkdown, type SkillService } from "./skills.js";
 import { LearningError } from "./types.js";
 
-function str(
-  args: Record<string, unknown>,
-  key: string,
-  required = true,
-): string {
+function str(args: Record<string, unknown>, key: string, required = true): string {
   const value = args[key];
   if (typeof value !== "string" || value.trim().length === 0) {
     if (required) throw new Error(`missing parameter "${key}"`);
@@ -24,16 +20,12 @@ function str(
 
 export const LEARNING_GUIDE = `Your memory holds what you learned in earlier work; the snapshot in this prompt is a summary — memory_search finds more. Before a job you have done before, load the matching skill with skill_load and follow it. When you notice something worth keeping (a preference, a fact about a system, a pitfall), save it with memory_save; when a procedure worked and will repeat, save it with skill_save so next time is faster and cheaper.`;
 
-export function learningTools(
-  memories: MemoryService,
-  skills: SkillService,
-): NativeTool[] {
+export function learningTools(memories: MemoryService, skills: SkillService): NativeTool[] {
   const search: NativeTool = {
     risk: "low",
     definition: {
       name: "memory_search",
-      description:
-        "Searches your memory (and your team's and the company's) for notes and profiles matching a question or a few words.",
+      description: "Searches your memory (and your team's and the company's) for notes and profiles matching a question or a few words.",
       inputSchema: {
         type: "object",
         required: ["query"],
@@ -41,15 +33,9 @@ export function learningTools(
       },
     },
     async execute(args, context) {
-      const hits = await memories.search(
-        context.companyId,
-        context.agentId,
-        str(args, "query"),
-        {
-          limit:
-            typeof args["limit"] === "number" ? Math.min(20, args["limit"]) : 8,
-        },
-      );
+      const hits = await memories.search(context.companyId, context.agentId, str(args, "query"), {
+        limit: typeof args["limit"] === "number" ? Math.min(20, args["limit"]) : 8,
+      });
       if (hits.length === 0) return { content: "Nothing in memory matches." };
       return {
         content: hits
@@ -102,8 +88,7 @@ export function learningTools(
         return { content: `Saved to memory (${memory.id.slice(0, 8)}).` };
       } catch (error) {
         return {
-          content:
-            error instanceof LearningError ? error.message : String(error),
+          content: error instanceof LearningError ? error.message : String(error),
           isError: true,
         };
       }
@@ -114,8 +99,7 @@ export function learningTools(
     risk: "low",
     definition: {
       name: "skill_load",
-      description:
-        "Loads the full text of one of your available skills (the prompt lists their names) so you can follow it step by step.",
+      description: "Loads the full text of one of your available skills (the prompt lists their names) so you can follow it step by step.",
       inputSchema: {
         type: "object",
         required: ["name"],
@@ -123,19 +107,14 @@ export function learningTools(
       },
     },
     async execute(args, context) {
-      const skill = await skills.resolve(
-        context.companyId,
-        context.agentId,
-        str(args, "name"),
-      );
+      const skill = await skills.resolve(context.companyId, context.agentId, str(args, "name"));
       if (!skill)
         return {
           content: `No skill named "${str(args, "name")}" is available to you.`,
           isError: true,
         };
       const version = await skills.version(context.companyId, skill.id);
-      if (!version)
-        return { content: "The skill has no content.", isError: true };
+      if (!version) return { content: "The skill has no content.", isError: true };
       await skills.recordUse(context.companyId, skill.id, {
         agentId: context.agentId,
         sessionId: context.sessionId,
@@ -144,11 +123,7 @@ export function learningTools(
       });
       const files = Object.keys(version.files);
       return {
-        content:
-          renderSkillMarkdown(skill, version) +
-          (files.length > 0
-            ? `\n\nFiles:\n${files.map((f) => `--- ${f} ---\n${version.files[f]}`).join("\n")}`
-            : ""),
+        content: renderSkillMarkdown(skill, version) + (files.length > 0 ? `\n\nFiles:\n${files.map((f) => `--- ${f} ---\n${version.files[f]}`).join("\n")}` : ""),
       };
     },
   };
@@ -173,16 +148,8 @@ export function learningTools(
       const name = str(args, "name").trim().toLowerCase();
       const actor = { kind: "agent" as const, id: context.agentId };
       try {
-        const existing = await skills.resolve(
-          context.companyId,
-          context.agentId,
-          name,
-        );
-        if (
-          existing &&
-          existing.scope === "agent" &&
-          existing.scopeAgentId === context.agentId
-        ) {
+        const existing = await skills.resolve(context.companyId, context.agentId, name);
+        if (existing && existing.scope === "agent" && existing.scopeAgentId === context.agentId) {
           if (existing.pinned)
             return {
               content: `The skill "${name}" is pinned by a person: propose the change in a comment instead.`,
@@ -225,8 +192,7 @@ export function learningTools(
         };
       } catch (error) {
         return {
-          content:
-            error instanceof LearningError ? error.message : String(error),
+          content: error instanceof LearningError ? error.message : String(error),
           isError: true,
         };
       }

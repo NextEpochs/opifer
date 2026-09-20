@@ -7,7 +7,22 @@
 
 import type { Sql, TransactionSql } from "postgres";
 import { audit } from "@opifer/db";
-import type { Actor, CheckoutOutcome, Goal, Project, Task, TaskComment, TaskPriority, TaskResult, TaskStatus, Wakeup, WakeupReason, WhyChain, WorkProduct, WorkProductKind } from "./types.js";
+import type {
+  Actor,
+  CheckoutOutcome,
+  Goal,
+  Project,
+  Task,
+  TaskComment,
+  TaskPriority,
+  TaskResult,
+  TaskStatus,
+  Wakeup,
+  WakeupReason,
+  WhyChain,
+  WorkProduct,
+  WorkProductKind,
+} from "./types.js";
 
 export interface WorkServiceOptions {
   /** How long a checkout lasts without a heartbeat. */
@@ -117,8 +132,27 @@ interface WakeupRow {
   error: string | null;
 }
 
-const toGoal = (r: GoalRow): Goal => ({ id: r.id, companyId: r.company_id, parentId: r.parent_id, title: r.title, description: r.description, measure: r.measure, status: r.status, dueAt: r.due_at, createdAt: r.created_at });
-const toProject = (r: ProjectRow): Project => ({ id: r.id, companyId: r.company_id, goalId: r.goal_id, name: r.name, description: r.description, status: r.status, workdir: r.workdir, createdAt: r.created_at });
+const toGoal = (r: GoalRow): Goal => ({
+  id: r.id,
+  companyId: r.company_id,
+  parentId: r.parent_id,
+  title: r.title,
+  description: r.description,
+  measure: r.measure,
+  status: r.status,
+  dueAt: r.due_at,
+  createdAt: r.created_at,
+});
+const toProject = (r: ProjectRow): Project => ({
+  id: r.id,
+  companyId: r.company_id,
+  goalId: r.goal_id,
+  name: r.name,
+  description: r.description,
+  status: r.status,
+  workdir: r.workdir,
+  createdAt: r.created_at,
+});
 const toTask = (r: TaskRow): Task => ({
   id: r.id,
   companyId: r.company_id,
@@ -148,9 +182,44 @@ const toTask = (r: TaskRow): Task => ({
   createdAt: r.created_at,
   updatedAt: r.updated_at,
 });
-const toComment = (r: CommentRow): TaskComment => ({ id: r.id, companyId: r.company_id, taskId: r.task_id, authorKind: r.author_kind, authorId: r.author_id, body: r.body, mentions: r.mentions ?? [], createdAt: r.created_at });
-const toProduct = (r: ProductRow): WorkProduct => ({ id: r.id, companyId: r.company_id, taskId: r.task_id, runId: r.run_id, kind: r.kind, title: r.title, ref: r.ref, summary: r.summary, createdByKind: r.created_by_kind, createdById: r.created_by_id, createdAt: r.created_at });
-const toWakeup = (r: WakeupRow): Wakeup => ({ id: r.id, companyId: r.company_id, agentId: r.agent_id, reason: r.reason, taskId: r.task_id, payload: r.payload ?? {}, dedupeKey: r.dedupe_key, status: r.status, scheduledAt: r.scheduled_at, claimedAt: r.claimed_at, finishedAt: r.finished_at, attempts: r.attempts, error: r.error });
+const toComment = (r: CommentRow): TaskComment => ({
+  id: r.id,
+  companyId: r.company_id,
+  taskId: r.task_id,
+  authorKind: r.author_kind,
+  authorId: r.author_id,
+  body: r.body,
+  mentions: r.mentions ?? [],
+  createdAt: r.created_at,
+});
+const toProduct = (r: ProductRow): WorkProduct => ({
+  id: r.id,
+  companyId: r.company_id,
+  taskId: r.task_id,
+  runId: r.run_id,
+  kind: r.kind,
+  title: r.title,
+  ref: r.ref,
+  summary: r.summary,
+  createdByKind: r.created_by_kind,
+  createdById: r.created_by_id,
+  createdAt: r.created_at,
+});
+const toWakeup = (r: WakeupRow): Wakeup => ({
+  id: r.id,
+  companyId: r.company_id,
+  agentId: r.agent_id,
+  reason: r.reason,
+  taskId: r.task_id,
+  payload: r.payload ?? {},
+  dedupeKey: r.dedupe_key,
+  status: r.status,
+  scheduledAt: r.scheduled_at,
+  claimedAt: r.claimed_at,
+  finishedAt: r.finished_at,
+  attempts: r.attempts,
+  error: r.error,
+});
 
 export class WorkError extends Error {
   constructor(
@@ -186,13 +255,24 @@ export class WorkService {
 
   // --- Goals ---------------------------------------------------------------
 
-  async createGoal(input: { companyId: string; title: string; description?: string; measure?: string; parentId?: string | null; dueAt?: Date | null }, actor: Actor): Promise<Goal> {
+  async createGoal(
+    input: { companyId: string; title: string; description?: string; measure?: string; parentId?: string | null; dueAt?: Date | null },
+    actor: Actor,
+  ): Promise<Goal> {
     const [row] = await this.sql<GoalRow[]>`
       INSERT INTO goals (company_id, parent_id, title, description, measure, due_at)
       VALUES (${input.companyId}, ${input.parentId ?? null}, ${input.title}, ${input.description ?? ""}, ${input.measure ?? ""}, ${input.dueAt ?? null}) RETURNING *
     `;
     const goal = toGoal(row!);
-    await audit(this.sql, { companyId: input.companyId, actorKind: actor.kind, actorId: actor.id ?? null, action: "goal.created", subjectKind: "goal", subjectId: goal.id, after: { title: goal.title, parentId: goal.parentId } });
+    await audit(this.sql, {
+      companyId: input.companyId,
+      actorKind: actor.kind,
+      actorId: actor.id ?? null,
+      action: "goal.created",
+      subjectKind: "goal",
+      subjectId: goal.id,
+      after: { title: goal.title, parentId: goal.parentId },
+    });
     return goal;
   }
 
@@ -204,7 +284,16 @@ export class WorkService {
       UPDATE goals SET title = ${next.title}, description = ${next.description}, measure = ${next.measure}, status = ${next.status}, parent_id = ${next.parentId}, due_at = ${next.dueAt}
       WHERE id = ${id} RETURNING *
     `;
-    await audit(this.sql, { companyId, actorKind: actor.kind, actorId: actor.id ?? null, action: "goal.updated", subjectKind: "goal", subjectId: id, before: { status: before.status, title: before.title }, after: { status: next.status, title: next.title } });
+    await audit(this.sql, {
+      companyId,
+      actorKind: actor.kind,
+      actorId: actor.id ?? null,
+      action: "goal.updated",
+      subjectKind: "goal",
+      subjectId: id,
+      before: { status: before.status, title: before.title },
+      after: { status: next.status, title: next.title },
+    });
     return toGoal(row!);
   }
 
@@ -234,7 +323,15 @@ export class WorkService {
       VALUES (${input.companyId}, ${input.goalId ?? null}, ${input.name}, ${input.description ?? ""}, ${input.workdir ?? null}) RETURNING *
     `;
     const project = toProject(row!);
-    await audit(this.sql, { companyId: input.companyId, actorKind: actor.kind, actorId: actor.id ?? null, action: "project.created", subjectKind: "project", subjectId: project.id, after: { name: project.name, goalId: project.goalId } });
+    await audit(this.sql, {
+      companyId: input.companyId,
+      actorKind: actor.kind,
+      actorId: actor.id ?? null,
+      action: "project.created",
+      subjectKind: "project",
+      subjectId: project.id,
+      after: { name: project.name, goalId: project.goalId },
+    });
     return project;
   }
 
@@ -245,7 +342,16 @@ export class WorkService {
     const [row] = await this.sql<ProjectRow[]>`
       UPDATE projects SET name = ${next.name}, description = ${next.description}, status = ${next.status}, goal_id = ${next.goalId}, workdir = ${next.workdir} WHERE id = ${id} RETURNING *
     `;
-    await audit(this.sql, { companyId, actorKind: actor.kind, actorId: actor.id ?? null, action: "project.updated", subjectKind: "project", subjectId: id, before: { status: before.status, name: before.name }, after: { status: next.status, name: next.name } });
+    await audit(this.sql, {
+      companyId,
+      actorKind: actor.kind,
+      actorId: actor.id ?? null,
+      action: "project.updated",
+      subjectKind: "project",
+      subjectId: id,
+      before: { status: before.status, name: before.name },
+      after: { status: next.status, name: next.name },
+    });
     return toProject(row!);
   }
 
@@ -296,7 +402,16 @@ export class WorkService {
         ) RETURNING *
       `;
       const task = toTask(row!);
-      await audit(tx, { companyId: task.companyId, actorKind: actor.kind, actorId: actor.id ?? null, action: "task.created", subjectKind: "task", subjectId: task.id, taskId: task.id, after: { title: task.title, priority: task.priority, assigneeAgentId: task.assigneeAgentId, projectId: task.projectId, parentId: task.parentId } });
+      await audit(tx, {
+        companyId: task.companyId,
+        actorKind: actor.kind,
+        actorId: actor.id ?? null,
+        action: "task.created",
+        subjectKind: "task",
+        subjectId: task.id,
+        taskId: task.id,
+        after: { title: task.title, priority: task.priority, assigneeAgentId: task.assigneeAgentId, projectId: task.projectId, parentId: task.parentId },
+      });
       if (task.assigneeAgentId) await this.wake(task.companyId, task.assigneeAgentId, "assignment", { taskId: task.id, dedupeKey: `assignment:${task.id}` }, tx);
       return task;
     });
@@ -308,7 +423,10 @@ export class WorkService {
     return row ? toTask(row) : null;
   }
 
-  async listTasks(companyId: string, filter: { status?: TaskStatus | TaskStatus[]; assigneeAgentId?: string; projectId?: string; parentId?: string | null; goalId?: string } = {}): Promise<Task[]> {
+  async listTasks(
+    companyId: string,
+    filter: { status?: TaskStatus | TaskStatus[]; assigneeAgentId?: string; projectId?: string; parentId?: string | null; goalId?: string } = {},
+  ): Promise<Task[]> {
     const statuses = filter.status === undefined ? null : Array.isArray(filter.status) ? filter.status : [filter.status];
     const rows = await this.sql<TaskRow[]>`
       SELECT * FROM tasks WHERE company_id = ${companyId}
@@ -322,7 +440,12 @@ export class WorkService {
     return rows.map(toTask);
   }
 
-  async updateTask(companyId: string, id: string, patch: Partial<Pick<Task, "title" | "description" | "acceptance" | "priority" | "projectId" | "goalId" | "dueAt" | "reviewerAgentId">>, actor: Actor): Promise<Task> {
+  async updateTask(
+    companyId: string,
+    id: string,
+    patch: Partial<Pick<Task, "title" | "description" | "acceptance" | "priority" | "projectId" | "goalId" | "dueAt" | "reviewerAgentId">>,
+    actor: Actor,
+  ): Promise<Task> {
     const [before] = await this.sql<TaskRow[]>`SELECT * FROM tasks WHERE id = ${id} AND company_id = ${companyId}`;
     if (!before) throw new WorkError("not_found", "task not found");
     const current = toTask(before);
@@ -331,7 +454,17 @@ export class WorkService {
       UPDATE tasks SET title = ${next.title}, description = ${next.description}, acceptance = ${next.acceptance}, priority = ${next.priority}, project_id = ${next.projectId}, goal_id = ${next.goalId}, due_at = ${next.dueAt}, reviewer_agent_id = ${next.reviewerAgentId}
       WHERE id = ${id} RETURNING *
     `;
-    await audit(this.sql, { companyId, actorKind: actor.kind, actorId: actor.id ?? null, action: "task.updated", subjectKind: "task", subjectId: id, taskId: id, before: { title: current.title, priority: current.priority }, after: { title: next.title, priority: next.priority } });
+    await audit(this.sql, {
+      companyId,
+      actorKind: actor.kind,
+      actorId: actor.id ?? null,
+      action: "task.updated",
+      subjectKind: "task",
+      subjectId: id,
+      taskId: id,
+      before: { title: current.title, priority: current.priority },
+      after: { title: next.title, priority: next.priority },
+    });
     return toTask(row!);
   }
 
@@ -344,8 +477,19 @@ export class WorkService {
       const agentId = assignee.agentId ?? null;
       const userId = agentId ? null : (assignee.userId ?? null);
       const [row] = await tx<TaskRow[]>`UPDATE tasks SET assignee_agent_id = ${agentId}, assignee_user_id = ${userId} WHERE id = ${id} RETURNING *`;
-      await audit(tx, { companyId, actorKind: actor.kind, actorId: actor.id ?? null, action: "task.assigned", subjectKind: "task", subjectId: id, taskId: id, before: { agentId: before.assignee_agent_id, userId: before.assignee_user_id }, after: { agentId, userId } });
-      if (agentId && (before.status === "todo" || before.status === "blocked")) await this.wake(companyId, agentId, "assignment", { taskId: id, dedupeKey: `assignment:${id}` }, tx);
+      await audit(tx, {
+        companyId,
+        actorKind: actor.kind,
+        actorId: actor.id ?? null,
+        action: "task.assigned",
+        subjectKind: "task",
+        subjectId: id,
+        taskId: id,
+        before: { agentId: before.assignee_agent_id, userId: before.assignee_user_id },
+        after: { agentId, userId },
+      });
+      if (agentId && (before.status === "todo" || before.status === "blocked"))
+        await this.wake(companyId, agentId, "assignment", { taskId: id, dedupeKey: `assignment:${id}` }, tx);
       return toTask(row!);
     });
   }
@@ -373,7 +517,16 @@ export class WorkService {
         RETURNING *
       `;
       if (row) {
-        await audit(tx, { companyId, actorKind: "agent", actorId: holder.agentId, action: "task.checked_out", subjectKind: "task", subjectId: id, taskId: id, after: { runId: holder.runId ?? null, sessionId: holder.sessionId ?? null, leaseExpiresAt: expires.toISOString() } });
+        await audit(tx, {
+          companyId,
+          actorKind: "agent",
+          actorId: holder.agentId,
+          action: "task.checked_out",
+          subjectKind: "task",
+          subjectId: id,
+          taskId: id,
+          after: { runId: holder.runId ?? null, sessionId: holder.sessionId ?? null, leaseExpiresAt: expires.toISOString() },
+        });
         return { ok: true, task: toTask(row) };
       }
       const [existing] = await tx<TaskRow[]>`SELECT * FROM tasks WHERE id = ${id} AND company_id = ${companyId}`;
@@ -403,7 +556,15 @@ export class WorkService {
       UPDATE tasks SET lease_expires_at = NULL, lease_run_id = NULL WHERE id = ${id} AND status = 'in_progress' AND lease_session_id = ${holder.sessionId} RETURNING id, company_id
     `;
     if (rows.length === 0) return false;
-    await audit(this.sql, { companyId: rows[0]!.company_id, actorKind: "system", action: "task.suspended", subjectKind: "task", subjectId: id, taskId: id, after: { reason, sessionId: holder.sessionId } });
+    await audit(this.sql, {
+      companyId: rows[0]!.company_id,
+      actorKind: "system",
+      action: "task.suspended",
+      subjectKind: "task",
+      subjectId: id,
+      taskId: id,
+      after: { reason, sessionId: holder.sessionId },
+    });
     return true;
   }
 
@@ -430,7 +591,16 @@ export class WorkService {
           lease_run_id = NULL, lease_session_id = NULL, lease_expires_at = NULL
         WHERE id = ${id} RETURNING *
       `;
-      await audit(tx, { companyId, actorKind: actor.kind, actorId: actor.id ?? null, action: blocked ? "task.blocked" : "task.released", subjectKind: "task", subjectId: id, taskId: id, after: { outcome: outcome.kind, reason: outcome.reason ?? null, failures, runId: outcome.runId ?? null } });
+      await audit(tx, {
+        companyId,
+        actorKind: actor.kind,
+        actorId: actor.id ?? null,
+        action: blocked ? "task.blocked" : "task.released",
+        subjectKind: "task",
+        subjectId: id,
+        taskId: id,
+        after: { outcome: outcome.kind, reason: outcome.reason ?? null, failures, runId: outcome.runId ?? null },
+      });
       return toTask(row!);
     });
   }
@@ -450,8 +620,23 @@ export class WorkService {
             lease_run_id = NULL, lease_session_id = NULL, lease_expires_at = NULL
           WHERE id = ${before.id} RETURNING *
         `;
-        await audit(tx, { companyId: before.company_id, actorKind: "system", action: blocked ? "task.blocked" : "task.lease_expired", subjectKind: "task", subjectId: before.id, taskId: before.id, after: { failures, leaseRunId: before.lease_run_id, expiredAt: before.lease_expires_at?.toISOString() ?? null } });
-        if (!blocked && before.assignee_agent_id) await this.wake(before.company_id, before.assignee_agent_id, "retry", { taskId: before.id, dedupeKey: `retry:${before.id}`, scheduledAt: new Date(now.getTime() + 30_000) }, tx);
+        await audit(tx, {
+          companyId: before.company_id,
+          actorKind: "system",
+          action: blocked ? "task.blocked" : "task.lease_expired",
+          subjectKind: "task",
+          subjectId: before.id,
+          taskId: before.id,
+          after: { failures, leaseRunId: before.lease_run_id, expiredAt: before.lease_expires_at?.toISOString() ?? null },
+        });
+        if (!blocked && before.assignee_agent_id)
+          await this.wake(
+            before.company_id,
+            before.assignee_agent_id,
+            "retry",
+            { taskId: before.id, dedupeKey: `retry:${before.id}`, scheduledAt: new Date(now.getTime() + 30_000) },
+            tx,
+          );
         freed.push(toTask(row!));
       }
       return freed;
@@ -468,7 +653,16 @@ export class WorkService {
       const [row] = await tx<TaskRow[]>`
         UPDATE tasks SET status = 'in_review', result = ${result as never}::jsonb, lease_run_id = NULL, lease_session_id = NULL, lease_expires_at = NULL WHERE id = ${id} RETURNING *
       `;
-      await audit(tx, { companyId, actorKind: actor.kind, actorId: actor.id ?? null, action: "task.review_requested", subjectKind: "task", subjectId: id, taskId: id, after: { summary: result.summary, runId: runId ?? null } });
+      await audit(tx, {
+        companyId,
+        actorKind: actor.kind,
+        actorId: actor.id ?? null,
+        action: "task.review_requested",
+        subjectKind: "task",
+        subjectId: id,
+        taskId: id,
+        after: { summary: result.summary, runId: runId ?? null },
+      });
       if (before.reviewer_agent_id) await this.wake(companyId, before.reviewer_agent_id, "mention", { taskId: id, dedupeKey: `review:${id}`, payload: { review: true } }, tx);
       return toTask(row!);
     });
@@ -478,22 +672,34 @@ export class WorkService {
   async complete(companyId: string, id: string, result: TaskResult, actor: Actor, options: { runId?: string | null; from?: TaskStatus[] } = {}): Promise<Task> {
     if (!result.summary?.trim()) throw new WorkError("invalid_input", "done means verified: a result summary is required");
     const from = options.from ?? ["in_progress", "in_review"];
-    return this.sql.begin(async (tx) => {
-      const [before] = await tx<TaskRow[]>`SELECT * FROM tasks WHERE id = ${id} AND company_id = ${companyId} FOR UPDATE`;
-      if (!before) throw new WorkError("not_found", "task not found");
-      if (!from.includes(before.status)) throw new WorkError("invalid_transition", `task is ${before.status}`);
-      const [open] = await tx<{ n: string }[]>`SELECT count(*)::text AS n FROM tasks WHERE parent_id = ${id} AND status NOT IN ('done', 'cancelled')`;
-      if (Number(open!.n) > 0) throw new WorkError("invalid_transition", `${open!.n} subtasks are still open: a parent closes when its children are verified`);
-      const [row] = await tx<TaskRow[]>`
+    return this.sql
+      .begin(async (tx) => {
+        const [before] = await tx<TaskRow[]>`SELECT * FROM tasks WHERE id = ${id} AND company_id = ${companyId} FOR UPDATE`;
+        if (!before) throw new WorkError("not_found", "task not found");
+        if (!from.includes(before.status)) throw new WorkError("invalid_transition", `task is ${before.status}`);
+        const [open] = await tx<{ n: string }[]>`SELECT count(*)::text AS n FROM tasks WHERE parent_id = ${id} AND status NOT IN ('done', 'cancelled')`;
+        if (Number(open!.n) > 0) throw new WorkError("invalid_transition", `${open!.n} subtasks are still open: a parent closes when its children are verified`);
+        const [row] = await tx<TaskRow[]>`
         UPDATE tasks SET status = 'done', result = ${result as never}::jsonb, finished_at = now(), failures = 0, blocked_reason = NULL,
           lease_run_id = NULL, lease_session_id = NULL, lease_expires_at = NULL WHERE id = ${id} RETURNING *
       `;
-      await audit(tx, { companyId, actorKind: actor.kind, actorId: actor.id ?? null, action: "task.done", subjectKind: "task", subjectId: id, taskId: id, before: { status: before.status }, after: { summary: result.summary, verification: result.verification ?? null, runId: options.runId ?? null } });
-      return toTask(row!);
-    }).then(async (task) => {
-      await this.closed(task, "success");
-      return task;
-    });
+        await audit(tx, {
+          companyId,
+          actorKind: actor.kind,
+          actorId: actor.id ?? null,
+          action: "task.done",
+          subjectKind: "task",
+          subjectId: id,
+          taskId: id,
+          before: { status: before.status },
+          after: { summary: result.summary, verification: result.verification ?? null, runId: options.runId ?? null },
+        });
+        return toTask(row!);
+      })
+      .then(async (task) => {
+        await this.closed(task, "success");
+        return task;
+      });
   }
 
   /** A reviewer sends the task back: it returns to todo with a comment, and the assignee wakes up. */
@@ -504,35 +710,92 @@ export class WorkService {
       if (before.status !== "in_review") throw new WorkError("invalid_transition", `task is ${before.status}, not in review`);
       const [row] = await tx<TaskRow[]>`UPDATE tasks SET status = 'todo' WHERE id = ${id} RETURNING *`;
       await this.insertComment(tx, companyId, id, actor, `Changes requested: ${note}`, []);
-      await audit(tx, { companyId, actorKind: actor.kind, actorId: actor.id ?? null, action: "task.changes_requested", subjectKind: "task", subjectId: id, taskId: id, after: { note } });
-      if (before.assignee_agent_id) await this.wake(companyId, before.assignee_agent_id, "assignment", { taskId: id, dedupeKey: `assignment:${id}`, payload: { changesRequested: note } }, tx);
+      await audit(tx, {
+        companyId,
+        actorKind: actor.kind,
+        actorId: actor.id ?? null,
+        action: "task.changes_requested",
+        subjectKind: "task",
+        subjectId: id,
+        taskId: id,
+        after: { note },
+      });
+      if (before.assignee_agent_id)
+        await this.wake(companyId, before.assignee_agent_id, "assignment", { taskId: id, dedupeKey: `assignment:${id}`, payload: { changesRequested: note } }, tx);
       return toTask(row!);
     });
   }
 
   async block(companyId: string, id: string, reason: string, actor: Actor): Promise<Task> {
-    return this.transition(companyId, id, ["todo", "in_progress", "in_review"], "blocked", actor, "task.blocked", { reason }, (tx) => tx`UPDATE tasks SET status = 'blocked', blocked_reason = ${reason}, lease_run_id = NULL, lease_session_id = NULL, lease_expires_at = NULL WHERE id = ${id} RETURNING *`);
+    return this.transition(
+      companyId,
+      id,
+      ["todo", "in_progress", "in_review"],
+      "blocked",
+      actor,
+      "task.blocked",
+      { reason },
+      (tx) =>
+        tx`UPDATE tasks SET status = 'blocked', blocked_reason = ${reason}, lease_run_id = NULL, lease_session_id = NULL, lease_expires_at = NULL WHERE id = ${id} RETURNING *`,
+    );
   }
 
   async unblock(companyId: string, id: string, actor: Actor): Promise<Task> {
-    const task = await this.transition(companyId, id, ["blocked"], "todo", actor, "task.unblocked", {}, (tx) => tx`UPDATE tasks SET status = 'todo', blocked_reason = NULL, failures = 0 WHERE id = ${id} RETURNING *`);
+    const task = await this.transition(
+      companyId,
+      id,
+      ["blocked"],
+      "todo",
+      actor,
+      "task.unblocked",
+      {},
+      (tx) => tx`UPDATE tasks SET status = 'todo', blocked_reason = NULL, failures = 0 WHERE id = ${id} RETURNING *`,
+    );
     if (task.assigneeAgentId) await this.wake(companyId, task.assigneeAgentId, "assignment", { taskId: id, dedupeKey: `assignment:${id}` });
     return task;
   }
 
   async cancel(companyId: string, id: string, reason: string, actor: Actor): Promise<Task> {
-    const task = await this.transition(companyId, id, ["todo", "in_progress", "in_review", "blocked"], "cancelled", actor, "task.cancelled", { reason }, (tx) => tx`UPDATE tasks SET status = 'cancelled', finished_at = now(), lease_run_id = NULL, lease_session_id = NULL, lease_expires_at = NULL WHERE id = ${id} RETURNING *`);
+    const task = await this.transition(
+      companyId,
+      id,
+      ["todo", "in_progress", "in_review", "blocked"],
+      "cancelled",
+      actor,
+      "task.cancelled",
+      { reason },
+      (tx) => tx`UPDATE tasks SET status = 'cancelled', finished_at = now(), lease_run_id = NULL, lease_session_id = NULL, lease_expires_at = NULL WHERE id = ${id} RETURNING *`,
+    );
     await this.closed(task, "failure");
     return task;
   }
 
-  private async transition(companyId: string, id: string, from: TaskStatus[], to: TaskStatus, actor: Actor, action: string, after: Record<string, unknown>, update: (tx: TransactionSql) => Promise<TaskRow[]>): Promise<Task> {
+  private async transition(
+    companyId: string,
+    id: string,
+    from: TaskStatus[],
+    to: TaskStatus,
+    actor: Actor,
+    action: string,
+    after: Record<string, unknown>,
+    update: (tx: TransactionSql) => Promise<TaskRow[]>,
+  ): Promise<Task> {
     return this.sql.begin(async (tx) => {
       const [before] = await tx<TaskRow[]>`SELECT * FROM tasks WHERE id = ${id} AND company_id = ${companyId} FOR UPDATE`;
       if (!before) throw new WorkError("not_found", "task not found");
       if (!from.includes(before.status)) throw new WorkError("invalid_transition", `task is ${before.status}, cannot become ${to}`);
       const [row] = await update(tx);
-      await audit(tx, { companyId, actorKind: actor.kind, actorId: actor.id ?? null, action, subjectKind: "task", subjectId: id, taskId: id, before: { status: before.status }, after: { status: to, ...after } });
+      await audit(tx, {
+        companyId,
+        actorKind: actor.kind,
+        actorId: actor.id ?? null,
+        action,
+        subjectKind: "task",
+        subjectId: id,
+        taskId: id,
+        before: { status: before.status },
+        after: { status: to, ...after },
+      });
       return toTask(row!);
     });
   }
@@ -582,7 +845,16 @@ export class WorkService {
       INSERT INTO task_comments (company_id, task_id, author_kind, author_id, body, mentions)
       VALUES (${companyId}, ${taskId}, ${actor.kind}, ${actor.id ?? null}, ${body}, ${mentions as never}::jsonb) RETURNING *
     `;
-    await audit(tx, { companyId, actorKind: actor.kind, actorId: actor.id ?? null, action: "task.commented", subjectKind: "task_comment", subjectId: row!.id, taskId, after: { taskId, mentions } });
+    await audit(tx, {
+      companyId,
+      actorKind: actor.kind,
+      actorId: actor.id ?? null,
+      action: "task.commented",
+      subjectKind: "task_comment",
+      subjectId: row!.id,
+      taskId,
+      after: { taskId, mentions },
+    });
     return toComment(row!);
   }
 
@@ -591,12 +863,26 @@ export class WorkService {
     return rows.map(toComment);
   }
 
-  async addProduct(companyId: string, taskId: string, input: { kind: WorkProductKind; title: string; ref?: string; summary?: string; runId?: string | null }, actor: Actor): Promise<WorkProduct> {
+  async addProduct(
+    companyId: string,
+    taskId: string,
+    input: { kind: WorkProductKind; title: string; ref?: string; summary?: string; runId?: string | null },
+    actor: Actor,
+  ): Promise<WorkProduct> {
     const [row] = await this.sql<ProductRow[]>`
       INSERT INTO work_products (company_id, task_id, run_id, kind, title, ref, summary, created_by_kind, created_by_id)
       VALUES (${companyId}, ${taskId}, ${input.runId ?? null}, ${input.kind}, ${input.title}, ${input.ref ?? ""}, ${input.summary ?? ""}, ${actor.kind}, ${actor.id ?? null}) RETURNING *
     `;
-    await audit(this.sql, { companyId, actorKind: actor.kind, actorId: actor.id ?? null, action: "task.product_added", subjectKind: "work_product", subjectId: row!.id, taskId, after: { kind: input.kind, title: input.title, ref: input.ref ?? "" } });
+    await audit(this.sql, {
+      companyId,
+      actorKind: actor.kind,
+      actorId: actor.id ?? null,
+      action: "task.product_added",
+      subjectKind: "work_product",
+      subjectId: row!.id,
+      taskId,
+      after: { kind: input.kind, title: input.title, ref: input.ref ?? "" },
+    });
     return toProduct(row!);
   }
 
@@ -608,7 +894,13 @@ export class WorkService {
   // --- Wake-ups ------------------------------------------------------------
 
   /** Queues a reason for an agent to act. A pending wake-up with the same dedupe key absorbs the new one. */
-  async wake(companyId: string, agentId: string, reason: WakeupReason, options: { taskId?: string | null; payload?: Record<string, unknown>; dedupeKey?: string | null; scheduledAt?: Date } = {}, db: Db = this.sql): Promise<Wakeup | null> {
+  async wake(
+    companyId: string,
+    agentId: string,
+    reason: WakeupReason,
+    options: { taskId?: string | null; payload?: Record<string, unknown>; dedupeKey?: string | null; scheduledAt?: Date } = {},
+    db: Db = this.sql,
+  ): Promise<Wakeup | null> {
     const [row] = await db<WakeupRow[]>`
       INSERT INTO wakeups (company_id, agent_id, reason, task_id, payload, dedupe_key, scheduled_at)
       VALUES (${companyId}, ${agentId}, ${reason}, ${options.taskId ?? null}, ${(options.payload ?? {}) as never}::jsonb, ${options.dedupeKey ?? null}, ${options.scheduledAt ?? new Date()})
@@ -633,7 +925,8 @@ export class WorkService {
 
   /** Puts a claimed wake-up back in the queue for later (for example while its session waits for a decision). */
   async deferWakeup(id: string, delayMs: number, note?: string | null): Promise<void> {
-    await this.sql`UPDATE wakeups SET status = 'pending', claimed_at = NULL, scheduled_at = ${new Date(Date.now() + delayMs)}, error = ${note ?? null} WHERE id = ${id} AND status = 'running'`;
+    await this
+      .sql`UPDATE wakeups SET status = 'pending', claimed_at = NULL, scheduled_at = ${new Date(Date.now() + delayMs)}, error = ${note ?? null} WHERE id = ${id} AND status = 'running'`;
   }
 
   async finishWakeup(id: string, status: "done" | "failed" | "skipped", error?: string | null): Promise<void> {

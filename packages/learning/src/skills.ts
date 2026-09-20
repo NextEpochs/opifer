@@ -8,16 +8,7 @@
 
 import type { Sql, TransactionSql } from "postgres";
 import { audit } from "@opifer/db";
-import {
-  LearningError,
-  type Actor,
-  type Scope,
-  type Skill,
-  type SkillOrigin,
-  type SkillUse,
-  type SkillVersion,
-  type UsageOutcome,
-} from "./types.js";
+import { LearningError, type Actor, type Scope, type Skill, type SkillOrigin, type SkillUse, type SkillVersion, type UsageOutcome } from "./types.js";
 import { visibleScopes } from "./memory.js";
 
 interface SkillRow {
@@ -131,10 +122,7 @@ export interface CreateSkillInput {
 }
 
 /** The SKILL.md text of a version, in the open format: YAML header then body. */
-export function renderSkillMarkdown(
-  skill: Pick<Skill, "name" | "description" | "tags" | "currentVersion">,
-  version: Pick<SkillVersion, "content" | "version">,
-): string {
+export function renderSkillMarkdown(skill: Pick<Skill, "name" | "description" | "tags" | "currentVersion">, version: Pick<SkillVersion, "content" | "version">): string {
   const header = [
     `---`,
     `name: ${skill.name}`,
@@ -156,8 +144,7 @@ export function parseSkillMarkdown(text: string): {
   content: string;
 } {
   const match = /^---\s*\n([\s\S]*?)\n---\s*\n?/.exec(text);
-  if (!match)
-    return { name: null, description: "", tags: [], content: text.trim() };
+  if (!match) return { name: null, description: "", tags: [], content: text.trim() };
   const header: Record<string, string> = {};
   for (const line of match[1]!.split("\n")) {
     const idx = line.indexOf(":");
@@ -166,9 +153,7 @@ export function parseSkillMarkdown(text: string): {
   const unquote = (v: string | undefined) => {
     if (!v) return "";
     try {
-      return v.startsWith('"')
-        ? (JSON.parse(v) as string)
-        : v.replace(/^'(.*)'$/, "$1");
+      return v.startsWith('"') ? (JSON.parse(v) as string) : v.replace(/^'(.*)'$/, "$1");
     } catch {
       return v;
     }
@@ -191,34 +176,16 @@ export class SkillService {
 
   async create(input: CreateSkillInput, actor: Actor): Promise<Skill> {
     const name = input.name.trim().toLowerCase();
-    if (!SKILL_NAME.test(name))
-      throw new LearningError(
-        "invalid_input",
-        "a skill name is lowercase letters, digits and dashes (up to 64 characters)",
-      );
-    if (!input.content.trim())
-      throw new LearningError("invalid_input", "a skill needs a body");
-    if (!input.description.trim())
-      throw new LearningError(
-        "invalid_input",
-        "a skill needs a one-line description",
-      );
-    const scopeAgentId =
-      input.scope === "company" ? null : (input.scopeAgentId ?? null);
-    if (input.scope !== "company" && !scopeAgentId)
-      throw new LearningError(
-        "invalid_input",
-        `scope ${input.scope} needs an agent`,
-      );
+    if (!SKILL_NAME.test(name)) throw new LearningError("invalid_input", "a skill name is lowercase letters, digits and dashes (up to 64 characters)");
+    if (!input.content.trim()) throw new LearningError("invalid_input", "a skill needs a body");
+    if (!input.description.trim()) throw new LearningError("invalid_input", "a skill needs a one-line description");
+    const scopeAgentId = input.scope === "company" ? null : (input.scopeAgentId ?? null);
+    if (input.scope !== "company" && !scopeAgentId) throw new LearningError("invalid_input", `scope ${input.scope} needs an agent`);
     return this.sql.begin(async (tx) => {
       const [existing] = await tx<
         { id: string }[]
       >`SELECT id FROM skills WHERE company_id = ${input.companyId} AND scope = ${input.scope} AND coalesce(scope_agent_id, '00000000-0000-0000-0000-000000000000'::uuid) = coalesce(${scopeAgentId}::uuid, '00000000-0000-0000-0000-000000000000'::uuid) AND name = ${name}`;
-      if (existing)
-        throw new LearningError(
-          "conflict",
-          `a skill named "${name}" already exists in this scope`,
-        );
+      if (existing) throw new LearningError("conflict", `a skill named "${name}" already exists in this scope`);
       const [row] = await tx<SkillRow[]>`
         INSERT INTO skills (company_id, scope, scope_agent_id, name, description, tags, origin, pinned, created_by_kind, created_by_id)
         VALUES (${input.companyId}, ${input.scope}, ${scopeAgentId}, ${name}, ${input.description.trim()}, ${input.tags ?? []}, ${input.origin}, ${input.pinned ?? false}, ${actor.kind}, ${actor.id ?? null})
@@ -247,19 +214,12 @@ export class SkillService {
   }
 
   async get(companyId: string, id: string): Promise<Skill | null> {
-    const [row] = await this.sql<
-      SkillRow[]
-    >`SELECT * FROM skills WHERE id = ${id} AND company_id = ${companyId}`;
+    const [row] = await this.sql<SkillRow[]>`SELECT * FROM skills WHERE id = ${id} AND company_id = ${companyId}`;
     return row ? toSkill(row) : null;
   }
 
   /** The skill an agent means by a name: its own first, then a team's, then the company's. */
-  async resolve(
-    companyId: string,
-    agentId: string,
-    name: string,
-    db: Sql | TransactionSql = this.sql,
-  ): Promise<Skill | null> {
+  async resolve(companyId: string, agentId: string, name: string, db: Sql | TransactionSql = this.sql): Promise<Skill | null> {
     const { agentIds } = await visibleScopes(this.sql, companyId, agentId);
     const rows = await db<SkillRow[]>`
       SELECT * FROM skills WHERE company_id = ${companyId} AND name = ${name.trim().toLowerCase()} AND status <> 'archived'
@@ -282,31 +242,17 @@ export class SkillService {
     const statuses = filter.status ?? ["active", "inactive"];
     let scopeFilter = this.sql``;
     if (filter.agentView) {
-      const { agentIds } = await visibleScopes(
-        this.sql,
-        companyId,
-        filter.agentView,
-      );
-      scopeFilter = this
-        .sql`AND ((scope = 'agent' AND scope_agent_id = ${filter.agentView}) OR (scope = 'team' AND scope_agent_id = ANY(${agentIds})) OR scope = 'company')`;
+      const { agentIds } = await visibleScopes(this.sql, companyId, filter.agentView);
+      scopeFilter = this.sql`AND ((scope = 'agent' AND scope_agent_id = ${filter.agentView}) OR (scope = 'team' AND scope_agent_id = ANY(${agentIds})) OR scope = 'company')`;
     } else if (filter.scope) {
-      scopeFilter =
-        filter.scope === "company"
-          ? this.sql`AND scope = 'company'`
-          : this
-              .sql`AND scope = ${filter.scope} AND scope_agent_id = ${filter.scopeAgentId ?? null}`;
+      scopeFilter = filter.scope === "company" ? this.sql`AND scope = 'company'` : this.sql`AND scope = ${filter.scope} AND scope_agent_id = ${filter.scopeAgentId ?? null}`;
     }
-    const rows = await this.sql<
-      SkillRow[]
-    >`SELECT * FROM skills WHERE company_id = ${companyId} AND status = ANY(${statuses}) ${scopeFilter} ORDER BY scope, name`;
+    const rows = await this.sql<SkillRow[]>`SELECT * FROM skills WHERE company_id = ${companyId} AND status = ANY(${statuses}) ${scopeFilter} ORDER BY scope, name`;
     return rows.map(toSkill);
   }
 
   /** The index that enters the prompt: name and description of what the agent can load. Closer scopes shadow farther ones. */
-  async index(
-    companyId: string,
-    agentId: string,
-  ): Promise<Array<{ name: string; description: string }>> {
+  async index(companyId: string, agentId: string): Promise<Array<{ name: string; description: string }>> {
     const skills = await this.list(companyId, {
       agentView: agentId,
       status: ["active", "inactive"],
@@ -323,15 +269,9 @@ export class SkillService {
     return out.sort((a, b) => a.name.localeCompare(b.name));
   }
 
-  async version(
-    companyId: string,
-    skillId: string,
-    version?: number,
-  ): Promise<SkillVersion | null> {
+  async version(companyId: string, skillId: string, version?: number): Promise<SkillVersion | null> {
     const [row] = version
-      ? await this.sql<
-          VersionRow[]
-        >`SELECT * FROM skill_versions WHERE company_id = ${companyId} AND skill_id = ${skillId} AND version = ${version}`
+      ? await this.sql<VersionRow[]>`SELECT * FROM skill_versions WHERE company_id = ${companyId} AND skill_id = ${skillId} AND version = ${version}`
       : await this.sql<
           VersionRow[]
         >`SELECT v.* FROM skill_versions v JOIN skills s ON s.id = v.skill_id WHERE v.company_id = ${companyId} AND v.skill_id = ${skillId} AND v.version = s.current_version`;
@@ -339,9 +279,7 @@ export class SkillService {
   }
 
   async versions(companyId: string, skillId: string): Promise<SkillVersion[]> {
-    const rows = await this.sql<
-      VersionRow[]
-    >`SELECT * FROM skill_versions WHERE company_id = ${companyId} AND skill_id = ${skillId} ORDER BY version DESC`;
+    const rows = await this.sql<VersionRow[]>`SELECT * FROM skill_versions WHERE company_id = ${companyId} AND skill_id = ${skillId} ORDER BY version DESC`;
     return rows.map(toVersion);
   }
 
@@ -358,18 +296,11 @@ export class SkillService {
     },
     actor: Actor,
   ): Promise<{ skill: Skill; version: SkillVersion }> {
-    if (!input.content.trim())
-      throw new LearningError("invalid_input", "a skill needs a body");
+    if (!input.content.trim()) throw new LearningError("invalid_input", "a skill needs a body");
     return this.sql.begin(async (tx) => {
-      const [current] = await tx<
-        SkillRow[]
-      >`SELECT * FROM skills WHERE id = ${skillId} AND company_id = ${companyId} FOR UPDATE`;
+      const [current] = await tx<SkillRow[]>`SELECT * FROM skills WHERE id = ${skillId} AND company_id = ${companyId} FOR UPDATE`;
       if (!current) throw new LearningError("not_found", "skill not found");
-      const previous = await this.version(
-        companyId,
-        skillId,
-        current.current_version,
-      );
+      const previous = await this.version(companyId, skillId, current.current_version);
       const next = current.current_version + 1;
       const description = (input.description ?? current.description).trim();
       const [v] = await tx<VersionRow[]>`
@@ -395,15 +326,9 @@ export class SkillService {
   }
 
   /** Going back is a new version with the old content. */
-  async restore(
-    companyId: string,
-    skillId: string,
-    version: number,
-    actor: Actor,
-  ): Promise<{ skill: Skill; version: SkillVersion }> {
+  async restore(companyId: string, skillId: string, version: number, actor: Actor): Promise<{ skill: Skill; version: SkillVersion }> {
     const old = await this.version(companyId, skillId, version);
-    if (!old)
-      throw new LearningError("not_found", `version ${version} not found`);
+    if (!old) throw new LearningError("not_found", `version ${version} not found`);
     return this.update(
       companyId,
       skillId,
@@ -417,16 +342,8 @@ export class SkillService {
     );
   }
 
-  async setStatus(
-    companyId: string,
-    skillId: string,
-    status: Skill["status"],
-    actor: Actor,
-    reason = "",
-  ): Promise<Skill> {
-    const [before] = await this.sql<
-      SkillRow[]
-    >`SELECT * FROM skills WHERE id = ${skillId} AND company_id = ${companyId}`;
+  async setStatus(companyId: string, skillId: string, status: Skill["status"], actor: Actor, reason = ""): Promise<Skill> {
+    const [before] = await this.sql<SkillRow[]>`SELECT * FROM skills WHERE id = ${skillId} AND company_id = ${companyId}`;
     if (!before) throw new LearningError("not_found", "skill not found");
     const [row] = await this.sql<SkillRow[]>`
       UPDATE skills SET status = ${status}, archived_at = ${status === "archived" ? new Date() : null} WHERE id = ${skillId} RETURNING *
@@ -435,12 +352,7 @@ export class SkillService {
       companyId,
       actorKind: actor.kind,
       actorId: actor.id ?? null,
-      action:
-        status === "archived"
-          ? "skill.archived"
-          : before.status === "archived"
-            ? "skill.restored"
-            : "skill.status_changed",
+      action: status === "archived" ? "skill.archived" : before.status === "archived" ? "skill.restored" : "skill.status_changed",
       subjectKind: "skill",
       subjectId: skillId,
       before: { status: before.status },
@@ -449,15 +361,8 @@ export class SkillService {
     return toSkill(row!);
   }
 
-  async pin(
-    companyId: string,
-    skillId: string,
-    pinned: boolean,
-    actor: Actor,
-  ): Promise<Skill> {
-    const [row] = await this.sql<
-      SkillRow[]
-    >`UPDATE skills SET pinned = ${pinned} WHERE id = ${skillId} AND company_id = ${companyId} RETURNING *`;
+  async pin(companyId: string, skillId: string, pinned: boolean, actor: Actor): Promise<Skill> {
+    const [row] = await this.sql<SkillRow[]>`UPDATE skills SET pinned = ${pinned} WHERE id = ${skillId} AND company_id = ${companyId} RETURNING *`;
     if (!row) throw new LearningError("not_found", "skill not found");
     await audit(this.sql, {
       companyId,
@@ -495,24 +400,15 @@ export class SkillService {
   }
 
   /** When a task closes, every skill used in it learns how it went. */
-  async settleTask(
-    companyId: string,
-    taskId: string,
-    outcome: Exclude<UsageOutcome, "unknown">,
-  ): Promise<number> {
+  async settleTask(companyId: string, taskId: string, outcome: Exclude<UsageOutcome, "unknown">): Promise<number> {
     const rows = await this.sql<
       { id: string }[]
     >`UPDATE skill_usage SET outcome = ${outcome} WHERE company_id = ${companyId} AND task_id = ${taskId} AND outcome = 'unknown' RETURNING id`;
     return rows.length;
   }
 
-  async usage(
-    companyId: string,
-    skillId: string,
-  ): Promise<{ uses: SkillUse[]; successes: number; failures: number }> {
-    const rows = await this.sql<
-      UseRow[]
-    >`SELECT * FROM skill_usage WHERE company_id = ${companyId} AND skill_id = ${skillId} ORDER BY created_at DESC LIMIT 200`;
+  async usage(companyId: string, skillId: string): Promise<{ uses: SkillUse[]; successes: number; failures: number }> {
+    const rows = await this.sql<UseRow[]>`SELECT * FROM skill_usage WHERE company_id = ${companyId} AND skill_id = ${skillId} ORDER BY created_at DESC LIMIT 200`;
     const uses = rows.map(toUse);
     return {
       uses,
@@ -531,12 +427,8 @@ export class SkillService {
     thresholds: { inactiveAfterDays: number; archiveAfterDays: number },
     now: Date = new Date(),
   ): Promise<{ backupId: string; inactivated: string[]; archived: string[] }> {
-    const all = await this.sql<
-      SkillRow[]
-    >`SELECT * FROM skills WHERE company_id = ${companyId}`;
-    const versions = await this.sql<
-      VersionRow[]
-    >`SELECT * FROM skill_versions WHERE company_id = ${companyId}`;
+    const all = await this.sql<SkillRow[]>`SELECT * FROM skills WHERE company_id = ${companyId}`;
+    const versions = await this.sql<VersionRow[]>`SELECT * FROM skill_versions WHERE company_id = ${companyId}`;
     const [backup] = await this.sql<{ id: string }[]>`
       INSERT INTO learning_backups (company_id, kind, payload) VALUES (${companyId}, 'curator', ${{ at: now.toISOString(), skills: all.map(toSkill), versions: versions.map(toVersion) } as never}::jsonb) RETURNING id
     `;
@@ -547,25 +439,10 @@ export class SkillService {
       const last = s.last_used_at ?? s.created_at;
       const idle = (now.getTime() - last.getTime()) / 86_400_000;
       if (idle >= thresholds.archiveAfterDays) {
-        await this.setStatus(
-          companyId,
-          s.id,
-          "archived",
-          { kind: "system" },
-          `unused for ${Math.floor(idle)} days`,
-        );
+        await this.setStatus(companyId, s.id, "archived", { kind: "system" }, `unused for ${Math.floor(idle)} days`);
         archived.push(s.id);
-      } else if (
-        idle >= thresholds.inactiveAfterDays &&
-        s.status === "active"
-      ) {
-        await this.setStatus(
-          companyId,
-          s.id,
-          "inactive",
-          { kind: "system" },
-          `unused for ${Math.floor(idle)} days`,
-        );
+      } else if (idle >= thresholds.inactiveAfterDays && s.status === "active") {
+        await this.setStatus(companyId, s.id, "inactive", { kind: "system" }, `unused for ${Math.floor(idle)} days`);
         inactivated.push(s.id);
       }
     }

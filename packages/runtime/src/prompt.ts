@@ -79,10 +79,7 @@ export function assembleSystemPrompt(input: PromptInput): string {
   sections.push(`# Memory\n${input.memorySnapshot?.trim() || "No memory saved yet."}`);
 
   const skills = input.skillsIndex ?? [];
-  sections.push(
-    `# Available skills\n` +
-      (skills.length > 0 ? skills.map((s) => `- ${s.name}: ${s.description}`).join("\n") : "No skills available yet."),
-  );
+  sections.push(`# Available skills\n` + (skills.length > 0 ? skills.map((s) => `- ${s.name}: ${s.description}`).join("\n") : "No skills available yet."));
 
   sections.push(`# Governance rules\n` + [...DEFAULT_RULES, ...(input.governanceRules ?? [])].map((r) => `- ${r}`).join("\n"));
 

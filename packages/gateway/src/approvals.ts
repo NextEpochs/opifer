@@ -169,7 +169,15 @@ export class ApprovalService implements ApprovalGate {
       UPDATE approvals SET status = 'expired', decided_at = ${now} WHERE status = 'pending' AND expires_at IS NOT NULL AND expires_at <= ${now} RETURNING id, company_id
     `;
     for (const row of rows) {
-      await audit(this.sql, { companyId: row.company_id, actorKind: "system", action: "approval.expired", subjectKind: "approval", subjectId: row.id, before: { status: "pending" }, after: { status: "expired" } });
+      await audit(this.sql, {
+        companyId: row.company_id,
+        actorKind: "system",
+        action: "approval.expired",
+        subjectKind: "approval",
+        subjectId: row.id,
+        before: { status: "pending" },
+        after: { status: "expired" },
+      });
     }
     return rows.length;
   }

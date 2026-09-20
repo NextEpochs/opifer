@@ -6,18 +6,7 @@
  * fixes the phase names and the default limits; the loop arrives in M1.
  */
 
-export const TURN_PHASES = [
-  "preflight",
-  "assemble",
-  "call",
-  "errors",
-  "read",
-  "tools",
-  "overflow",
-  "compress",
-  "recover",
-  "close",
-] as const;
+export const TURN_PHASES = ["preflight", "assemble", "call", "errors", "read", "tools", "overflow", "compress", "recover", "close"] as const;
 
 export type TurnPhase = (typeof TURN_PHASES)[number];
 
@@ -34,11 +23,4 @@ export const DEFAULT_TURN_LIMITS: TurnLimits = {
   budget: null,
 };
 
-export type StopReason =
-  | "final_answer"
-  | "interrupted"
-  | "iteration_limit"
-  | "time_limit"
-  | "budget_exhausted"
-  | "approval_pending"
-  | "error";
+export type StopReason = "final_answer" | "interrupted" | "iteration_limit" | "time_limit" | "budget_exhausted" | "approval_pending" | "error";

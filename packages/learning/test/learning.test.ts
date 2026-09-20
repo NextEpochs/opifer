@@ -4,14 +4,7 @@ import { ProviderRegistry, SessionStore } from "@opifer/runtime";
 import { FakeProvider } from "@opifer/runtime/testing";
 import type { Embedder } from "@opifer/sdk";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import {
-  LearningError,
-  LearningService,
-  parseSkillMarkdown,
-  renderSkillMarkdown,
-  transcriptOf,
-  parseProposals,
-} from "../src/index.js";
+import { LearningError, LearningService, parseSkillMarkdown, renderSkillMarkdown, transcriptOf, parseProposals } from "../src/index.js";
 
 interface Fixture {
   db: TestDatabase;
@@ -47,29 +40,17 @@ async function createFixture(
   } = {},
 ): Promise<Fixture> {
   const db = await createTestDatabase();
-  const [company] = await db.sql<
-    { id: string }[]
-  >`INSERT INTO companies (name, mission) VALUES ('Workshop', 'Ship useful software') RETURNING id`;
-  const [ceo] = await db.sql<
-    { id: string }[]
-  >`INSERT INTO agents (company_id, name, role) VALUES (${company!.id}, 'Philip', 'CEO') RETURNING id`;
+  const [company] = await db.sql<{ id: string }[]>`INSERT INTO companies (name, mission) VALUES ('Workshop', 'Ship useful software') RETURNING id`;
+  const [ceo] = await db.sql<{ id: string }[]>`INSERT INTO agents (company_id, name, role) VALUES (${company!.id}, 'Philip', 'CEO') RETURNING id`;
   const [nora] = await db.sql<
     { id: string }[]
   >`INSERT INTO agents (company_id, name, role, reports_to_agent_id) VALUES (${company!.id}, 'Nora', 'Researcher', ${ceo!.id}) RETURNING id`;
-  const [leo] = await db.sql<
-    { id: string }[]
-  >`INSERT INTO agents (company_id, name, role, reports_to_agent_id) VALUES (${company!.id}, 'Leo', 'Writer', ${ceo!.id}) RETURNING id`;
+  const [leo] = await db.sql<{ id: string }[]>`INSERT INTO agents (company_id, name, role, reports_to_agent_id) VALUES (${company!.id}, 'Leo', 'Writer', ${ceo!.id}) RETURNING id`;
   const provider = new FakeProvider((request) => {
-    const text = request.messages
-      .map((m) =>
-        m.content.map((p) => (p.type === "text" ? p.text : "")).join(""),
-      )
-      .join("\n");
+    const text = request.messages.map((m) => m.content.map((p) => (p.type === "text" ? p.text : "")).join("")).join("\n");
     return {
       kind: "text",
-      text: options.reviewScript
-        ? options.reviewScript(text)
-        : '{"memories":[],"skill":null,"retire":[],"reason":"nothing"}',
+      text: options.reviewScript ? options.reviewScript(text) : '{"memories":[],"skill":null,"retire":[],"reason":"nothing"}',
     };
   });
   const providers = new ProviderRegistry().register(provider);
@@ -137,21 +118,15 @@ describe("memory: scopes, snapshot, corrections, search", () => {
       },
       person,
     );
-    const seen = (await memories.list(f.companyId, { agentView: f.nora })).map(
-      (m) => m.content,
-    );
-    expect(seen).toContain(
-      "Mike prefers tables with sources for every number.",
-    );
+    const seen = (await memories.list(f.companyId, { agentView: f.nora })).map((m) => m.content);
+    expect(seen).toContain("Mike prefers tables with sources for every number.");
     expect(seen).toContain("The team ships on Fridays.");
     expect(seen).toContain("The company writes in English.");
     expect(seen).not.toContain("Leo's private note about copy tone.");
     const snapshot = await f.learning.snapshot(f.companyId, f.nora);
     expect(snapshot.memory).toContain("- Mike prefers tables");
     expect(snapshot.memory).toContain("[team] The team ships on Fridays.");
-    expect(snapshot.memory).toContain(
-      "[company] The company writes in English.",
-    );
+    expect(snapshot.memory).toContain("[company] The company writes in English.");
     expect(snapshot.memoryCount).toBe(3);
   });
 
@@ -166,20 +141,12 @@ describe("memory: scopes, snapshot, corrections, search", () => {
         },
         { kind: "agent", id: f.leo },
       );
-    await f.learning.settings.update(
-      f.companyId,
-      { snapshotMaxChars: 400 },
-      { kind: "person" },
-    );
+    await f.learning.settings.update(f.companyId, { snapshotMaxChars: 400 }, { kind: "person" });
     const snapshot = await f.learning.snapshot(f.companyId, f.leo);
     expect(snapshot.memory.length).toBeLessThan(500);
     expect(snapshot.truncated).toBe(true);
     expect(snapshot.memory).toContain("more entries: use memory_search");
-    await f.learning.settings.update(
-      f.companyId,
-      { snapshotMaxChars: 6000 },
-      { kind: "person" },
-    );
+    await f.learning.settings.update(f.companyId, { snapshotMaxChars: 6000 }, { kind: "person" });
   });
 
   it("a correction supersedes, a retirement keeps the entry; neither deletes", async () => {
@@ -193,23 +160,11 @@ describe("memory: scopes, snapshot, corrections, search", () => {
       },
       { kind: "agent", id: f.nora },
     );
-    const fixed = await memories.correct(
-      f.companyId,
-      m.id,
-      "The pricing page has three plans.",
-      { kind: "person" },
-    );
+    const fixed = await memories.correct(f.companyId, m.id, "The pricing page has three plans.", { kind: "person" });
     expect(fixed.supersedesId).toBe(m.id);
     expect((await memories.get(f.companyId, m.id))?.status).toBe("superseded");
-    await expect(
-      memories.retire(f.companyId, fixed.id, "", { kind: "person" }),
-    ).rejects.toBeInstanceOf(LearningError);
-    const retired = await memories.retire(
-      f.companyId,
-      fixed.id,
-      "the page changed again",
-      { kind: "person" },
-    );
+    await expect(memories.retire(f.companyId, fixed.id, "", { kind: "person" })).rejects.toBeInstanceOf(LearningError);
+    const retired = await memories.retire(f.companyId, fixed.id, "the page changed again", { kind: "person" });
     expect(retired.status).toBe("retired");
     expect(retired.retiredReason).toBe("the page changed again");
     const active = await memories.list(f.companyId, { agentView: f.nora });
@@ -219,24 +174,16 @@ describe("memory: scopes, snapshot, corrections, search", () => {
       status: ["active", "retired", "superseded"],
     });
     expect(all.some((x) => x.id === m.id)).toBe(true);
-    const [row] = await f.db.sql<
-      { n: string }[]
-    >`SELECT count(*)::text AS n FROM audit_log WHERE action IN ('memory.corrected', 'memory.retired')`;
+    const [row] = await f.db.sql<{ n: string }[]>`SELECT count(*)::text AS n FROM audit_log WHERE action IN ('memory.corrected', 'memory.retired')`;
     expect(Number(row!.n)).toBe(2);
   });
 
   it("search finds by words and reranks by meaning when an embedder is on", async () => {
-    const hits = await f.learning.memories.search(
-      f.companyId,
-      f.nora,
-      "tables with sources",
-    );
+    const hits = await f.learning.memories.search(f.companyId, f.nora, "tables with sources");
     expect(hits[0]?.memory.content).toContain("tables with sources");
     expect(f.learning.memories.semantic).toBe(true);
     expect(hits[0]!.memory.hasEmbedding).toBe(true);
-    expect(
-      await f.learning.memories.search(f.companyId, f.nora, "zzzz qqqq"),
-    ).toEqual([]);
+    expect(await f.learning.memories.search(f.companyId, f.nora, "zzzz qqqq")).toEqual([]);
   });
 });
 
@@ -294,8 +241,7 @@ describe("skills: versions, index, curator, promotion", () => {
       f.companyId,
       skill.id,
       {
-        content:
-          "1. Open each page.\n2. Note plans, prices and limits.\n3. Cite the source.",
+        content: "1. Open each page.\n2. Note plans, prices and limits.\n3. Cite the source.",
         note: "add sources",
       },
       { kind: "person" },
@@ -306,9 +252,7 @@ describe("skills: versions, index, curator, promotion", () => {
     });
     expect(restored.version.version).toBe(3);
     expect(restored.version.content).toContain("Note plans and prices.");
-    expect(
-      (await skills.versions(f.companyId, skill.id)).map((v) => v.version),
-    ).toEqual([3, 2, 1]);
+    expect((await skills.versions(f.companyId, skill.id)).map((v) => v.version)).toEqual([3, 2, 1]);
     const md = renderSkillMarkdown(restored.skill, restored.version);
     expect(parseSkillMarkdown(md)).toMatchObject({
       name: "compare-pricing",
@@ -341,17 +285,10 @@ describe("skills: versions, index, curator, promotion", () => {
       { kind: "person" },
     );
     const index = await skills.index(f.companyId, f.nora);
-    expect(index.map((s) => s.name)).toEqual([
-      "compare-pricing",
-      "write-release-notes",
-    ]);
-    expect(index.find((s) => s.name === "compare-pricing")?.description).toBe(
-      "Compare competitor pricing pages",
-    );
+    expect(index.map((s) => s.name)).toEqual(["compare-pricing", "write-release-notes"]);
+    expect(index.find((s) => s.name === "compare-pricing")?.description).toBe("Compare competitor pricing pages");
     const leoIndex = await skills.index(f.companyId, f.leo);
-    expect(
-      leoIndex.find((s) => s.name === "compare-pricing")?.description,
-    ).toBe("Company-wide version");
+    expect(leoIndex.find((s) => s.name === "compare-pricing")?.description).toBe("Company-wide version");
     const own = await skills.resolve(f.companyId, f.nora, "compare-pricing");
     await skills.recordUse(f.companyId, own!.id, { agentId: f.nora });
     expect((await skills.get(f.companyId, own!.id))?.uses).toBe(1);
@@ -409,10 +346,8 @@ describe("skills: versions, index, curator, promotion", () => {
       },
       { kind: "agent", id: f.leo },
     );
-    await f.db
-      .sql`UPDATE skills SET created_at = ${old}, last_used_at = ${old} WHERE id IN (${stale.id}, ${pinned.id}, ${human.id})`;
-    await f.db
-      .sql`UPDATE skills SET created_at = ${new Date(Date.now() - 45 * 86_400_000)} WHERE id = ${dozing.id}`;
+    await f.db.sql`UPDATE skills SET created_at = ${old}, last_used_at = ${old} WHERE id IN (${stale.id}, ${pinned.id}, ${human.id})`;
+    await f.db.sql`UPDATE skills SET created_at = ${new Date(Date.now() - 45 * 86_400_000)} WHERE id = ${dozing.id}`;
     const result = await skills.curate(f.companyId, {
       inactiveAfterDays: 30,
       archiveAfterDays: 90,
@@ -421,13 +356,9 @@ describe("skills: versions, index, curator, promotion", () => {
     expect(result.inactivated).toEqual([dozing.id]);
     expect((await skills.get(f.companyId, pinned.id))?.status).toBe("active");
     expect((await skills.get(f.companyId, human.id))?.status).toBe("active");
-    const [backup] = await f.db.sql<
-      { payload: { skills: unknown[] } }[]
-    >`SELECT payload FROM learning_backups WHERE id = ${result.backupId}`;
+    const [backup] = await f.db.sql<{ payload: { skills: unknown[] } }[]>`SELECT payload FROM learning_backups WHERE id = ${result.backupId}`;
     expect(backup!.payload.skills.length).toBeGreaterThanOrEqual(4);
-    const [count] = await f.db.sql<
-      { n: string }[]
-    >`SELECT count(*)::text AS n FROM skills WHERE id = ${stale.id}`;
+    const [count] = await f.db.sql<{ n: string }[]>`SELECT count(*)::text AS n FROM skills WHERE id = ${stale.id}`;
     expect(Number(count!.n)).toBe(1);
     const back = await skills.setStatus(f.companyId, stale.id, "active", {
       kind: "person",
@@ -453,52 +384,24 @@ describe("skills: versions, index, curator, promotion", () => {
     );
 
     await settings.update(f.companyId, { promotion: "forbidden" }, person);
-    await expect(
-      promotions.propose(f.companyId, "skill", skill.id, "company", person),
-    ).rejects.toMatchObject({ code: "forbidden" });
-    expect(
-      (await skills.list(f.companyId, { scope: "company" })).some(
-        (s) => s.name === "cite-sources",
-      ),
-    ).toBe(false);
+    await expect(promotions.propose(f.companyId, "skill", skill.id, "company", person)).rejects.toMatchObject({ code: "forbidden" });
+    expect((await skills.list(f.companyId, { scope: "company" })).some((s) => s.name === "cite-sources")).toBe(false);
 
     await settings.update(f.companyId, { promotion: "review" }, person);
-    const proposed = await promotions.propose(
-      f.companyId,
-      "skill",
-      skill.id,
-      "company",
-      person,
-      { successes: 3 },
-    );
+    const proposed = await promotions.propose(f.companyId, "skill", skill.id, "company", person, { successes: 3 });
     expect(proposed.status).toBe("proposed");
     expect(proposed.approvalId).not.toBeNull();
-    expect(
-      (await skills.list(f.companyId, { scope: "company" })).some(
-        (s) => s.name === "cite-sources",
-      ),
-    ).toBe(false);
+    expect((await skills.list(f.companyId, { scope: "company" })).some((s) => s.name === "cite-sources")).toBe(false);
     const approval = await f.approvals.get(f.companyId, proposed.approvalId!);
     expect(approval?.kind).toBe("skill_promotion");
     await f.approvals.decide(f.companyId, proposed.approvalId!, {
       status: "approved",
     });
-    const applied = await promotions.decide(
-      f.companyId,
-      proposed.id,
-      true,
-      person,
-    );
+    const applied = await promotions.decide(f.companyId, proposed.id, true, person);
     expect(applied.status).toBe("applied");
-    const shared = (await skills.list(f.companyId, { scope: "company" })).find(
-      (s) => s.name === "cite-sources",
-    );
+    const shared = (await skills.list(f.companyId, { scope: "company" })).find((s) => s.name === "cite-sources");
     expect(shared?.promotedFromId).toBe(skill.id);
-    expect(
-      (await skills.index(f.companyId, f.leo)).some(
-        (s) => s.name === "cite-sources",
-      ),
-    ).toBe(true);
+    expect((await skills.index(f.companyId, f.leo)).some((s) => s.name === "cite-sources")).toBe(true);
     expect((await skills.get(f.companyId, skill.id))?.scope).toBe("agent");
 
     await settings.update(f.companyId, { promotion: "automatic" }, person);
@@ -511,19 +414,9 @@ describe("skills: versions, index, curator, promotion", () => {
       },
       person,
     );
-    const auto = await promotions.propose(
-      f.companyId,
-      "memory",
-      memory.id,
-      "company",
-      person,
-    );
+    const auto = await promotions.propose(f.companyId, "memory", memory.id, "company", person);
     expect(auto.status).toBe("applied");
-    expect(
-      (await f.learning.memories.list(f.companyId, { scope: "company" })).some(
-        (m) => m.content.includes("Mondays"),
-      ),
-    ).toBe(true);
+    expect((await f.learning.memories.list(f.companyId, { scope: "company" })).some((m) => m.content.includes("Mondays"))).toBe(true);
 
     // A name clash at the target is flagged, never merged.
     const clash = await skills.create(
@@ -538,18 +431,12 @@ describe("skills: versions, index, curator, promotion", () => {
       },
       { kind: "agent", id: f.leo },
     );
-    await expect(
-      promotions.propose(f.companyId, "skill", clash.id, "company", person),
-    ).rejects.toMatchObject({ code: "conflict" });
+    await expect(promotions.propose(f.companyId, "skill", clash.id, "company", person)).rejects.toMatchObject({ code: "conflict" });
   });
 
   it("successful uses past the threshold propose a promotion by themselves", async () => {
     const { skills, promotions, settings } = f.learning;
-    await settings.update(
-      f.companyId,
-      { promotion: "review", promotionThreshold: 2 },
-      { kind: "person" },
-    );
+    await settings.update(f.companyId, { promotion: "review", promotionThreshold: 2 }, { kind: "person" });
     const skill = await skills.create(
       {
         companyId: f.companyId,
@@ -562,30 +449,20 @@ describe("skills: versions, index, curator, promotion", () => {
       },
       { kind: "agent", id: f.leo },
     );
-    const [t1] = await f.db.sql<
-      { id: string }[]
-    >`INSERT INTO tasks (company_id, title, status) VALUES (${f.companyId}, 'FAQ one', 'in_progress') RETURNING id`;
-    const [t2] = await f.db.sql<
-      { id: string }[]
-    >`INSERT INTO tasks (company_id, title, status) VALUES (${f.companyId}, 'FAQ two', 'in_progress') RETURNING id`;
+    const [t1] = await f.db.sql<{ id: string }[]>`INSERT INTO tasks (company_id, title, status) VALUES (${f.companyId}, 'FAQ one', 'in_progress') RETURNING id`;
+    const [t2] = await f.db.sql<{ id: string }[]>`INSERT INTO tasks (company_id, title, status) VALUES (${f.companyId}, 'FAQ two', 'in_progress') RETURNING id`;
     await skills.recordUse(f.companyId, skill.id, {
       agentId: f.leo,
       taskId: t1!.id,
     });
     await f.learning.onTaskClosed(f.companyId, t1!.id, "success");
-    expect(
-      (await promotions.list(f.companyId)).some(
-        (p) => p.subjectId === skill.id,
-      ),
-    ).toBe(false);
+    expect((await promotions.list(f.companyId)).some((p) => p.subjectId === skill.id)).toBe(false);
     await skills.recordUse(f.companyId, skill.id, {
       agentId: f.leo,
       taskId: t2!.id,
     });
     await f.learning.onTaskClosed(f.companyId, t2!.id, "success");
-    const proposal = (await promotions.list(f.companyId)).find(
-      (p) => p.subjectId === skill.id,
-    );
+    const proposal = (await promotions.list(f.companyId)).find((p) => p.subjectId === skill.id);
     expect(proposal?.status).toBe("proposed");
     expect(proposal?.evidence).toMatchObject({ successes: 2 });
   });
@@ -612,8 +489,7 @@ describe("the background review", () => {
               skill: {
                 name: "write-pricing-page",
                 description: "Write or update the pricing page",
-                content:
-                  "1. Read site/pricing.md.\n2. Keep three plans.\n3. Highlight the middle one.\n4. Run pnpm build.",
+                content: "1. Read site/pricing.md.\n2. Keep three plans.\n3. Highlight the middle one.\n4. Run pnpm build.",
               },
               retire: [],
               reason: "a repeatable job",
@@ -718,24 +594,18 @@ describe("the background review", () => {
     };
     expect(after.messages).toEqual(before.messages);
     expect(after.session?.systemPrompt).toBe("SYSTEM PROMPT v1");
-    expect(after.session?.systemPromptHash).toBe(
-      before.session?.systemPromptHash,
-    );
+    expect(after.session?.systemPromptHash).toBe(before.session?.systemPromptHash);
     expect((await f.store.listRuns(session.id)).length).toBe(1);
 
     const snapshot = await f.learning.snapshot(f.companyId, f.leo);
-    expect(snapshot.memory).toContain(
-      "Mike: Wants the middle plan highlighted.",
-    );
+    expect(snapshot.memory).toContain("Mike: Wants the middle plan highlighted.");
     expect(snapshot.skills).toEqual([
       {
         name: "write-pricing-page",
         description: "Write or update the pricing page",
       },
     ]);
-    const memory = (
-      await f.learning.memories.list(f.companyId, { agentView: f.leo })
-    )[0];
+    const memory = (await f.learning.memories.list(f.companyId, { agentView: f.leo }))[0];
     expect(memory?.sourceSessionId).toBe(session.id);
     expect(memory?.authorKind).toBe("agent");
     expect(await f.learning.reviewer.claim()).toBeNull();
@@ -775,11 +645,7 @@ describe("the background review", () => {
     );
     expect(review.status).toBe("done");
     expect(review.applied.skill?.version).toBe(2);
-    expect(
-      (await f.learning.skills.list(f.companyId, { agentView: f.leo })).filter(
-        (s) => s.name === "write-pricing-page",
-      ),
-    ).toHaveLength(1);
+    expect((await f.learning.skills.list(f.companyId, { agentView: f.leo })).filter((s) => s.name === "write-pricing-page")).toHaveLength(1);
 
     const chat = await f.store.createSession({
       companyId: f.companyId,
@@ -818,16 +684,9 @@ describe("the background review", () => {
   });
 
   it("helpers: transcript trimming and tolerant JSON parsing", () => {
-    const text = transcriptOf(
-      [{ role: "user", content: [{ type: "text", text: "x".repeat(100) }] }],
-      40,
-    );
+    const text = transcriptOf([{ role: "user", content: [{ type: "text", text: "x".repeat(100) }] }], 40);
     expect(text.startsWith("[... earlier part")).toBe(true);
-    expect(
-      parseProposals(
-        'Sure! Here it is:\n{"memories":[{"content":"A"}],"skill":null,"retire":[],"reason":"r"}\nThanks',
-      ),
-    ).toMatchObject({
+    expect(parseProposals('Sure! Here it is:\n{"memories":[{"content":"A"}],"skill":null,"retire":[],"reason":"r"}\nThanks')).toMatchObject({
       memories: [{ kind: "note", content: "A" }],
       skill: null,
     });
@@ -835,11 +694,7 @@ describe("the background review", () => {
   });
 
   it("reviews are off when the company says so", async () => {
-    await f.learning.settings.update(
-      f.companyId,
-      { reviewEnabled: false },
-      { kind: "person" },
-    );
+    await f.learning.settings.update(f.companyId, { reviewEnabled: false }, { kind: "person" });
     const session = await f.store.createSession({
       companyId: f.companyId,
       agentId: f.leo,

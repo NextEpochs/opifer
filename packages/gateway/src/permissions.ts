@@ -54,7 +54,14 @@ export class PermissionService {
     return rows.map(toPolicy);
   }
 
-  async setPolicy(input: { companyId: string; targetKind: PolicyTarget; targetId?: string | null; toolName: string; permission: ToolPermission; actorId?: string | null }): Promise<ToolPolicy> {
+  async setPolicy(input: {
+    companyId: string;
+    targetKind: PolicyTarget;
+    targetId?: string | null;
+    toolName: string;
+    permission: ToolPermission;
+    actorId?: string | null;
+  }): Promise<ToolPolicy> {
     const targetId = input.targetKind === "company" ? null : (input.targetId ?? null);
     if (input.targetKind !== "company" && !targetId) throw new Error(`a ${input.targetKind} policy needs the ${input.targetKind} id`);
     const [existing] = await this.sql<PolicyRow[]>`
@@ -83,7 +90,15 @@ export class PermissionService {
   async removePolicy(companyId: string, policyId: string, actorId?: string | null): Promise<boolean> {
     const [row] = await this.sql<PolicyRow[]>`DELETE FROM tool_policies WHERE id = ${policyId} AND company_id = ${companyId} RETURNING *`;
     if (!row) return false;
-    await audit(this.sql, { companyId, actorKind: "person", actorId: actorId ?? null, action: "tool.policy_removed", subjectKind: "tool_policy", subjectId: policyId, before: toPolicy(row) });
+    await audit(this.sql, {
+      companyId,
+      actorKind: "person",
+      actorId: actorId ?? null,
+      action: "tool.policy_removed",
+      subjectKind: "tool_policy",
+      subjectId: policyId,
+      before: toPolicy(row),
+    });
     return true;
   }
 

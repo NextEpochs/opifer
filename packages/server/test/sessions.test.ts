@@ -93,7 +93,13 @@ describe("Sessions API", () => {
     const session = (await app.inject({ method: "POST", url: `/v1/companies/${companyId}/sessions`, payload: { agentId } })).json() as { id: string };
     const socket = new WebSocket(`${baseURL.replace("http", "ws")}/v1/events`);
     await new Promise<void>((r) => socket.on("open", () => r()));
-    const finished = waitForEvent(socket, (e) => e.type === "session.event" && (e.payload as { sessionId: string; event: { type: string } }).sessionId === session.id && (e.payload as { event: { type: string } }).event.type === "done");
+    const finished = waitForEvent(
+      socket,
+      (e) =>
+        e.type === "session.event" &&
+        (e.payload as { sessionId: string; event: { type: string } }).sessionId === session.id &&
+        (e.payload as { event: { type: string } }).event.type === "done",
+    );
     await app.inject({ method: "POST", url: `/v1/sessions/${session.id}/messages`, payload: { text: "list the files" } });
     await finished;
     socket.close();

@@ -25,9 +25,7 @@ const provider = new FakeProvider((request) => {
       kind: "text",
       text: `Done. The command printed: ${toolResult.content.split("\n")[0]}`,
     };
-  const text = last.content
-    .map((p) => (p.type === "text" ? p.text : ""))
-    .join("");
+  const text = last.content.map((p) => (p.type === "text" ? p.text : "")).join("");
   if (/build|run|deploy/i.test(text))
     return {
       kind: "tools",
@@ -45,13 +43,7 @@ const provider = new FakeProvider((request) => {
   };
 });
 const dir = await mkdtemp(path.join(tmpdir(), "opifer-preview-"));
-const uiDir = path.resolve(
-  path.dirname(fileURLToPath(import.meta.url)),
-  "..",
-  "..",
-  "ui",
-  "dist",
-);
+const uiDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "ui", "dist");
 const app = await buildApp({
   db,
   mode: "local",
@@ -60,9 +52,7 @@ const app = await buildApp({
     providers: new ProviderRegistry().register(provider),
     defaultModel: "fake/echo",
     fallbackModel: null,
-    report: [
-      { id: "fake", enabled: true, detail: "scripted preview provider" },
-    ],
+    report: [{ id: "fake", enabled: true, detail: "scripted preview provider" }],
   },
   workRoot: path.join(dir, "work"),
   governance: { credentialsDir: path.join(dir, "credentials") },
@@ -186,9 +176,7 @@ const research = await work.createProject(
   },
   mike,
 );
-const leo = (
-  await app.inject({ method: "GET", url: `/v1/companies/${company.id}/agents` })
-).json() as Array<{ id: string; name: string }>;
+const leo = (await app.inject({ method: "GET", url: `/v1/companies/${company.id}/agents` })).json() as Array<{ id: string; name: string }>;
 const leoId = leo.find((a) => a.name === "Leo")!.id;
 
 const pricing = await work.createTask(
@@ -232,10 +220,8 @@ await work.requestReview(
   company.id,
   compare.id,
   {
-    summary:
-      "Compared six competitors; the median price is 29 EUR a month. Table with sources attached.",
-    verification:
-      "Every price checked on the public pricing page on 18 September.",
+    summary: "Compared six competitors; the median price is 29 EUR a month. Table with sources attached.",
+    verification: "Every price checked on the public pricing page on 18 September.",
   },
   { kind: "agent", id: nora.id },
 );
@@ -251,12 +237,7 @@ const analytics = await work.createTask(
   mike,
 );
 await work.checkout(company.id, analytics.id, { agentId: philip.id });
-await work.block(
-  company.id,
-  analytics.id,
-  "I need the analytics account credentials; none is configured.",
-  { kind: "agent", id: philip.id },
-);
+await work.block(company.id, analytics.id, "I need the analytics account credentials; none is configured.", { kind: "agent", id: philip.id });
 const domain = await work.createTask(
   {
     companyId: company.id,
@@ -308,18 +289,8 @@ await work.createTask(
   },
   mike,
 );
-await work.comment(
-  company.id,
-  pricing.id,
-  mike,
-  "Keep the middle plan as the recommended one.",
-);
-await work.comment(
-  company.id,
-  pricing.id,
-  { kind: "agent", id: leoId },
-  "Understood — drafting three plans now, middle one highlighted.",
-);
+await work.comment(company.id, pricing.id, mike, "Keep the middle plan as the recommended one.");
+await work.comment(company.id, pricing.id, { kind: "agent", id: leoId }, "Understood — drafting three plans now, middle one highlighted.");
 
 // Learning: memories, skills and a couple of reviews, so the Learning page has something to show.
 const learning = app.opifer.learning!;
@@ -328,8 +299,7 @@ await learning.memories.remember(
   {
     companyId: company.id,
     scope: "company",
-    content:
-      "The company writes everything in English; the interface stays bilingual.",
+    content: "The company writes everything in English; the interface stays bilingual.",
   },
   mike,
 );
@@ -350,8 +320,7 @@ await learning.memories.remember(
     companyId: company.id,
     scope: "agent",
     scopeAgentId: nora.id,
-    content:
-      "Competitor pricing pages change on Mondays; check them early in the week.",
+    content: "Competitor pricing pages change on Mondays; check them early in the week.",
     source: { taskId: compare.id },
   },
   noraActor,
@@ -361,8 +330,7 @@ await learning.memories.remember(
     companyId: company.id,
     scope: "agent",
     scopeAgentId: leoId,
-    content:
-      "The pricing page lives in site/pricing.md; keep three plans and highlight the middle one.",
+    content: "The pricing page lives in site/pricing.md; keep three plans and highlight the middle one.",
   },
   { kind: "agent", id: leoId },
 );
@@ -382,8 +350,7 @@ const compareSkill = await learning.skills.create(
     scope: "agent",
     scopeAgentId: nora.id,
     name: "compare-pricing",
-    description:
-      "Compare the pricing pages of a list of competitors into a sourced table",
+    description: "Compare the pricing pages of a list of competitors into a sourced table",
     content:
       "1. Open each competitor's public pricing page.\n2. Note plans, monthly and yearly prices, limits.\n3. Put everything in one table, one row per plan, with the URL as source.\n4. Add the median price at the bottom.\n5. Deliver with task_deliver and attach the table as a document.",
     origin: "agent",
@@ -411,8 +378,7 @@ await learning.skills.create(
     scope: "company",
     name: "write-release-notes",
     description: "Write the release notes of a version from the changelog",
-    content:
-      "1. Read CHANGELOG.md.\n2. One line per user-visible change, no internals.\n3. Group by Added / Changed / Fixed.\n4. Deliver as a document.",
+    content: "1. Read CHANGELOG.md.\n2. One line per user-visible change, no internals.\n3. Group by Added / Changed / Fixed.\n4. Deliver as a document.",
     origin: "person",
     pinned: true,
   },

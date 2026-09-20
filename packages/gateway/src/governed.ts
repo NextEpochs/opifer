@@ -52,7 +52,12 @@ export class GovernedToolExecutor implements ToolExecutor {
   /** What a person must approve before this call runs: the tool itself, or a dangerous command. */
   private needsApproval(name: string, args: Record<string, unknown>, resolved: ResolvedPermission): ApprovalNeeded | null {
     if (resolved.permission === "approval") {
-      return { kind: "tool_use", reason: `tool ${name} requires approval (${resolved.source} policy)`, risk: resolved.risk, subject: { permission: resolved.permission, source: resolved.source } };
+      return {
+        kind: "tool_use",
+        reason: `tool ${name} requires approval (${resolved.source} policy)`,
+        risk: resolved.risk,
+        subject: { permission: resolved.permission, source: resolved.source },
+      };
     }
     if (name === "terminal" && typeof args["command"] === "string") {
       const verdict = classifyCommand(args["command"]);

@@ -1,12 +1,6 @@
 export { connect, connectionString, waitForDatabase } from "./client.js";
 export type { Database, DatabaseConfig, DatabaseHandle } from "./client.js";
-export {
-  DEFAULT_MIGRATIONS_DIR,
-  loadMigrations,
-  migrateDown,
-  migrateUp,
-  migrationStatus,
-} from "./migrate.js";
+export { DEFAULT_MIGRATIONS_DIR, loadMigrations, migrateDown, migrateUp, migrationStatus } from "./migrate.js";
 export type { AppliedMigration, MigrateDownOptions, MigrateOptions, Migration, MigrationStatus } from "./migrate.js";
 export { embeddedConfig, startEmbeddedPostgres } from "./embedded.js";
 export type { EmbeddedCluster, EmbeddedOptions } from "./embedded.js";

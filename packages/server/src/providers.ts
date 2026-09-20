@@ -75,7 +75,11 @@ export async function setupProviders(config: ModelsConfig = {}, env: NodeJS.Proc
           ...(issuer ? { oauth: { ...DEFAULT_OAUTH, authorizeURL: `${issuer}/oauth/authorize`, tokenURL: `${issuer}/oauth/token` } } : {}),
         }),
       );
-      report.push({ id: "chatgpt", enabled: true, detail: `signed in as ${credentials.email ?? credentials.accountId}${credentials.planType ? ` (${credentials.planType})` : ""}` });
+      report.push({
+        id: "chatgpt",
+        enabled: true,
+        detail: `signed in as ${credentials.email ?? credentials.accountId}${credentials.planType ? ` (${credentials.planType})` : ""}`,
+      });
     } else {
       report.push({ id: "chatgpt", enabled: false, detail: "not signed in (o4r login chatgpt)" });
     }

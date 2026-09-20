@@ -5,12 +5,7 @@
  */
 
 import OpenAI from "openai";
-import type {
-  ChatCompletionAssistantMessageParam,
-  ChatCompletionChunk,
-  ChatCompletionMessageParam,
-  ChatCompletionTool,
-} from "openai/resources/chat/completions";
+import type { ChatCompletionAssistantMessageParam, ChatCompletionChunk, ChatCompletionMessageParam, ChatCompletionTool } from "openai/resources/chat/completions";
 import {
   ProviderError,
   type CompletionRequest,
@@ -60,7 +55,10 @@ function toOpenAIMessages(request: CompletionRequest, systemRole: "system" | "de
   for (const m of request.messages) {
     if (m.role === "system") continue;
     if (m.role === "assistant") {
-      const text = m.content.filter((p): p is Extract<Message["content"][number], { type: "text" }> => p.type === "text").map((p) => p.text).join("");
+      const text = m.content
+        .filter((p): p is Extract<Message["content"][number], { type: "text" }> => p.type === "text")
+        .map((p) => p.text)
+        .join("");
       const calls = m.content.filter((p): p is ContentToolCall => p.type === "tool_call");
       const msg: ChatCompletionAssistantMessageParam = { role: "assistant", content: text || null };
       if (calls.length > 0) {
@@ -147,7 +145,13 @@ export class OpenAIProvider implements ModelProvider, EmbeddingProvider {
     }
     return ids.map((id) => ({
       id,
-      capabilities: { contextWindow: this.options.defaultContextWindow ?? 128_000, maxOutputTokens: 16_384, vision: false, reasoning: false, toolCalling: this.options.compat?.tools !== false },
+      capabilities: {
+        contextWindow: this.options.defaultContextWindow ?? 128_000,
+        maxOutputTokens: 16_384,
+        vision: false,
+        reasoning: false,
+        toolCalling: this.options.compat?.tools !== false,
+      },
       price: priceFor(id, this.options.prices),
     }));
   }

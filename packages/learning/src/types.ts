@@ -98,8 +98,7 @@ export interface LearningSettings {
   archiveAfterDays: number;
 }
 
-export type PromotionStatus =
-  "proposed" | "approved" | "denied" | "applied" | "forbidden";
+export type PromotionStatus = "proposed" | "approved" | "denied" | "applied" | "forbidden";
 
 export interface Promotion {
   id: string;
@@ -118,8 +117,7 @@ export interface Promotion {
   createdAt: Date;
 }
 
-export type ReviewStatus =
-  "pending" | "running" | "done" | "failed" | "skipped";
+export type ReviewStatus = "pending" | "running" | "done" | "failed" | "skipped";
 
 export interface LearningReview {
   id: string;

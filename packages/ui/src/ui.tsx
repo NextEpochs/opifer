@@ -25,7 +25,13 @@ export function Avatar({ name, size = 34, colour, ring }: { name: string; size?:
     <span
       aria-hidden="true"
       className="inline-flex shrink-0 items-center justify-center rounded-full font-extrabold text-white"
-      style={{ width: size, height: size, fontSize: Math.max(11, Math.round(size / 2.6)), background: colour ?? colourFor(name), boxShadow: ring ? `0 0 0 2px var(--o-card), 0 0 0 4px ${ring}` : undefined }}
+      style={{
+        width: size,
+        height: size,
+        fontSize: Math.max(11, Math.round(size / 2.6)),
+        background: colour ?? colourFor(name),
+        boxShadow: ring ? `0 0 0 2px var(--o-card), 0 0 0 4px ${ring}` : undefined,
+      }}
     >
       {initials(name)}
     </span>
@@ -92,7 +98,13 @@ export function Button({
   ...rest
 }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: ButtonVariant; size?: "sm" | "md" | "lg" }) {
   const sizeCls = size === "sm" ? "h-9 px-3 text-[13px]" : size === "lg" ? "h-12 px-5 text-[15px]" : "h-10 px-4 text-sm";
-  return <button type={type} className={`inline-flex shrink-0 items-center justify-center gap-2 rounded-control font-bold transition disabled:opacity-50 ${sizeCls} ${buttonVariant[variant]} ${className}`} {...rest} />;
+  return (
+    <button
+      type={type}
+      className={`inline-flex shrink-0 items-center justify-center gap-2 rounded-control font-bold transition disabled:opacity-50 ${sizeCls} ${buttonVariant[variant]} ${className}`}
+      {...rest}
+    />
+  );
 }
 
 export function Card({ children, className = "", ...rest }: React.HTMLAttributes<HTMLElement>) {
@@ -137,7 +149,19 @@ export function Code({ children }: { children: ReactNode }) {
 }
 
 /** Three-state segmented control (Auto / Ask / Off, Simple / Advanced, …). */
-export function Segmented<T extends string>({ value, options, onChange, label, className = "" }: { value: T; options: Array<{ value: T; label: string }>; onChange: (v: T) => void; label: string; className?: string }) {
+export function Segmented<T extends string>({
+  value,
+  options,
+  onChange,
+  label,
+  className = "",
+}: {
+  value: T;
+  options: Array<{ value: T; label: string }>;
+  onChange: (v: T) => void;
+  label: string;
+  className?: string;
+}) {
   return (
     <div role="group" aria-label={label} className={`flex gap-1 rounded-control bg-raised p-1 ${className}`}>
       {options.map((o) => (

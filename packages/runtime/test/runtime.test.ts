@@ -36,7 +36,12 @@ describe("runtime: basic turn", () => {
     expect(result.assistantText).toBe("echo: ciao");
     expect(result.run.status).toBe("completed");
     expect(result.run.inputTokens).toBeGreaterThan(0);
-    expect(events.filter((e) => e.type === "text").map((e) => (e as { text: string }).text).join("")).toBe("echo: ciao");
+    expect(
+      events
+        .filter((e) => e.type === "text")
+        .map((e) => (e as { text: string }).text)
+        .join(""),
+    ).toBe("echo: ciao");
     expect(events.filter((e) => e.type === "phase").map((e) => (e as { phase: string }).phase)).toEqual(["preflight", "assemble", "call", "read", "close"]);
 
     const messages = await f.runtime.store.listMessages(session.id);
@@ -90,7 +95,8 @@ describe("runtime: tools and resumption", () => {
   });
 
   it("refuses always-forbidden commands without running them", async () => {
-    const script: Script = (_r, i) => (i === 0 ? { kind: "tools", calls: [{ name: "terminal", arguments: { command: "rm -rf / --no-preserve-root" } }] } : { kind: "text", text: "understood" });
+    const script: Script = (_r, i) =>
+      i === 0 ? { kind: "tools", calls: [{ name: "terminal", arguments: { command: "rm -rf / --no-preserve-root" } }] } : { kind: "text", text: "understood" };
     const rt = f.restart(script);
     const session = await rt.startSession({ companyId: f.companyId, agentId: f.agentId, workdir: `${f.workRoot}/s2` });
     const events: RuntimeEvent[] = [];
@@ -132,8 +138,7 @@ describe("runtime: tools and resumption", () => {
   });
 
   it("an operator message mid-turn enters a tool result", async () => {
-    const script: Script = (_r, i) =>
-      i === 0 ? { kind: "tools", calls: [{ name: "terminal", arguments: { command: "sleep 0.3; echo done" } }] } : { kind: "text", text: "ok" };
+    const script: Script = (_r, i) => (i === 0 ? { kind: "tools", calls: [{ name: "terminal", arguments: { command: "sleep 0.3; echo done" } }] } : { kind: "text", text: "ok" });
     const rt = f.restart(script);
     const session = await rt.startSession({ companyId: f.companyId, agentId: f.agentId, workdir: `${f.workRoot}/s3` });
     const pending = rt.runTurn({ sessionId: session.id, text: "work" });
@@ -216,7 +221,14 @@ describe("runtime: error recovery", () => {
 function toolScript(): Script {
   return (_request, i) => {
     if (i === 0) return { kind: "tools", text: "writing", calls: [{ name: "write_file", arguments: { path: "notes/hello.txt", content: "hello world" } }] };
-    if (i === 1) return { kind: "tools", calls: [{ name: "read_file", arguments: { path: "notes/hello.txt" } }, { name: "terminal", arguments: { command: "cat notes/hello.txt | wc -c" } }] };
+    if (i === 1)
+      return {
+        kind: "tools",
+        calls: [
+          { name: "read_file", arguments: { path: "notes/hello.txt" } },
+          { name: "terminal", arguments: { command: "cat notes/hello.txt | wc -c" } },
+        ],
+      };
     return { kind: "text", text: "content: hello world" };
   };
 }

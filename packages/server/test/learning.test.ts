@@ -35,20 +35,13 @@ describe("Learning: background review, skills in the prompt, cheaper repeats", (
     const dir = await mkdtemp(path.join(tmpdir(), "opifer-learning-"));
     workdir = path.join(dir, "site");
     await mkdir(workdir, { recursive: true });
-    await writeFile(
-      path.join(workdir, "README.md"),
-      "# Site\nBuild with: pnpm build\n",
-    );
+    await writeFile(path.join(workdir, "README.md"), "# Site\nBuild with: pnpm build\n");
     await writeFile(path.join(workdir, "CHANGELOG.md"), "## 1.0\n- first\n");
 
     const provider = new FakeProvider((request) => {
       // The reviewer: proposes the procedure as a skill, plus a memory.
       if (request.system === REVIEW_PROMPT) {
-        reviewCalls.push(
-          request.messages[0]!.content.map((p) =>
-            p.type === "text" ? p.text : "",
-          ).join(""),
-        );
+        reviewCalls.push(request.messages[0]!.content.map((p) => (p.type === "text" ? p.text : "")).join(""));
         return {
           kind: "text",
           text: JSON.stringify({
@@ -60,10 +53,8 @@ describe("Learning: background review, skills in the prompt, cheaper repeats", (
             ],
             skill: {
               name: "release-notes",
-              description:
-                "Write the release notes of the site from its changelog",
-              content:
-                "1. Read CHANGELOG.md.\n2. Write the notes.\n3. Deliver with task_deliver.",
+              description: "Write the release notes of the site from its changelog",
+              content: "1. Read CHANGELOG.md.\n2. Write the notes.\n3. Deliver with task_deliver.",
             },
             retire: [],
             reason: "repeatable",
@@ -71,14 +62,10 @@ describe("Learning: background review, skills in the prompt, cheaper repeats", (
         };
       }
       const last = request.messages.at(-1)!;
-      const results = request.messages.flatMap((m) =>
-        m.content.filter((p) => p.type === "tool_result"),
-      );
+      const results = request.messages.flatMap((m) => m.content.filter((p) => p.type === "tool_result"));
       const step = results.length;
       const knowsSkill = request.system.includes("- release-notes:");
-      const text = last.content
-        .map((p) => (p.type === "text" ? p.text : ""))
-        .join("");
+      const text = last.content.map((p) => (p.type === "text" ? p.text : "")).join("");
       const deliver = {
         kind: "tools" as const,
         calls: [
@@ -101,9 +88,7 @@ describe("Learning: background review, skills in the prompt, cheaper repeats", (
         if (step === 1)
           return {
             kind: "tools",
-            calls: [
-              { name: "skill_load", arguments: { name: "release-notes" } },
-            ],
+            calls: [{ name: "skill_load", arguments: { name: "release-notes" } }],
           };
         if (step === 2)
           return {
@@ -126,9 +111,7 @@ describe("Learning: background review, skills in the prompt, cheaper repeats", (
       if (step === 3)
         return {
           kind: "tools",
-          calls: [
-            { name: "search_files", arguments: { pattern: "1.0", path: "." } },
-          ],
+          calls: [{ name: "search_files", arguments: { pattern: "1.0", path: "." } }],
         };
       if (step === 4)
         return {
@@ -226,9 +209,7 @@ describe("Learning: background review, skills in the prompt, cheaper repeats", (
       })
     ).json() as { id: string };
     await runScheduler();
-    const delivered = (
-      await app.inject({ method: "GET", url: `/v1/tasks/${task.id}` })
-    ).json() as { status: string; sessionId?: string | null };
+    const delivered = (await app.inject({ method: "GET", url: `/v1/tasks/${task.id}` })).json() as { status: string; sessionId?: string | null };
     expect(delivered.status).toBe("in_review");
     const done = (
       await app.inject({
@@ -284,9 +265,7 @@ describe("Learning: background review, skills in the prompt, cheaper repeats", (
         url: `/v1/companies/${companyId}/learning/reviews`,
       })
     ).json() as Array<{ status: string; taskId: string | null }>;
-    expect(
-      pending.some((r) => r.status === "pending" && r.taskId === first),
-    ).toBe(true);
+    expect(pending.some((r) => r.status === "pending" && r.taskId === first)).toBe(true);
     const ran = (
       await app.inject({
         method: "POST",
@@ -340,9 +319,7 @@ describe("Learning: background review, skills in the prompt, cheaper repeats", (
   });
 
   it("the repeated job uses the learned skill and costs at least 25% less", async () => {
-    const [firstTask] = await db.sql<
-      { id: string }[]
-    >`SELECT id FROM tasks WHERE company_id = ${companyId} ORDER BY created_at LIMIT 1`;
+    const [firstTask] = await db.sql<{ id: string }[]>`SELECT id FROM tasks WHERE company_id = ${companyId} ORDER BY created_at LIMIT 1`;
     const before = await costOf(firstTask!.id);
     const second = await doTask("Release notes 1.1");
     const after = await costOf(second);
@@ -416,17 +393,13 @@ describe("Learning: background review, skills in the prompt, cheaper repeats", (
         url: `/v1/companies/${companyId}/skills?scope=company`,
       })
     ).json() as Array<{ name: string; promotedFromId: string | null }>;
-    expect(shared.find((s) => s.name === "release-notes")?.promotedFromId).toBe(
-      skill.id,
-    );
+    expect(shared.find((s) => s.name === "release-notes")?.promotedFromId).toBe(skill.id);
     const exported = (
       await app.inject({
         method: "GET",
         url: `/v1/companies/${companyId}/skills/${skill.id}/export`,
       })
     ).json() as { markdown: string };
-    expect(exported.markdown.startsWith("---\nname: release-notes\n")).toBe(
-      true,
-    );
+    expect(exported.markdown.startsWith("---\nname: release-notes\n")).toBe(true);
   });
 });

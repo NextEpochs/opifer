@@ -61,7 +61,11 @@ export interface AppContext {
   learningWorker: LearningWorker | null;
 }
 
-export function buildRuntime(db: DatabaseHandle, providers: ProviderRegistry, options: { workRoot: string; defaultModel: string; fallbackModel?: string | null; tools?: AppOptions["tools"]; gates?: GovernanceGates; learning?: LearningHooks }): AgentRuntime {
+export function buildRuntime(
+  db: DatabaseHandle,
+  providers: ProviderRegistry,
+  options: { workRoot: string; defaultModel: string; fallbackModel?: string | null; tools?: AppOptions["tools"]; gates?: GovernanceGates; learning?: LearningHooks },
+): AgentRuntime {
   return new AgentRuntime({
     sql: db.sql,
     providers,
@@ -93,7 +97,10 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   const app = Fastify({ logger: options.logger ?? false });
   const bus = options.bus ?? new EventBus();
   const workRoot = options.workRoot ?? path.join(tmpdir(), "opifer-work");
-  const work = new WorkService(options.db.sql, { ...(options.work?.leaseMs !== undefined ? { leaseMs: options.work.leaseMs } : {}), ...(options.work?.failureThreshold !== undefined ? { failureThreshold: options.work.failureThreshold } : {}) });
+  const work = new WorkService(options.db.sql, {
+    ...(options.work?.leaseMs !== undefined ? { leaseMs: options.work.leaseMs } : {}),
+    ...(options.work?.failureThreshold !== undefined ? { failureThreshold: options.work.failureThreshold } : {}),
+  });
   // Learning needs the providers (for the review and, when one can embed, for semantic search).
   const learning = options.providers
     ? new LearningService(options.db.sql, new SessionStore(options.db.sql), options.providers.providers, {
@@ -102,7 +109,8 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
       })
     : null;
   // Native tools plus the task and learning tools, under governance when it is on.
-  const inner = options.tools ?? new NativeToolExecutor([...NATIVE_TOOLS, ...taskTools(work, options.db.sql), ...(learning ? learningTools(learning.memories, learning.skills) : [])]);
+  const inner =
+    options.tools ?? new NativeToolExecutor([...NATIVE_TOOLS, ...taskTools(work, options.db.sql), ...(learning ? learningTools(learning.memories, learning.skills) : [])]);
   const governance =
     options.providers && options.governance
       ? await buildGovernance(options.db, options.providers.providers, bus, {
@@ -138,9 +146,20 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
     };
   }
   const scheduler = runtime
-    ? new Scheduler({ sql: options.db.sql, work, runtime, bus, workRoot, log: app.log, ...(options.work?.tickMs !== undefined ? { tickMs: options.work.tickMs } : {}), ...(options.work?.concurrency !== undefined ? { concurrency: options.work.concurrency } : {}) })
+    ? new Scheduler({
+        sql: options.db.sql,
+        work,
+        runtime,
+        bus,
+        workRoot,
+        log: app.log,
+        ...(options.work?.tickMs !== undefined ? { tickMs: options.work.tickMs } : {}),
+        ...(options.work?.concurrency !== undefined ? { concurrency: options.work.concurrency } : {}),
+      })
     : null;
-  const learningWorker = learning ? new LearningWorker({ sql: options.db.sql, learning, bus, log: app.log, ...(options.learning?.tickMs !== undefined ? { tickMs: options.learning.tickMs } : {}) }) : null;
+  const learningWorker = learning
+    ? new LearningWorker({ sql: options.db.sql, learning, bus, log: app.log, ...(options.learning?.tickMs !== undefined ? { tickMs: options.learning.tickMs } : {}) })
+    : null;
   app.decorate("opifer", { db: options.db, bus, mode: options.mode, runtime, governance, work, scheduler, learning, learningWorker });
   if (scheduler && options.work?.scheduler !== false) {
     app.addHook("onReady", async () => scheduler.start());
@@ -165,7 +184,14 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
     } catch {
       database = "error";
     }
-    return { status: database === "ok" ? "ok" : "degraded", version: OPIFER_VERSION, mode: options.mode, database, runtime: runtime ? "ok" : "absent", governance: governance ? "ok" : "absent" };
+    return {
+      status: database === "ok" ? "ok" : "degraded",
+      version: OPIFER_VERSION,
+      mode: options.mode,
+      database,
+      runtime: runtime ? "ok" : "absent",
+      governance: governance ? "ok" : "absent",
+    };
   });
 
   app.get("/v1/events", { websocket: true }, (socket) => {

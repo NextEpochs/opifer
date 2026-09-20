@@ -8,7 +8,17 @@
 import path from "node:path";
 import type { EventBus } from "@opifer/core";
 import type { DatabaseHandle } from "@opifer/db";
-import { AgentConfigService, ApprovalService, BudgetService, GovernedToolExecutor, PermissionService, PriceBook, SecretCipher, SecretService, loadMasterKey } from "@opifer/gateway";
+import {
+  AgentConfigService,
+  ApprovalService,
+  BudgetService,
+  GovernedToolExecutor,
+  PermissionService,
+  PriceBook,
+  SecretCipher,
+  SecretService,
+  loadMasterKey,
+} from "@opifer/gateway";
 import { NATIVE_TOOLS, NativeToolExecutor, type GovernanceGates, type ProviderRegistry, type ToolExecutor } from "@opifer/runtime";
 
 export interface Governance {
@@ -56,7 +66,14 @@ export async function buildGovernance(db: DatabaseHandle, providers: ProviderReg
         sessionId: context.sessionId,
         runId: context.runId,
         kind: "budget_increase",
-        subject: { policyId: decision.policyId ?? null, scope: decision.scope, window: decision.window ?? null, cap: decision.cap, spent: decision.spent, currency: decision.currency },
+        subject: {
+          policyId: decision.policyId ?? null,
+          scope: decision.scope,
+          window: decision.window ?? null,
+          cap: decision.cap,
+          spent: decision.spent,
+          currency: decision.currency,
+        },
         reason: decision.reason,
         risk: "medium",
       });

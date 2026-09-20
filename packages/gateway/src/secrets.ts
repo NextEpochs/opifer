@@ -172,7 +172,15 @@ export class SecretService {
   async unbind(companyId: string, bindingId: string, actorId?: string | null): Promise<boolean> {
     const [row] = await this.sql<BindingRow[]>`DELETE FROM secret_bindings WHERE id = ${bindingId} AND company_id = ${companyId} RETURNING *`;
     if (!row) return false;
-    await audit(this.sql, { companyId, actorKind: "person", actorId: actorId ?? null, action: "secret.unbound", subjectKind: "secret_binding", subjectId: bindingId, before: { secretName: row.secret_name, agentId: row.agent_id, toolName: row.tool_name } });
+    await audit(this.sql, {
+      companyId,
+      actorKind: "person",
+      actorId: actorId ?? null,
+      action: "secret.unbound",
+      subjectKind: "secret_binding",
+      subjectId: bindingId,
+      before: { secretName: row.secret_name, agentId: row.agent_id, toolName: row.tool_name },
+    });
     return true;
   }
 
@@ -209,7 +217,10 @@ export class SecretService {
     return values;
   }
 
-  async accessLog(companyId: string, limit = 100): Promise<Array<{ secretName: string; agentId: string | null; sessionId: string | null; runId: string | null; toolName: string | null; occurredAt: Date }>> {
+  async accessLog(
+    companyId: string,
+    limit = 100,
+  ): Promise<Array<{ secretName: string; agentId: string | null; sessionId: string | null; runId: string | null; toolName: string | null; occurredAt: Date }>> {
     const rows = await this.sql<{ secret_name: string; agent_id: string | null; session_id: string | null; run_id: string | null; tool_name: string | null; occurred_at: Date }[]>`
       SELECT secret_name, agent_id, session_id, run_id, tool_name, occurred_at FROM secret_access_events WHERE company_id = ${companyId} ORDER BY occurred_at DESC LIMIT ${limit}
     `;

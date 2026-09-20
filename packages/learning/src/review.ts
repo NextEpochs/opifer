@@ -9,21 +9,11 @@
 import type { Sql } from "postgres";
 import type { Message } from "@opifer/sdk";
 import { audit } from "@opifer/db";
-import {
-  completeWithRecovery,
-  estimateInputTokens,
-  type BudgetGate,
-  type ProviderRegistry,
-  type SessionStore,
-} from "@opifer/runtime";
+import { completeWithRecovery, estimateInputTokens, type BudgetGate, type ProviderRegistry, type SessionStore } from "@opifer/runtime";
 import type { MemoryService } from "./memory.js";
 import { SKILL_NAME, type SkillService } from "./skills.js";
 import type { LearningSettingsService } from "./promotion.js";
-import type {
-  LearningReview,
-  ReviewApplied,
-  ReviewProposals,
-} from "./types.js";
+import type { LearningReview, ReviewApplied, ReviewProposals } from "./types.js";
 
 interface ReviewRow {
   id: string;
@@ -79,30 +69,17 @@ export interface ReviewerOptions {
 }
 
 /** The conversation as text for the reviewer, with tool results kept short. */
-export function transcriptOf(
-  messages: Array<{ role: string; content: Message["content"] }>,
-  maxChars: number,
-): string {
+export function transcriptOf(messages: Array<{ role: string; content: Message["content"] }>, maxChars: number): string {
   const lines: string[] = [];
   for (const m of messages) {
     for (const part of m.content) {
-      if (part.type === "text" && part.text.trim())
-        lines.push(
-          `${m.role === "assistant" ? "AGENT" : m.role === "user" ? "PERSON" : m.role.toUpperCase()}: ${part.text.trim()}`,
-        );
-      else if (part.type === "tool_call")
-        lines.push(
-          `AGENT calls ${part.name}(${JSON.stringify(part.arguments).slice(0, 400)})`,
-        );
-      else if (part.type === "tool_result")
-        lines.push(
-          `RESULT (${part.isError ? "error" : "ok"}): ${part.content.slice(0, 600)}`,
-        );
+      if (part.type === "text" && part.text.trim()) lines.push(`${m.role === "assistant" ? "AGENT" : m.role === "user" ? "PERSON" : m.role.toUpperCase()}: ${part.text.trim()}`);
+      else if (part.type === "tool_call") lines.push(`AGENT calls ${part.name}(${JSON.stringify(part.arguments).slice(0, 400)})`);
+      else if (part.type === "tool_result") lines.push(`RESULT (${part.isError ? "error" : "ok"}): ${part.content.slice(0, 600)}`);
     }
   }
   let text = lines.join("\n");
-  if (text.length > maxChars)
-    text = `[... earlier part of the conversation omitted ...]\n${text.slice(text.length - maxChars)}`;
+  if (text.length > maxChars) text = `[... earlier part of the conversation omitted ...]\n${text.slice(text.length - maxChars)}`;
   return text;
 }
 
@@ -112,44 +89,26 @@ export function parseProposals(text: string): ReviewProposals | null {
   const end = text.lastIndexOf("}");
   if (start < 0 || end <= start) return null;
   try {
-    const raw = JSON.parse(text.slice(start, end + 1)) as Record<
-      string,
-      unknown
-    >;
+    const raw = JSON.parse(text.slice(start, end + 1)) as Record<string, unknown>;
     const memories = Array.isArray(raw["memories"])
       ? (raw["memories"] as Array<Record<string, unknown>>)
-          .filter(
-            (m) =>
-              typeof m["content"] === "string" &&
-              (m["content"] as string).trim(),
-          )
+          .filter((m) => typeof m["content"] === "string" && (m["content"] as string).trim())
           .map((m) => ({
-            kind:
-              m["kind"] === "profile"
-                ? ("profile" as const)
-                : ("note" as const),
+            kind: m["kind"] === "profile" ? ("profile" as const) : ("note" as const),
             subject: typeof m["subject"] === "string" ? m["subject"] : "",
             content: (m["content"] as string).trim(),
           }))
       : [];
     const s = raw["skill"];
     const skill =
-      s &&
-      typeof s === "object" &&
-      typeof (s as Record<string, unknown>)["name"] === "string" &&
-      typeof (s as Record<string, unknown>)["content"] === "string"
+      s && typeof s === "object" && typeof (s as Record<string, unknown>)["name"] === "string" && typeof (s as Record<string, unknown>)["content"] === "string"
         ? {
             name: String((s as Record<string, unknown>)["name"])
               .trim()
               .toLowerCase(),
-            description: String(
-              (s as Record<string, unknown>)["description"] ?? "",
-            ).trim(),
+            description: String((s as Record<string, unknown>)["description"] ?? "").trim(),
             content: String((s as Record<string, unknown>)["content"]).trim(),
-            improves:
-              typeof (s as Record<string, unknown>)["improves"] === "string"
-                ? String((s as Record<string, unknown>)["improves"])
-                : null,
+            improves: typeof (s as Record<string, unknown>)["improves"] === "string" ? String((s as Record<string, unknown>)["improves"]) : null,
           }
         : null;
     const retire = Array.isArray(raw["retire"])
@@ -183,13 +142,7 @@ export class Reviewer {
   ) {}
 
   /** Queues a review of a finished run; the worker runs it later. */
-  async enqueue(input: {
-    companyId: string;
-    agentId: string;
-    sessionId: string;
-    runId?: string | null;
-    taskId?: string | null;
-  }): Promise<LearningReview | null> {
+  async enqueue(input: { companyId: string; agentId: string; sessionId: string; runId?: string | null; taskId?: string | null }): Promise<LearningReview | null> {
     const settings = await this.settings.get(input.companyId);
     if (!settings.reviewEnabled) return null;
     const [row] = await this.sql<ReviewRow[]>`
@@ -199,23 +152,16 @@ export class Reviewer {
   }
 
   async get(companyId: string, id: string): Promise<LearningReview | null> {
-    const [row] = await this.sql<
-      ReviewRow[]
-    >`SELECT * FROM learning_reviews WHERE id = ${id} AND company_id = ${companyId}`;
+    const [row] = await this.sql<ReviewRow[]>`SELECT * FROM learning_reviews WHERE id = ${id} AND company_id = ${companyId}`;
     return row ? toReview(row) : null;
   }
 
-  async list(
-    companyId: string,
-    filter: { agentId?: string; limit?: number } = {},
-  ): Promise<LearningReview[]> {
+  async list(companyId: string, filter: { agentId?: string; limit?: number } = {}): Promise<LearningReview[]> {
     const rows = filter.agentId
       ? await this.sql<
           ReviewRow[]
         >`SELECT * FROM learning_reviews WHERE company_id = ${companyId} AND agent_id = ${filter.agentId} ORDER BY created_at DESC LIMIT ${filter.limit ?? 50}`
-      : await this.sql<
-          ReviewRow[]
-        >`SELECT * FROM learning_reviews WHERE company_id = ${companyId} ORDER BY created_at DESC LIMIT ${filter.limit ?? 50}`;
+      : await this.sql<ReviewRow[]>`SELECT * FROM learning_reviews WHERE company_id = ${companyId} ORDER BY created_at DESC LIMIT ${filter.limit ?? 50}`;
     return rows.map(toReview);
   }
 
@@ -230,14 +176,10 @@ export class Reviewer {
   }
 
   /** Runs one review to the end. Safe to call on a claimed row only. */
-  async run(
-    review: LearningReview,
-    signal?: AbortSignal,
-  ): Promise<LearningReview> {
+  async run(review: LearningReview, signal?: AbortSignal): Promise<LearningReview> {
     try {
       const session = await this.store.getSession(review.sessionId);
-      if (!session)
-        return this.finish(review.id, "skipped", { error: "session gone" });
+      if (!session) return this.finish(review.id, "skipped", { error: "session gone" });
       const messages = await this.store.listMessages(review.sessionId);
       const copy = messages.map((m) => ({ role: m.role, content: m.content }));
       const transcript = transcriptOf(copy, this.options.maxChars ?? 60_000);
@@ -250,17 +192,12 @@ export class Reviewer {
         agentView: review.agentId,
         limit: 100,
       });
-      const skillIndex = await this.skills.index(
-        review.companyId,
-        review.agentId,
-      );
+      const skillIndex = await this.skills.index(review.companyId, review.agentId);
       const context = [
         existing.length > 0
           ? `The agent already remembers (id · text):\n${existing.map((m) => `- ${m.id} · ${m.subject ? `${m.subject}: ` : ""}${m.content}`).join("\n")}`
           : "The agent remembers nothing yet.",
-        skillIndex.length > 0
-          ? `Skills the agent already has:\n${skillIndex.map((s) => `- ${s.name}: ${s.description}`).join("\n")}`
-          : "The agent has no skills yet.",
+        skillIndex.length > 0 ? `Skills the agent already has:\n${skillIndex.map((s) => `- ${s.name}: ${s.description}`).join("\n")}` : "The agent has no skills yet.",
         `The conversation:\n${transcript}`,
       ].join("\n\n");
 
@@ -310,12 +247,7 @@ export class Reviewer {
       }
       let costEur = 0;
       if (reservationId) {
-        const settled = await this.options.budget!.settle(
-          reservationId,
-          outcome.modelId,
-          outcome.usage,
-          "auxiliary_model",
-        );
+        const settled = await this.options.budget!.settle(reservationId, outcome.modelId, outcome.usage, "auxiliary_model");
         if (settled) costEur = settled.eur;
       }
       const proposals = parseProposals(outcome.text);
@@ -338,11 +270,7 @@ export class Reviewer {
     }
   }
 
-  private async apply(
-    review: LearningReview,
-    proposals: ReviewProposals,
-    knownIds: string[],
-  ): Promise<ReviewApplied> {
+  private async apply(review: LearningReview, proposals: ReviewProposals, knownIds: string[]): Promise<ReviewApplied> {
     const actor = { kind: "agent" as const, id: review.agentId };
     const source = {
       sessionId: review.sessionId,
@@ -371,29 +299,13 @@ export class Reviewer {
     }
     for (const r of (proposals.retire ?? []).slice(0, 8)) {
       if (!knownIds.includes(r.id)) continue;
-      await this.memories.retire(
-        review.companyId,
-        r.id,
-        r.reason || "found wrong by the review",
-        actor,
-      );
+      await this.memories.retire(review.companyId, r.id, r.reason || "found wrong by the review", actor);
       applied.retiredIds!.push(r.id);
     }
     const s = proposals.skill;
     if (s && SKILL_NAME.test(s.name) && s.content.length > 40) {
-      const target = s.improves
-        ? await this.skills.resolve(
-            review.companyId,
-            review.agentId,
-            s.improves,
-          )
-        : await this.skills.resolve(review.companyId, review.agentId, s.name);
-      if (
-        target &&
-        target.scope === "agent" &&
-        target.scopeAgentId === review.agentId &&
-        !target.pinned
-      ) {
+      const target = s.improves ? await this.skills.resolve(review.companyId, review.agentId, s.improves) : await this.skills.resolve(review.companyId, review.agentId, s.name);
+      if (target && target.scope === "agent" && target.scopeAgentId === review.agentId && !target.pinned) {
         const { skill, version } = await this.skills.update(
           review.companyId,
           target.id,
