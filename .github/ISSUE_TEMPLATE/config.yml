@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Report a vulnerability
+    url: https://github.com/NextEpochs/opifer/security/advisories/new
+    about: Private report to the maintainers. Never a public issue.
+  - name: Ten-minute guide
+    url: https://opifer.dev/docs/quickstart/
+    about: Install, connect a model, hire the first agent.

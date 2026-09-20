@@ -1,0 +1,21 @@
+name: Feature request
+description: A behaviour Opifer does not have yet.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What you are trying to do and what stops you today. The situation matters more than the solution.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you would expect
+      description: How it would look from the interface, the command line or the API. A sketch is enough.
+  - type: textarea
+    id: invariants
+    attributes:
+      label: Rules it touches
+      description: Opifer's twenty invariants outweigh any feature (packages/core/src/invariants.ts). If the idea touches one, say which and why it still holds.

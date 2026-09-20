@@ -249,12 +249,15 @@ Numbers from the 0.1.0 release: a clean install on a fresh Linux VM takes under 
 
 ## Documentation
 
+The guides are also on [opifer.dev](https://opifer.dev/docs/quickstart/), rendered from this repository.
+
 | Document                               | What it covers                                                                          |
 | -------------------------------------- | --------------------------------------------------------------------------------------- |
 | [Ten-minute guide](docs/quickstart.md) | Install → model → first agent → first task → money, permissions, learning, routines     |
-| [Security](docs/security.md)           | Trust model, secrets, model calls, tools and sandbox, webhooks and events, known gaps    |
+| [Security](docs/security.md) and [SECURITY.md](SECURITY.md) | Trust model, secrets, sandbox, known gaps; how to report a vulnerability privately |
 | [Changelog](CHANGELOG.md)              | What each release brought, milestone by milestone                                       |
 | [AGENTS.md](AGENTS.md)                 | The rules of this repository for people and development agents                          |
+| [CONTRIBUTING.md](CONTRIBUTING.md) and [CLA.md](CLA.md) | How to report, propose and submit a change: sign-off on every commit, the contributor agreement |
 | [Invariants](packages/core/src/invariants.ts) | The twenty rules that outweigh any feature, each with a contract test              |
 
 <br/>
@@ -268,6 +271,8 @@ For servers and cloud there is a container image:
 ```bash
 docker compose up -d      # builds the image, creates database and first company in the opifer-data volume
 ```
+
+The compose file binds the port to `127.0.0.1` on purpose. Agents' commands run in a Docker sandbox with no network whenever a daemon is reachable, verified on Linux with Docker 29.
 
 <br/>
 
@@ -294,7 +299,7 @@ node packages/server/dist/preview.js 4790    # interface with scripted agents
 node packages/server/scripts/load-test.mjs   # 20 agents, 10 concurrent runs
 ```
 
-Contributions are welcome. Read [AGENTS.md](AGENTS.md) first: TypeScript strict and ESM, everything in English, migrations in up/down pairs, files under 1,500 lines, no secrets anywhere, `npx prettier --write` before every commit. A change that violates an invariant is not made: the specification is discussed instead.
+Contributions are welcome: [CONTRIBUTING.md](CONTRIBUTING.md) has the agreement (a sign-off on every commit) and the checklist. Read [AGENTS.md](AGENTS.md) first: TypeScript strict and ESM, everything in English, migrations in up/down pairs, files under 1,500 lines, no secrets anywhere, `npx prettier --write` before every commit. A change that violates an invariant is not made: the specification is discussed instead.
 
 <br/>
 

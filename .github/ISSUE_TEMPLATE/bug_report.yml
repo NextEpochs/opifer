@@ -1,0 +1,32 @@
+name: Bug report
+description: Something did not behave as documented.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what happened, what you expected. Steps in order help most.
+    validations:
+      required: true
+  - type: textarea
+    id: env
+    attributes:
+      label: Environment
+      description: The output of `pnpm o4r doctor` and the `version` from `/v1/health`, the OS, the model provider in use. Remove anything you consider private.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: The relevant lines of `~/.opifer/server.log`, with secrets removed.
+      render: shell
+  - type: checkboxes
+    id: security
+    attributes:
+      label: Not a vulnerability
+      options:
+        - label: This is not a security issue. (Those go through SECURITY.md, never through a public issue.)
+          required: true
