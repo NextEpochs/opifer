@@ -69,7 +69,7 @@ export interface McpSession {
 
 /** Opens an MCP session for a connection: stdio or streamable HTTP. */
 export async function openMcp(connection: ToolConnection, secrets: Record<string, string>): Promise<McpSession> {
-  const client = new Client({ name: "opifer", version: "0.0.1" });
+  const client = new Client({ name: "opifer", version: "0.1.0" });
   if (connection.kind === "mcp_stdio") {
     if (!connection.config.command) throw new ConnectionError("invalid_input", "an MCP stdio connection needs a command");
     const env: Record<string, string> = {};

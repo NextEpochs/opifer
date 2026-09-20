@@ -4,4 +4,4 @@ export type { Agent, AgentStatus, AuditActorKind, AuditEntry, Company, CompanySt
 export { EventBus } from "./events.js";
 export type { DomainEvent, EventListener } from "./events.js";
 
-export const OPIFER_VERSION = "0.0.1";
+export const OPIFER_VERSION = "0.1.0";

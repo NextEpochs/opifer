@@ -1,6 +1,6 @@
 {
   "name": "@opifer/provider-openai-compatible",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Provider for OpenAI-compatible endpoints: local models with Ollama, vLLM, LM Studio and the like.",
   "license": "MIT",
   "type": "module",

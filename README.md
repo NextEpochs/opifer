@@ -10,6 +10,8 @@ Opifer is a [NextEpochs](https://nextepochs.com) product. Website and documentat
 
 ## Quick start
 
+Ten-minute guide: [docs/quickstart.md](docs/quickstart.md). What is protected and how: [docs/security.md](docs/security.md). Changes: [CHANGELOG.md](CHANGELOG.md).
+
 Requirements: Node.js 22 or later and pnpm 10. No other prerequisites: the PostgreSQL database is embedded.
 
 ```bash
