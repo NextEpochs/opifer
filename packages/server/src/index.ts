@@ -4,3 +4,5 @@ export { setupProviders, chatgptCredentialsFile } from "./providers.js";
 export type { ModelsConfig, ProviderSetup, ProviderSetupOptions } from "./providers.js";
 export { buildGovernance, masterKeyFile } from "./governance.js";
 export type { Governance, GovernanceOptions } from "./governance.js";
+export { AuthService, AuthError, hashPassword, verifyPassword, requiredRole, ROLES, API_KEY_PREFIX, SESSION_COOKIE } from "./auth.js";
+export type { Actor, AuthUser, ApiKeyInfo, Role } from "./auth.js";

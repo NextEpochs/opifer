@@ -265,7 +265,7 @@ The guides are also on [opifer.dev](https://opifer.dev/docs/quickstart/), render
 
 ## Deployment
 
-Opifer runs on one machine for one team in local mode: the server listens on `127.0.0.1` and has no authentication yet. Do not expose the port; put a reverse proxy with access control in front if you must reach it from elsewhere. Authenticated mode (users, roles, API keys) is the first item on the roadmap. Details in [docs/security.md](docs/security.md).
+Two modes. **Local**: one machine, no sign-in, the server on `127.0.0.1`. **Authenticated**, for a server or a VPS: `o4r init --auth --email you@example.com` (or `o4r auth enable`), and every call to the interface and the API needs a signed-in person or an API key, with a role (observer, operator, admin, owner). Keep Opifer on `127.0.0.1` behind nginx or Caddy with HTTPS; the interface works at the root or under a path. People: `o4r user add`; keys for integrations: `o4r apikey create`. The nginx snippet is in the [ten-minute guide](docs/quickstart.md#on-a-server); what is protected and how in [docs/security.md](docs/security.md).
 
 For servers and cloud there is a container image:
 
@@ -279,9 +279,9 @@ The compose file binds the port to `127.0.0.1` on purpose. Agents' commands run 
 
 ## Status and roadmap
 
-**1.0.0 is out**: everything above runs end to end, in tests, live on the Mac it was built on and on a second Linux machine with Docker. What comes next, in order:
+**1.1.0 is out**: everything above runs end to end, in tests, live on the Mac it was built on and on a second Linux machine with Docker. What comes next, in order:
 
-- Authenticated mode (users, roles, API keys) before any exposure beyond localhost
+- Per-company roles (today they are server-wide: one team per server)
 - Docker sandbox verified on more machines; hardened runtimes as a deployment option
 - More channels (Slack, Discord, email) beside Telegram
 - Team-scope learning written by the review, not only by hand

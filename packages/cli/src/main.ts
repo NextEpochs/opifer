@@ -4,6 +4,19 @@ import { OPIFER_VERSION } from "@opifer/core";
 import { runChat } from "./commands/chat.js";
 import { runLogin, runLogout } from "./commands/login.js";
 import { runDoctor } from "./commands/doctor.js";
+import {
+  runAuthDisable,
+  runAuthEnable,
+  runAuthStatus,
+  runKeyCreate,
+  runKeyList,
+  runKeyRevoke,
+  runUserAdd,
+  runUserList,
+  runUserPassword,
+  runUserRemove,
+  runUserRole,
+} from "./commands/auth.js";
 import { runInit } from "./commands/init.js";
 import { runMigrate } from "./commands/migrate.js";
 import { runDown, runUp } from "./commands/up.js";
@@ -81,9 +94,73 @@ program
   .option("--db-port <n>", "embedded database port (default 4701)")
   .option("--model <provider/model>", "default model (e.g. anthropic/claude-sonnet-5)")
   .option("--local-url <url>", "OpenAI-compatible endpoint for local models (e.g. http://127.0.0.1:11434/v1)")
-  .action(async (opts: { company?: string; host?: string; port?: string; dbPort?: string; model?: string; localUrl?: string }) => {
-    await runInit({ ...opts, ...homeOf(program) });
-  });
+  .option("--auth", "authenticated mode from the start (sign-in required); needs --email")
+  .option("--email <address>", "the first owner's email (authenticated mode)")
+  .option("--password <password>", "the first owner's password (or the OPIFER_AUTH_PASSWORD environment variable; prompted otherwise)")
+  .action(
+    async (opts: { company?: string; host?: string; port?: string; dbPort?: string; model?: string; localUrl?: string; auth?: boolean; email?: string; password?: string }) => {
+      await runInit({ ...opts, ...homeOf(program) });
+    },
+  );
+
+const auth = program.command("auth").description("authenticated mode: sign-in on the API and the interface");
+auth
+  .command("status", { isDefault: true })
+  .description("whether sign-in is required, the people and the keys")
+  .action(async () => runAuthStatus(homeOf(program)));
+auth
+  .command("enable")
+  .description("turn authenticated mode on with the first owner (the password is prompted, or read from --password)")
+  .requiredOption("--email <address>", "the owner's email")
+  .option("--password <password>", "the owner's password (prompted when omitted)")
+  .option("--name <name>", "display name")
+  .option("--no-trust-proxy", "do not read the client address and protocol from a reverse proxy")
+  .action(async (opts: { email: string; password?: string; name?: string; trustProxy?: boolean }) => runAuthEnable({ ...opts, ...homeOf(program) }));
+auth
+  .command("disable")
+  .description("back to local mode (no sign-in)")
+  .action(async () => runAuthDisable(homeOf(program)));
+
+const user = program.command("user").description("people who can sign in (authenticated mode)");
+user
+  .command("list", { isDefault: true })
+  .description("the people, their roles and last sign-in")
+  .action(async () => runUserList(homeOf(program)));
+user
+  .command("add <email>")
+  .description("add a person: observer (reads), operator (daily work), admin (configures), owner (people and keys)")
+  .option("--role <role>", "observer | operator | admin | owner (default operator)")
+  .option("--password <password>", "prompted when omitted")
+  .option("--name <name>", "display name")
+  .action(async (email: string, opts: { role?: string; password?: string; name?: string }) => runUserAdd({ email, ...opts, ...homeOf(program) }));
+user
+  .command("remove <email>")
+  .description("remove a person (never the last owner)")
+  .action(async (email: string) => runUserRemove({ email, ...homeOf(program) }));
+user
+  .command("password <email>")
+  .description("set a new password (signs their sessions out)")
+  .option("--password <password>", "prompted when omitted")
+  .action(async (email: string, opts: { password?: string }) => runUserPassword({ email, ...opts, ...homeOf(program) }));
+user
+  .command("role <email> <role>")
+  .description("change a person's role")
+  .action(async (email: string, role: string) => runUserRole({ email, role, ...homeOf(program) }));
+
+const apikey = program.command("apikey").description("API keys for integrations and other command lines (authenticated mode)");
+apikey
+  .command("list", { isDefault: true })
+  .description("the keys, their roles and last use (never the secret)")
+  .action(async () => runKeyList(homeOf(program)));
+apikey
+  .command("create <name>")
+  .description("create a key; the secret is shown once")
+  .option("--role <role>", "observer | operator | admin | owner (default operator)")
+  .action(async (name: string, opts: { role?: string }) => runKeyCreate({ name, ...opts, ...homeOf(program) }));
+apikey
+  .command("revoke <id>")
+  .description("revoke a key by id")
+  .action(async (id: string) => runKeyRevoke({ id, ...homeOf(program) }));
 
 program
   .command("up")

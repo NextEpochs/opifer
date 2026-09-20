@@ -20,6 +20,8 @@ export interface OpiferConfig {
   };
   /** Where agent commands run: "auto" uses Docker when it is available, "local" the machine itself. */
   sandbox?: { kind?: "auto" | "docker" | "local"; image?: string; network?: "none" | "bridge" };
+  /** Authenticated mode: sign-in required on the API and the interface; `trustProxy` when a reverse proxy is in front (default on). */
+  auth?: { enabled: boolean; trustProxy?: boolean; sessionDays?: number };
 }
 
 export const DEFAULT_CONFIG: OpiferConfig = {

@@ -3,6 +3,8 @@ import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "vite";
 
 export default defineConfig({
+  // Relative asset paths: the interface works at the root and under a path (a reverse proxy at /opifer/).
+  base: "./",
   plugins: [react(), tailwindcss()],
   server: {
     port: 4710,

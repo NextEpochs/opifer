@@ -28,6 +28,8 @@ import { registerConnectionRoutes } from "./routes/connections.js";
 import { ChannelHub } from "./channels.js";
 import { ChannelService, ConnectionService, ConnectionToolExecutor, EventService, WebhookService } from "@opifer/connections";
 import { DockerEnvironment, LocalEnvironment, dockerAvailable, useEnvironment } from "@opifer/runtime";
+import { API_KEY_PREFIX, AuthService, atLeast, requiredRole, sessionTokenOf, type Actor } from "./auth.js";
+import { registerAuthRoutes } from "./routes/auth.js";
 
 export interface AppOptions {
   db: DatabaseHandle;
@@ -37,6 +39,11 @@ export interface AppOptions {
   uiDir?: string;
   /** Fastify logger: `true`, `false`, or pino options (e.g. `{ level: "warn" }`). */
   logger?: boolean | { level: string };
+  /**
+   * Authenticated mode (`mode: "authenticated"`): every `/v1` call needs a signed-in person (session cookie) or an
+   * API key, with a role. `trustProxy` reads the client address and the protocol from the reverse proxy in front.
+   */
+  auth?: { sessionDays?: number; trustProxy?: boolean };
   /** Model providers and default model; without them, sessions are not available. */
   providers?: ProviderSetup;
   /** Root folder of the sessions' working directories. */
@@ -68,6 +75,8 @@ export interface AppContext {
   db: DatabaseHandle;
   bus: EventBus;
   mode: InstallMode;
+  /** People, sessions and API keys; null in local mode. */
+  auth: AuthService | null;
   runtime: AgentRuntime | null;
   governance: Governance | null;
   work: WorkService;
@@ -114,6 +123,10 @@ declare module "fastify" {
   interface FastifyInstance {
     opifer: AppContext;
   }
+  interface FastifyRequest {
+    /** Who is calling, in authenticated mode. */
+    actor?: Actor;
+  }
 }
 
 async function dirExists(p: string): Promise<boolean> {
@@ -126,7 +139,10 @@ async function dirExists(p: string): Promise<boolean> {
 }
 
 export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
-  const app = Fastify({ logger: options.logger ?? false });
+  const authenticated = options.mode === "authenticated";
+  const app = Fastify({ logger: options.logger ?? false, trustProxy: options.auth?.trustProxy ?? authenticated });
+  const auth = authenticated ? new AuthService(options.db.sql, { ...(options.auth?.sessionDays !== undefined ? { sessionDays: options.auth.sessionDays } : {}) }) : null;
+  app.decorateRequest("actor", undefined);
   // Security headers on every answer (see docs/security.md): no sniffing, no framing, no referrer, a strict policy for the interface.
   app.addHook("onSend", async (request, reply) => {
     reply.header("x-content-type-options", "nosniff");
@@ -150,6 +166,37 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
     if (hookCalls.size > 10_000) hookCalls.clear();
     if (entry.count > 60) return reply.code(429).send({ error: "too many calls: at most 60 a minute per address" });
   });
+  const loginFailures = new Map<string, { count: number; since: number }>();
+  if (auth) {
+    // Authenticated mode: who is calling, and may they do this. Public: the health check, signing in, the webhooks, the interface files.
+    const loginCalls = loginFailures;
+    app.addHook("onRequest", async (request, reply) => {
+      const path = request.url.split("?")[0]!;
+      if (!path.startsWith("/v1/")) return;
+      if (path === "/v1/health" || path.startsWith("/v1/hooks/")) return;
+      if (path === "/v1/auth/login") {
+        // Ten failed attempts a minute per address; the route counts the failures.
+        const entry = loginCalls.get(request.ip);
+        if (entry && Date.now() - entry.since <= 60_000 && entry.count >= 10) return reply.code(429).send({ error: "too many sign-in attempts: wait a minute" });
+        return;
+      }
+      const bearer = request.headers.authorization;
+      let actor: Actor | null = null;
+      if (bearer?.startsWith("Bearer " + API_KEY_PREFIX)) actor = await auth.resolveApiKey(bearer.slice(7));
+      else {
+        const token = sessionTokenOf(request.headers.cookie);
+        if (token) actor = await auth.resolveSession(token);
+      }
+      if (path === "/v1/auth/me" || path === "/v1/auth/logout") {
+        if (actor) request.actor = actor;
+        return;
+      }
+      if (!actor) return reply.code(401).send({ error: "sign in first", mode: "authenticated" });
+      const needed = requiredRole(request.method, path);
+      if (!atLeast(actor.role, needed)) return reply.code(403).send({ error: `this needs the ${needed} role; you are ${actor.role}` });
+      request.actor = actor;
+    });
+  }
   const bus = options.bus ?? new EventBus();
   const workRoot = options.workRoot ?? path.join(tmpdir(), "opifer-work");
   const work = new WorkService(options.db.sql, {
@@ -275,6 +322,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
     runtime && governance ? new ChannelHub({ app, bus, channels, log: app.log, ...(options.connections?.transport ? { transport: options.connections.transport } : {}) }) : null;
   if (scheduler && hub) scheduler.deliverTo((routine, run, text) => hub.deliverRoutine(routine, run, text));
   app.decorate("opifer", {
+    auth,
     db: options.db,
     bus,
     mode: options.mode,
@@ -351,6 +399,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
     socket.on("close", unsubscribe);
   });
 
+  await app.register(async (scope) => registerAuthRoutes(scope, { auth, mode: options.mode, sessionDays: options.auth?.sessionDays ?? 30, loginFailures }), { prefix: "/v1" });
   await app.register(registerCompanyRoutes, { prefix: "/v1" });
   await app.register(registerPreferenceRoutes, { prefix: "/v1" });
   await app.register(registerAgentRoutes, { prefix: "/v1" });

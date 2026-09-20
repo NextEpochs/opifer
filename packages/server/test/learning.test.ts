@@ -132,6 +132,7 @@ describe("Learning: background review, skills in the prompt, cheaper repeats", (
     });
     app = await buildApp({
       db,
+      connections: { start: false, sandbox: "local" },
       mode: "local",
       providers: {
         providers: new ProviderRegistry().register(provider),

@@ -1,6 +1,6 @@
 {
   "name": "@opifer/learning",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Memory and skills: scoped entries, snapshot for the prompt, search, versions, curator, promotion, background review.",
   "license": "AGPL-3.0-only",
   "homepage": "https://opifer.dev",

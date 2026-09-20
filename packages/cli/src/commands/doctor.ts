@@ -122,12 +122,13 @@ export async function runDoctor(options: { home?: string }): Promise<void> {
     } catch (error) {
       checks.push({ name: "Health", ok: false, detail: `the server does not answer: ${String(error).slice(0, 80)}` });
     }
-    if (config.server.host === "0.0.0.0")
+    if (config.auth?.enabled) checks.push({ name: "Authentication", ok: true, detail: "authenticated mode: sign-in required on the API and the interface" });
+    else if (config.server.host === "0.0.0.0")
       checks.push({
         name: "Exposure",
         ok: false,
         warn: true,
-        detail: "the server listens on every interface with no authentication (local mode): keep it behind a firewall or a reverse proxy with access control",
+        detail: "the server listens on every interface with no authentication (local mode): o4r auth enable --email you@example.com, or keep it behind a firewall",
       });
   }
 

@@ -64,6 +64,33 @@ In **Connections** add an MCP server or a workflow (n8n, Zapier, Make) as tools;
 - Every step is in the audit (Home → Activity) and in the costs.
 - Export your company from Settings (configuration and work, never secret values) and import it elsewhere.
 
+## On a server
+
+Same install, plus a sign-in and a reverse proxy with HTTPS:
+
+```bash
+npm install -g @opifer/cli
+o4r init --company "My company" --port 4720 --auth --email you@example.com    # the password is prompted
+o4r up --detach
+```
+
+`--auth` turns authenticated mode on: every call to the interface and the API needs a signed-in person or an API key. Add people with `o4r user add name@example.com --role operator` (observer, operator, admin, owner) and keys for integrations with `o4r apikey create n8n`. Keep the server on `127.0.0.1` and let nginx (or Caddy) reach it; the interface works at the root or under a path:
+
+```nginx
+location /opifer/ {
+    proxy_pass http://127.0.0.1:4720/;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+```
+
+To keep it running, a systemd unit that runs `o4r up` as an unprivileged user is enough (`Restart=always`). With Docker on the server, agents' commands run in containers with no network. What is protected and how: [docs/security.md](security.md).
+
 ## Command line
 
 ```bash

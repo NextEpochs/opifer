@@ -322,11 +322,8 @@ o4r up           <span class="c"># http://127.0.0.1:4700</span></code></pre>
             </p>
           </details>
           <details>
-            <summary>Can I expose it on the internet?</summary>
-            <p>
-              Not yet. Version 1.0 has no authentication and listens on localhost only. Put a reverse proxy with access control in front if you must, and read the security review
-              first. Authenticated mode is the first item on the roadmap.
-            </p>
+            <summary>Can I run it on a server?</summary>
+            <p>Yes. Turn authenticated mode on (<code>o4r init --auth --email you@example.com</code>): every call to the interface and the API then needs a signed-in person or an API key, with a role. Keep Opifer on localhost behind nginx or Caddy with HTTPS; the interface works at the root or under a path. The security review says what is protected and how.</p>
           </details>
           <details>
             <summary>What does an agent see of my secrets?</summary>

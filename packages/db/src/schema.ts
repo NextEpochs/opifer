@@ -37,6 +37,44 @@ export const users = pgTable("users", {
     .default(sql`gen_random_uuid()`),
   displayName: text("display_name").notNull(),
   email: text("email").unique(),
+  passwordHash: text("password_hash"),
+  role: text("role", { enum: ["owner", "admin", "operator", "observer"] })
+    .notNull()
+    .default("observer"),
+  status: text("status", { enum: ["active", "disabled"] })
+    .notNull()
+    .default("active"),
+  lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
+  ...timestamps,
+});
+
+export const userSessions = pgTable("user_sessions", {
+  id: uuid("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  tokenHash: text("token_hash").notNull().unique(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull().defaultNow(),
+  ip: text("ip"),
+  userAgent: text("user_agent"),
+  ...timestamps,
+});
+
+export const apiKeys = pgTable("api_keys", {
+  id: uuid("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  companyId: uuid("company_id").references(() => companies.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+  name: text("name").notNull(),
+  tokenHash: text("token_hash").notNull().unique(),
+  prefix: text("prefix").notNull(),
+  role: text("role", { enum: ["owner", "admin", "operator", "observer"] }).notNull(),
+  lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+  revokedAt: timestamp("revoked_at", { withTimezone: true }),
   ...timestamps,
 });
 
@@ -124,7 +162,7 @@ export const auditLog = pgTable(
 );
 
 /** Tables that belong to no company by nature: the companies themselves, the people (who may belong to several), their interface preferences, and the migration ledger. */
-export const DOMAIN_TABLES_WITHOUT_COMPANY_ID: readonly string[] = ["companies", "users", "user_preferences", "schema_migrations"];
+export const DOMAIN_TABLES_WITHOUT_COMPANY_ID: readonly string[] = ["companies", "users", "user_sessions", "user_preferences", "schema_migrations"];
 
 // --- Sessions (0002) --------------------------------------------------------
 

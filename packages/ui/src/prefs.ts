@@ -49,9 +49,11 @@ function current<T>(key: string, fallback: T): T {
   return local;
 }
 
+const apiBase = (): string => new URL(".", location.href).pathname.replace(/\/$/, "");
+
 async function loadFromServer(): Promise<void> {
   try {
-    const response = await fetch("/v1/preferences");
+    const response = await fetch(`${apiBase()}/v1/preferences`, { credentials: "same-origin" });
     if (!response.ok) return;
     const values = (await response.json()) as Record<string, unknown>;
     for (const [key, value] of Object.entries(values)) {
@@ -71,7 +73,12 @@ function saveToServer(key: string, value: unknown): void {
     key,
     window.setTimeout(() => {
       timers.delete(key);
-      void fetch(`/v1/preferences/${encodeURIComponent(key)}`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ value }) }).catch(() => {});
+      void fetch(`${apiBase()}/v1/preferences/${encodeURIComponent(key)}`, {
+        method: "PUT",
+        credentials: "same-origin",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ value }),
+      }).catch(() => {});
     }, 400),
   );
 }

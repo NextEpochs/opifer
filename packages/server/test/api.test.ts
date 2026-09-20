@@ -9,7 +9,7 @@ describe("API /v1", () => {
 
   beforeAll(async () => {
     db = await createTestDatabase();
-    app = await buildApp({ db, mode: "local" });
+    app = await buildApp({ db, mode: "local", connections: { start: false, sandbox: "local" } });
     await app.ready();
   }, 120_000);
 

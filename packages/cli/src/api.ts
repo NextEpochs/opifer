@@ -5,6 +5,9 @@
 
 import { requireConfig, resolveHome } from "./home.js";
 import { isPortOpen } from "./database.js";
+import { readCliKey } from "./commands/auth.js";
+
+let bearer: string | null = null;
 
 export async function serverBase(homeDir?: string): Promise<string> {
   const home = resolveHome(homeDir);
@@ -13,11 +16,17 @@ export async function serverBase(homeDir?: string): Promise<string> {
   if (!(await isPortOpen(config.server.port, config.server.host === "0.0.0.0" ? "127.0.0.1" : config.server.host))) {
     throw new Error(`The server is not running on ${base}: run o4r up first (also with --detach)`);
   }
+  // Authenticated mode: the key written by `o4r auth enable` signs the CLI's calls.
+  bearer = config.auth?.enabled ? await readCliKey(home) : null;
+  if (config.auth?.enabled && !bearer) throw new Error(`Authenticated mode is on but this command line has no API key: run o4r auth enable again, or o4r apikey create`);
   return base;
 }
 
 export async function api<T>(base: string, path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${base}${path}`, { headers: { "content-type": "application/json" }, ...init });
+  const res = await fetch(`${base}${path}`, {
+    ...init,
+    headers: { "content-type": "application/json", ...(bearer ? { authorization: `Bearer ${bearer}` } : {}), ...(init?.headers as Record<string, string> | undefined) },
+  });
   if (!res.ok) {
     const body = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
     throw new Error(body.error ?? body.message ?? `${res.status} ${res.statusText}`);

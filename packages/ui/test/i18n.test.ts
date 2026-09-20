@@ -40,6 +40,8 @@ describe("interface strings", () => {
   it("Italian strings are translated (not identical to English), except identifiers and shared words", () => {
     // Job descriptions stay in English (they become DB values and prompt text); the other words are the same in Italian.
     const allowed = new Set([
+      "email",
+      "password",
       "comingSoon",
       "botUser",
       "connUrl",

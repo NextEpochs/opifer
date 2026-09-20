@@ -3,6 +3,7 @@ import { setupProviders } from "@opifer/server";
 import { isPortOpen, openDatabase } from "../database.js";
 import { DEFAULT_CONFIG, readConfig, resolveHome, writeConfig, type OpiferConfig } from "../home.js";
 import { c, say } from "../output.js";
+import { runAuthEnable } from "./auth.js";
 
 export interface InitOptions {
   home?: string;
@@ -12,6 +13,10 @@ export interface InitOptions {
   dbPort?: string;
   model?: string;
   localUrl?: string;
+  /** Authenticated mode from the start: the first owner's email and password (the password may come from OPIFER_AUTH_PASSWORD). */
+  auth?: boolean;
+  email?: string;
+  password?: string;
 }
 
 export async function runInit(options: InitOptions): Promise<void> {
@@ -63,6 +68,13 @@ export async function runInit(options: InitOptions): Promise<void> {
     }
   } finally {
     await db.close();
+  }
+
+  if (options.auth || options.email) {
+    if (!options.email) throw new Error("--auth needs --email <address> for the first owner");
+    const password = options.password ?? process.env["OPIFER_AUTH_PASSWORD"];
+    say.step("Authenticated mode");
+    await runAuthEnable({ ...(options.home ? { home: options.home } : {}), email: options.email, ...(password ? { password } : {}) });
   }
 
   say.step("Model providers");

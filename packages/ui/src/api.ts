@@ -91,12 +91,29 @@ export interface AuditEntry {
   occurredAt: string;
 }
 
+/** Where the API lives: next to the page, so the interface works at the root and under a path such as /opifer/. */
+export const API_BASE = new URL(".", location.href).pathname.replace(/\/$/, "");
+
+export interface Me {
+  mode: string;
+  user: { id: string; name: string; email: string | null; role: "owner" | "admin" | "operator" | "observer"; kind: "user" | "api_key" } | null;
+}
+
+/** Thrown when the server wants a sign-in. */
+export class SignInRequired extends Error {
+  constructor() {
+    super("sign in first");
+  }
+}
+
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   // A JSON content type without a body is refused by the server: bodiless POSTs go without it.
-  const res = await fetch(url, {
+  const res = await fetch(url.startsWith("/") ? `${API_BASE}${url}` : url, {
     ...init,
+    credentials: "same-origin",
     headers: init?.body !== undefined ? { "content-type": "application/json" } : {},
   });
+  if (res.status === 401) throw new SignInRequired();
   if (!res.ok) {
     const body = (await res.json().catch(() => ({}))) as {
       error?: string;
@@ -110,6 +127,9 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   health: () => request<Health>("/v1/health"),
+  me: () => request<Me>("/v1/auth/me"),
+  login: (email: string, password: string) => request<{ user: NonNullable<Me["user"]> }>("/v1/auth/login", { method: "POST", body: JSON.stringify({ email, password }) }),
+  logout: () => request<void>("/v1/auth/logout", { method: "POST" }),
   companies: () => request<Company[]>("/v1/companies"),
   createDemoCompany: () => request<Company>("/v1/companies/demo", { method: "POST", body: JSON.stringify({}) }),
   importCompany: (doc: unknown) => request<{ companyId: string; name: string; secretsToEnter: string[] }>("/v1/companies/import", { method: "POST", body: JSON.stringify(doc) }),
@@ -861,7 +881,7 @@ export function eventsSocket(onEvent: (event: BusEvent) => void, onState: (open:
   let timer: number | null = null;
   const connect = () => {
     if (closed) return;
-    socket = new WebSocket(`${protocol}://${location.host}/v1/events`);
+    socket = new WebSocket(`${protocol}://${location.host}${API_BASE}/v1/events`);
     socket.onopen = () => {
       attempt = 0;
       onState(true);

@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { api, type Company, type Health, type ModelsInfo } from "../api";
+import { api, type Company, type Health, type Me, type ModelsInfo } from "../api";
 import { fill, type Locale, type Strings } from "../i18n";
 import type { Theme, ViewMode } from "../prefs";
 import { Button, Card, CardHeader, Chip, Input, Segmented } from "../ui";
@@ -16,6 +16,8 @@ export interface SettingsProps {
   onTheme: (t: Theme) => void;
   mode: ViewMode;
   onMode: (m: ViewMode) => void;
+  me: Me;
+  onSignOut: () => Promise<void>;
 }
 
 /** Companies, appearance, and the system's health. Also the first screen when no company exists. */
@@ -88,6 +90,29 @@ export function SettingsPage(p: SettingsProps) {
         <h1 className="m-0 font-display text-[34px] font-bold leading-[1.1] tracking-tight">{p.companies.length === 0 ? t.createFirstCompany : t.settingsTitle}</h1>
       </header>
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+        <Card>
+          <CardHeader title={t.account} />
+          <div className="flex flex-col gap-3 px-[18px] pb-[18px] pt-2 text-sm">
+            {p.me.user ? (
+              <>
+                <p className="m-0">
+                  {fill(t.signedInAs, {
+                    name: p.me.user.email ?? p.me.user.name,
+                    role: { owner: t.roleOwner, admin: t.roleAdmin, operator: t.roleOperator, observer: t.roleObserver }[p.me.user.role],
+                  })}
+                </p>
+                <p className="m-0 text-mute">{t.manageUsersHint}</p>
+                <div>
+                  <Button variant="soft" onClick={() => void p.onSignOut()}>
+                    {t.signOut}
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <p className="m-0 text-mute">{t.localModeAccount}</p>
+            )}
+          </div>
+        </Card>
         <Card>
           <CardHeader title={t.companies} />
           <div className="flex flex-col gap-2 px-[18px] pb-[18px] pt-2">

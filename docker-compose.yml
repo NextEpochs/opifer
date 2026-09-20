@@ -10,6 +10,9 @@ services:
       - "127.0.0.1:4700:4700"
     environment:
       OPIFER_COMPANY: "My company"
+      # Authenticated mode with this owner (sign-in required): set both for a server.
+      OPIFER_AUTH_EMAIL: ${OPIFER_AUTH_EMAIL:-}
+      OPIFER_AUTH_PASSWORD: ${OPIFER_AUTH_PASSWORD:-}
       # Model provider keys (M1); from M2 they live in the encrypted vault.
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}

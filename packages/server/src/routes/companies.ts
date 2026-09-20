@@ -63,6 +63,8 @@ export async function registerCompanyRoutes(app: FastifyInstance): Promise<void>
         subjectId: row!.id,
         after: { name: row!.name, mission: row!.mission },
       });
+      // Authenticated mode: every person is a member of every company (one team per server).
+      if (app.opifer.auth) await tx`INSERT INTO memberships (company_id, user_id, role) SELECT ${row!.id}, id, role FROM users WHERE email IS NOT NULL ON CONFLICT DO NOTHING`;
       return row!;
     });
     const company = toCompany(created);
@@ -90,8 +92,12 @@ export async function registerCompanyRoutes(app: FastifyInstance): Promise<void>
 
   // The demo company: a team, goals, tasks in every state, memories, skills, routines and connections; no model is called.
   app.post<{ Body: { name?: string; mission?: string } }>("/companies/demo", async (request, reply) => {
+    const forwarded: Record<string, string> = {};
+    if (request.headers.cookie) forwarded["cookie"] = request.headers.cookie;
+    if (request.headers.authorization) forwarded["authorization"] = request.headers.authorization;
     const { companyId } = await seedDemoCompany(app, {
       sessions: false,
+      headers: forwarded,
       ...(request.body?.name ? { name: request.body.name } : {}),
       ...(request.body?.mission ? { mission: request.body.mission } : {}),
     });

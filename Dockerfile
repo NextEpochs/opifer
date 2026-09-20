@@ -33,4 +33,5 @@ EXPOSE 4700
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s \
   CMD node -e "fetch('http://127.0.0.1:'+process.env.OPIFER_PORT+'/v1/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 # init is idempotent: on first start it creates database and company, afterwards it only updates the migrations.
-CMD ["sh", "-c", "node packages/cli/dist/main.js init --host \"$OPIFER_HOST\" --port \"$OPIFER_PORT\" --company \"${OPIFER_COMPANY:-My company}\" --no-color && exec node packages/cli/dist/main.js up --no-color"]
+# OPIFER_AUTH_EMAIL (+ OPIFER_AUTH_PASSWORD) turns authenticated mode on with that owner: for a server, always.
+CMD ["sh", "-c", "node packages/cli/dist/main.js init --host \"$OPIFER_HOST\" --port \"$OPIFER_PORT\" --company \"${OPIFER_COMPANY:-My company}\" ${OPIFER_AUTH_EMAIL:+--auth --email \"$OPIFER_AUTH_EMAIL\"} --no-color && exec node packages/cli/dist/main.js up --no-color"]

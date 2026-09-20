@@ -40,6 +40,7 @@ describe("Governance API", () => {
     const dir = await mkdtemp(path.join(tmpdir(), "opifer-gov-"));
     app = await buildApp({
       db,
+      connections: { start: false, sandbox: "local" },
       mode: "local",
       providers: { providers: new ProviderRegistry().register(provider), defaultModel: "fake/echo", fallbackModel: null, report: [] },
       workRoot: path.join(dir, "work"),

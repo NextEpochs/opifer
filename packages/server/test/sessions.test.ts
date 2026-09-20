@@ -27,6 +27,7 @@ describe("Sessions API", () => {
     });
     app = await buildApp({
       db,
+      connections: { start: false, sandbox: "local" },
       mode: "local",
       providers: { providers: new ProviderRegistry().register(provider), defaultModel: "fake/echo", fallbackModel: null, report: [] },
       workRoot: await mkdtemp(path.join(tmpdir(), "opifer-work-")),

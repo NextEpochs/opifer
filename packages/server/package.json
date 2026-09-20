@@ -1,6 +1,6 @@
 {
   "name": "@opifer/server",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Opifer HTTP API /v1 and WebSocket events.",
   "license": "AGPL-3.0-only",
   "homepage": "https://opifer.dev",

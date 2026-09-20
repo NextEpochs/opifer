@@ -12,12 +12,15 @@ export interface DemoOptions {
   mission?: string;
   /** Start two conversations that call the model (only sensible with the scripted provider). */
   sessions?: boolean;
+  /** Authenticated mode: the caller's cookie or bearer token, forwarded to the internal calls. */
+  headers?: Record<string, string>;
 }
 
 export async function seedDemoCompany(app: FastifyInstance, options: DemoOptions = {}): Promise<{ companyId: string }> {
   const db = app.opifer.db;
   const company = (
     await app.inject({
+      headers: options.headers ?? {},
       method: "POST",
       url: "/v1/companies",
       payload: {
@@ -28,6 +31,7 @@ export async function seedDemoCompany(app: FastifyInstance, options: DemoOptions
   ).json() as { id: string };
   const philip = (
     await app.inject({
+      headers: options.headers ?? {},
       method: "POST",
       url: `/v1/companies/${company.id}/agents`,
       payload: {
@@ -38,6 +42,7 @@ export async function seedDemoCompany(app: FastifyInstance, options: DemoOptions
   ).json() as { id: string };
   const nora = (
     await app.inject({
+      headers: options.headers ?? {},
       method: "POST",
       url: `/v1/companies/${company.id}/agents`,
       payload: {
@@ -48,6 +53,7 @@ export async function seedDemoCompany(app: FastifyInstance, options: DemoOptions
     })
   ).json() as { id: string };
   await app.inject({
+    headers: options.headers ?? {},
     method: "POST",
     url: `/v1/companies/${company.id}/agents`,
     payload: {
@@ -57,11 +63,13 @@ export async function seedDemoCompany(app: FastifyInstance, options: DemoOptions
     },
   });
   await app.inject({
+    headers: options.headers ?? {},
     method: "PUT",
     url: `/v1/companies/${company.id}/budgets`,
     payload: { scopeKind: "company", cap: 50 },
   });
   await app.inject({
+    headers: options.headers ?? {},
     method: "PUT",
     url: `/v1/companies/${company.id}/budgets`,
     payload: { scopeKind: "agent", scopeId: nora.id, cap: 5 },
@@ -72,12 +80,14 @@ export async function seedDemoCompany(app: FastifyInstance, options: DemoOptions
   if (options.sessions !== false) {
     s1 = (
       await app.inject({
+        headers: options.headers ?? {},
         method: "POST",
         url: `/v1/companies/${company.id}/sessions`,
         payload: { agentId: philip.id, title: "Rebuild the website" },
       })
     ).json() as { id: string };
     await app.inject({
+      headers: options.headers ?? {},
       method: "POST",
       url: `/v1/sessions/${s1.id}/messages`,
       payload: {
@@ -86,12 +96,14 @@ export async function seedDemoCompany(app: FastifyInstance, options: DemoOptions
     });
     s2 = (
       await app.inject({
+        headers: options.headers ?? {},
         method: "POST",
         url: `/v1/companies/${company.id}/sessions`,
         payload: { agentId: nora.id, title: "Competitor pricing" },
       })
     ).json() as { id: string };
     await app.inject({
+      headers: options.headers ?? {},
       method: "POST",
       url: `/v1/sessions/${s2.id}/messages`,
       payload: {
@@ -130,7 +142,13 @@ export async function seedDemoCompany(app: FastifyInstance, options: DemoOptions
     },
     mike,
   );
-  const leo = (await app.inject({ method: "GET", url: `/v1/companies/${company.id}/agents` })).json() as Array<{ id: string; name: string }>;
+  const leo = (
+    await app.inject({
+      headers: options.headers ?? {},
+      method: "GET",
+      url: `/v1/companies/${company.id}/agents`,
+    })
+  ).json() as Array<{ id: string; name: string }>;
   const leoId = leo.find((a) => a.name === "Leo")!.id;
 
   const pricing = await work.createTask(
@@ -363,6 +381,7 @@ export async function seedDemoCompany(app: FastifyInstance, options: DemoOptions
   // Connections: a routine for Sam, a workflow tool, a webhook and a subscription, a Telegram channel waiting for its secret.
   const sam = (
     await app.inject({
+      headers: options.headers ?? {},
       method: "POST",
       url: `/v1/companies/${company.id}/agents`,
       payload: { name: "Sam", role: "Support and operations. Keeps checklists and routines running.", reportsToAgentId: philip.id },

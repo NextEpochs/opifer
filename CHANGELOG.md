@@ -2,6 +2,24 @@
 
 All notable changes to Opifer. The format follows Keep a Changelog; versions follow SemVer.
 
+## 1.1.0 — 2026-09-20 — authenticated mode
+
+Opifer can now run on a server or a VPS: `o4r init --auth --email you@example.com` (or `o4r auth enable`) and every call to the interface and the API needs a signed-in person or an API key.
+
+### Added
+- People with email and password (scrypt), session cookie (`HttpOnly`, `SameSite=Lax`, `Secure` behind HTTPS, 30 days sliding), ten failed sign-ins a minute per address.
+- API keys (`opk_…`) for the CLI and integrations, shown once, stored hashed, revocable.
+- Roles, server-wide: observer reads, operator does the daily work, admin configures, owner manages people, keys, the emergency stop and export/import. The last owner cannot be removed.
+- CLI: `o4r auth enable|disable|status`, `o4r user add|list|remove|password|role`, `o4r apikey create|list|revoke`; `o4r init --auth --email --password`; the CLI signs its own calls with a key in `<home>/credentials/cli.key`.
+- Interface: sign-in screen, the signed-in person in the sidebar, sign-out in Settings; preferences per person.
+- The interface works under a path (`https://example.com/opifer/`): relative assets, API, events socket and service worker.
+- Docker: `OPIFER_AUTH_EMAIL` and `OPIFER_AUTH_PASSWORD` turn authenticated mode on at first start.
+- Migration `0010_auth`: `users.password_hash|role|status|last_login_at`, `user_sessions`, `api_keys`.
+
+### Changed
+- `o4r doctor` reports the authentication mode instead of warning about exposure when sign-in is on.
+- The guide has a section "On a server" with the nginx snippet; the security review describes both modes.
+
 ## 1.0.0 — 2026-09-20 — the public release
 
 The repository is public, the website is up at [opifer.dev](https://opifer.dev), and everything the README says has been verified on a second machine. No breaking change from 0.1.0: the version says the product is ready to be tried.

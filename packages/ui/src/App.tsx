@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Coins, GraduationCap, Home as HomeIcon, OctagonX, Plug, Inbox as InboxIcon, KanbanSquare, MessageSquare, Settings as SettingsIcon, Users } from "lucide-react";
-import { api, eventsSocket, type Approval, type Company, type Overview, type Task } from "./api";
+import { api, SignInRequired, type Me, eventsSocket, type Approval, type Company, type Overview, type Task } from "./api";
 import { detectLocale, fill, stringsFor, type Locale, type Strings } from "./i18n";
 import { setDisplayLocale } from "./ui";
 import { useDocumentAttributes, usePref, type Theme, type ViewMode } from "./prefs";
@@ -10,6 +10,7 @@ import { InboxPage } from "./pages/Inbox";
 import { TeamPage } from "./pages/Team";
 import { ChatPage } from "./pages/Chat";
 import { MoneyPage } from "./pages/Money";
+import { Login } from "./components/Login";
 import { SettingsPage } from "./pages/Settings";
 import { WorkPage } from "./pages/Work";
 import { LearningPage } from "./pages/Learning";
@@ -61,6 +62,29 @@ export function App() {
   const [attention, setAttention] = useState<Task[]>([]);
   const [live, setLive] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Who is looking: null while unknown; in authenticated mode nothing is shown before a sign-in.
+  const [me, setMe] = useState<Me | null>(null);
+  useEffect(() => {
+    api
+      .me()
+      .then(setMe)
+      .catch(() => setMe({ mode: "local", user: null }));
+  }, []);
+  const needsSignIn = me?.mode === "authenticated" && !me.user;
+  const signedOut = useCallback((e: unknown) => {
+    if (e instanceof SignInRequired) {
+      setMe((current) => (current ? { ...current, user: null } : current));
+      return true;
+    }
+    return false;
+  }, []);
+  const signOut = async () => {
+    try {
+      await api.logout();
+    } finally {
+      setMe((current) => (current ? { ...current, user: null } : current));
+    }
+  };
   const refreshTimer = useRef<number | null>(null);
 
   useEffect(() => {
@@ -81,9 +105,9 @@ export function App() {
       setCompanies(list);
       setError(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      if (!signedOut(e)) setError(e instanceof Error ? e.message : String(e));
     }
-  }, []);
+  }, [signedOut]);
 
   const refresh = useCallback(async () => {
     if (!company) return;
@@ -94,13 +118,13 @@ export function App() {
       setAttention(a);
       setError(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      if (!signedOut(e)) setError(e instanceof Error ? e.message : String(e));
     }
-  }, [company]);
+  }, [company, signedOut]);
 
   useEffect(() => {
-    void loadCompanies();
-  }, [loadCompanies]);
+    if (me && !needsSignIn) void loadCompanies();
+  }, [loadCompanies, me, needsSignIn]);
 
   useEffect(() => {
     void refresh();
@@ -167,6 +191,17 @@ export function App() {
 
   const ws: Workspace | null = company ? { company, companies, overview, pending, attention, t, locale, mode, refresh, go, agentName } : null;
 
+  if (!me) return <div className="min-h-screen bg-bg" aria-busy="true" />;
+  if (needsSignIn)
+    return (
+      <Login
+        t={t}
+        onSignedIn={(user) => {
+          setMe({ mode: "authenticated", user });
+        }}
+      />
+    );
+
   return (
     <div className="flex h-full min-h-screen">
       <a href="#main" className="skip-link">
@@ -221,9 +256,9 @@ export function App() {
           className="mt-2"
         />
         <div className="mt-2 flex items-center gap-2.5 px-2 pt-2 text-[13px] text-mute">
-          <Avatar name="Mike" colour="#06B6D4" />
+          <Avatar name={me.user?.name ?? t.you} colour="#06B6D4" />
           <span>
-            <strong className="text-ink">{company?.name ?? "Opifer"}</strong>
+            <strong className="text-ink">{me.user?.name ?? company?.name ?? "Opifer"}</strong>
             <br />
             <span className={`inline-flex items-center gap-1.5 ${live ? "text-ok" : "text-mute"}`}>
               <span className={`h-1.5 w-1.5 rounded-full ${live ? "bg-ok" : "bg-faint"}`} aria-hidden="true" />
@@ -263,6 +298,8 @@ export function App() {
             onTheme={setTheme}
             mode={mode}
             onMode={setMode}
+            me={me}
+            onSignOut={signOut}
           />
         ) : route.page === "home" ? (
           <HomePage ws={ws} />

@@ -81,6 +81,7 @@ describe("Work: tasks, wake-ups and the scheduler", () => {
     const dir = await mkdtemp(path.join(tmpdir(), "opifer-work-"));
     app = await buildApp({
       db,
+      connections: { start: false, sandbox: "local" },
       mode: "local",
       providers: { providers: new ProviderRegistry().register(provider), defaultModel: "fake/echo", fallbackModel: null, report: [] },
       workRoot: path.join(dir, "work"),

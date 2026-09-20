@@ -85,7 +85,15 @@ export async function runUp(options: UpOptions): Promise<void> {
   say.ok(`Default model: ${providers.defaultModel}`);
   const app = await buildApp({
     db: db.handle,
-    mode: "local",
+    mode: config.auth?.enabled ? "authenticated" : "local",
+    ...(config.auth?.enabled
+      ? {
+          auth: {
+            ...(config.auth.trustProxy !== undefined ? { trustProxy: config.auth.trustProxy } : {}),
+            ...(config.auth.sessionDays !== undefined ? { sessionDays: config.auth.sessionDays } : {}),
+          },
+        }
+      : {}),
     bus: new EventBus(),
     uiDir,
     logger: { level: "warn" },
@@ -102,7 +110,7 @@ export async function runUp(options: UpOptions): Promise<void> {
   await app.listen({ host: config.server.host, port: config.server.port });
   await writeFile(home.pidFile, `${process.pid}\n`, "utf8");
 
-  say.ok(`Server listening on ${c.bold(`http://${config.server.host}:${config.server.port}`)}`);
+  say.ok(`Server listening on ${c.bold(`http://${config.server.host}:${config.server.port}`)}${config.auth?.enabled ? " (authenticated mode: sign-in required)" : ""}`);
   if (!existsSync(uiDir)) say.warn("Interface not compiled: run `pnpm build` to serve it from this address");
   say.info(c.dim("Ctrl-C to stop"));
 

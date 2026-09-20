@@ -6,6 +6,8 @@ import { createTestDatabase, type TestDatabase } from "../src/testing.js";
 const DRIZZLE_TABLES = [
   schema.companies,
   schema.users,
+  schema.userSessions,
+  schema.apiKeys,
   schema.memberships,
   schema.agents,
   schema.agentRevisions,
