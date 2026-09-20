@@ -246,6 +246,16 @@ export class WorkService {
   }
 
   private async closed(task: Task, outcome: "success" | "failure"): Promise<void> {
+    // The parent's assignee is told that a child closed, so the delegated work comes back to whoever asked for it.
+    if (task.parentId) {
+      const [parent] = await this.sql<TaskRow[]>`SELECT * FROM tasks WHERE id = ${task.parentId} AND company_id = ${task.companyId}`;
+      if (parent?.assignee_agent_id && !["done", "cancelled"].includes(parent.status))
+        await this.wake(task.companyId, parent.assignee_agent_id, "mention", {
+          taskId: parent.id,
+          dedupeKey: `subtask:${task.id}:${outcome}`,
+          payload: { subtaskId: task.id, subtaskTitle: task.title, subtaskStatus: task.status, subtaskSummary: task.result?.summary ?? null },
+        });
+    }
     try {
       await this.hooks.onTaskClosed?.(task, outcome);
     } catch {

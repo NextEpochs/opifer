@@ -30,6 +30,7 @@ export function describeTask(task: Task, why: WhyChain, extra: { comments?: Arra
   for (const goal of why.goals) lines.push(`- Goal: ${goal.title}${goal.measure ? ` (measured by: ${goal.measure})` : ""}`);
   if (why.project) lines.push(`- Project: ${why.project.name}${why.project.description ? ` — ${why.project.description}` : ""}`);
   for (const parent of why.parents) lines.push(`- Part of: ${parent.title}`);
+  if (task.result?.summary) lines.push(`\nDelivered result: ${task.result.summary}${task.result.verification ? `\nHow to verify: ${task.result.verification}` : ""}`);
   if (extra.comments && extra.comments.length > 0) {
     lines.push("\nRecent comments:");
     for (const c of extra.comments.slice(-8)) lines.push(`- ${c.author}: ${c.body}`);
@@ -37,7 +38,7 @@ export function describeTask(task: Task, why: WhyChain, extra: { comments?: Arra
   return lines.join("\n");
 }
 
-export const TASK_GUIDE = `You work on tasks. Use the task tools: task_status to re-read the task, task_comment to report progress or ask the people following it, task_create to delegate a subtask to someone who reports to you (or to yourself), task_deliver when the result is ready for review, task_block when you cannot continue. A task closes only with a verifiable result: say what you produced and how it can be checked.`;
+export const TASK_GUIDE = `You work on tasks. Use the task tools: task_status to re-read the task, task_comment to report progress or ask the people following it, task_create to delegate a subtask to someone who reports to you (or to yourself), task_deliver when the result is ready for review, task_block when you cannot continue. When you delegate, you are the reviewer of that subtask: you will be woken up when it is delivered, and you close it with task_approve or send it back with task_request_changes. A parent task is delivered only after its subtasks are closed; while you wait, end your turn and you will be woken up. A task closes only with a verifiable result: say what you produced and how it can be checked.`;
 
 export function taskTools(work: WorkService, sql: Sql): NativeTool[] {
   const requireTask = async (context: ToolContext): Promise<Task | ToolOutcome> => {
@@ -67,9 +68,11 @@ export function taskTools(work: WorkService, sql: Sql): NativeTool[] {
       const text = describeTask(task, why, { comments: comments.map((c) => ({ author: nameOf(c.authorKind, c.authorId), body: c.body })) });
       const subtasks =
         children.length > 0
-          ? `\n\nSubtasks:\n${children.map((c) => `- [${c.status}] ${c.title} → ${agents.find((a) => a.id === c.assigneeAgentId)?.name ?? "unassigned"}`).join("\n")}`
+          ? `\n\nSubtasks:\n${children.map((c) => `- [${c.status}] ${c.title} → ${agents.find((a) => a.id === c.assigneeAgentId)?.name ?? "unassigned"}${c.result?.summary ? ` — ${c.result.summary}` : ""}`).join("\n")}`
           : "";
-      return { content: text + subtasks };
+      const products = await work.listProducts(context.companyId, task.id);
+      const produced = products.length > 0 ? `\n\nProducts:\n${products.map((p) => `- ${p.kind}: ${p.title}${p.ref ? ` (${p.ref})` : ""}`).join("\n")}` : "";
+      return { content: text + produced + subtasks };
     },
   };
 
@@ -129,6 +132,8 @@ export function taskTools(work: WorkService, sql: Sql): NativeTool[] {
           acceptance: str(args, "acceptance", false),
           parentId: task.id,
           assigneeAgentId: assigneeId,
+          // The delegator reviews the work of a report; nobody reviews their own.
+          reviewerAgentId: assigneeId === context.agentId ? null : context.agentId,
           priority,
         },
         actor(context),
@@ -171,6 +176,12 @@ export function taskTools(work: WorkService, sql: Sql): NativeTool[] {
       const task = await requireTask(context);
       if (isOutcome(task)) return task;
       if (task.status !== "in_progress") return { content: `The task is ${task.status}: nothing to deliver.`, isError: true };
+      const open = (await work.listTasks(context.companyId, { parentId: task.id })).filter((c) => c.status !== "done" && c.status !== "cancelled");
+      if (open.length > 0)
+        return {
+          content: `${open.length} subtask${open.length === 1 ? " is" : "s are"} still open (${open.map((c) => `"${c.title}": ${c.status}`).join(", ")}). A parent is delivered after its subtasks are closed: end your turn and you will be woken up when they are.`,
+          isError: true,
+        };
       const products = Array.isArray(args["products"]) ? (args["products"] as Array<Record<string, unknown>>) : [];
       for (const p of products) {
         await work.addProduct(
@@ -208,5 +219,46 @@ export function taskTools(work: WorkService, sql: Sql): NativeTool[] {
     },
   };
 
-  return [status, comment, create, deliver, block];
+  const requireReview = async (context: ToolContext): Promise<Task | ToolOutcome> => {
+    const task = await requireTask(context);
+    if (isOutcome(task)) return task;
+    if (task.reviewerAgentId !== context.agentId) return { content: "You are not the reviewer of this task.", isError: true };
+    if (task.assigneeAgentId === context.agentId) return { content: "Nobody reviews their own work.", isError: true };
+    if (task.status !== "in_review") return { content: `The task is ${task.status}, not in review.`, isError: true };
+    return task;
+  };
+
+  const approve: NativeTool = {
+    risk: "medium",
+    definition: {
+      name: "task_approve",
+      description: "Closes the task under your review as done: use it only after checking the result against the acceptance criterion. Say what you verified.",
+      inputSchema: { type: "object", required: ["verification"], properties: { verification: { type: "string", description: "What you checked and how." } } },
+    },
+    async execute(args, context) {
+      const task = await requireReview(context);
+      if (isOutcome(task)) return task;
+      const done = await work.complete(context.companyId, task.id, { summary: task.result?.summary ?? task.title, verification: str(args, "verification") }, actor(context), {
+        from: ["in_review"],
+      });
+      return { content: `Approved: "${done.title}" is done.` };
+    },
+  };
+
+  const requestChanges: NativeTool = {
+    risk: "low",
+    definition: {
+      name: "task_request_changes",
+      description: "Sends the task under your review back to its assignee with what must change. They are woken up.",
+      inputSchema: { type: "object", required: ["note"], properties: { note: { type: "string", description: "What is missing or wrong, concretely." } } },
+    },
+    async execute(args, context) {
+      const task = await requireReview(context);
+      if (isOutcome(task)) return task;
+      await work.requestChanges(context.companyId, task.id, str(args, "note"), actor(context));
+      return { content: `Sent back: "${task.title}" returns to its assignee with your note.` };
+    },
+  };
+
+  return [status, comment, create, deliver, block, approve, requestChanges];
 }

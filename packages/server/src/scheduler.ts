@@ -364,13 +364,16 @@ export class Scheduler {
         return;
       }
       default: {
-        // The agent stopped talking without delivering or blocking: the task waits for a person.
+        // The agent stopped talking without delivering or blocking: waiting for subtasks, or for a person.
         const released = await work.release(task.companyId, task.id, { kind: "paused", reason: stopReason }, system);
+        const open = (await work.listTasks(task.companyId, { parentId: task.id })).filter((c) => c.status !== "done" && c.status !== "cancelled");
         await work.comment(
           task.companyId,
           task.id,
           system,
-          `${agent.name} stopped without delivering (${stopReason})${lastText.trim() ? `: ${lastText.trim().slice(0, 1000)}` : ""}. Comment to wake them up again.`,
+          open.length > 0
+            ? `${agent.name} is waiting for ${open.length} subtask${open.length === 1 ? "" : "s"} (${open.map((c) => c.title).join(", ")})${lastText.trim() ? `: ${lastText.trim().slice(0, 1000)}` : ""}.`
+            : `${agent.name} stopped without delivering (${stopReason})${lastText.trim() ? `: ${lastText.trim().slice(0, 1000)}` : ""}. Comment to wake them up again.`,
         );
         publish(released.status, stopReason);
       }
@@ -421,7 +424,9 @@ export class Scheduler {
           author = a?.name ?? "an agent";
         }
         if (wakeup.payload["review"])
-          return `The task "${task.title}" was delivered for your review. Read it with task_status, check the result against the acceptance criterion, and comment your verdict.`;
+          return `The task "${task.title}" was delivered for your review. Read it with task_status, check the result against the acceptance criterion, then close it with task_approve or send it back with task_request_changes.`;
+        if (typeof wakeup.payload["subtaskTitle"] === "string")
+          return `The subtask "${wakeup.payload["subtaskTitle"]}" of your task "${task.title}" is ${wakeup.payload["subtaskStatus"]}${typeof wakeup.payload["subtaskSummary"] === "string" ? `: ${wakeup.payload["subtaskSummary"]}` : ""}. Read your task with task_status and continue; when everything is ready, deliver with task_deliver.`;
         return c
           ? `New comment on the task "${task.title}" from ${author}: ${c.body}\nAnswer with task_comment, or continue the work.`
           : `Someone mentioned you on the task "${task.title}". Read it with task_status.`;
