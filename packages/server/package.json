@@ -26,6 +26,7 @@
     "@fastify/websocket": "^11.3.0",
     "@opifer/core": "workspace:*",
     "@opifer/db": "workspace:*",
+    "@opifer/gateway": "workspace:*",
     "@opifer/provider-anthropic": "workspace:*",
     "@opifer/provider-openai": "workspace:*",
     "@opifer/provider-openai-compatible": "workspace:*",

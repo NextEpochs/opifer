@@ -32,6 +32,23 @@ export function publishRuntimeEvent(app: FastifyInstance, companyId: string, ses
   app.opifer.bus.publish("session.event", companyId, { sessionId, runId, event });
 }
 
+/** Starts a turn without waiting for it; events go to the bus, failures become notices. */
+export function startTurnInBackground(app: FastifyInstance, runtime: AgentRuntime, session: { id: string; companyId: string }, text?: string): void {
+  let runId: string | null = null;
+  const turn = runtime.runTurn({
+    sessionId: session.id,
+    ...(text !== undefined ? { text } : {}),
+    onEvent: (event) => {
+      if (event.type === "done") runId = event.run.id;
+      publishRuntimeEvent(app, session.companyId, session.id, runId, event);
+    },
+  });
+  turn.catch((error) => {
+    app.log.error({ err: error, sessionId: session.id }, "turn failed");
+    publishRuntimeEvent(app, session.companyId, session.id, runId, { type: "notice", message: `turn failed: ${error instanceof Error ? error.message : String(error)}` });
+  });
+}
+
 export async function registerSessionRoutes(app: FastifyInstance, options: SessionRoutesOptions): Promise<void> {
   const { runtime } = options;
   const { store } = runtime;
@@ -97,19 +114,7 @@ export async function registerSessionRoutes(app: FastifyInstance, options: Sessi
       return reply.code(202).send({ accepted: "injected", sessionId: session.id });
     }
 
-    let runId: string | null = null;
-    const turn = runtime.runTurn({
-      sessionId: session.id,
-      text: request.body.text,
-      onEvent: (event) => {
-        if (event.type === "done") runId = event.run.id;
-        publishRuntimeEvent(app, session.companyId, session.id, runId, event);
-      },
-    });
-    turn.catch((error) => {
-      app.log.error({ err: error, sessionId: session.id }, "turn failed");
-      publishRuntimeEvent(app, session.companyId, session.id, runId, { type: "notice", message: `turn failed: ${error instanceof Error ? error.message : String(error)}` });
-    });
+    startTurnInBackground(app, runtime, session, request.body.text);
     return reply.code(202).send({ accepted: "turn_started", sessionId: session.id });
   });
 

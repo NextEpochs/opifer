@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { api, eventsSocket, type Agent, type AuditEntry, type Company, type Health } from "./api";
 import { detectLocale, saveLocale, stringsFor, type Locale } from "./i18n";
 import { Chat } from "./Chat";
+import { Governance } from "./Governance";
+import { Card, buttonCls, inputCls } from "./ui";
 
 export function App() {
   const [locale, setLocale] = useState<Locale>(detectLocale);
@@ -11,7 +13,7 @@ export function App() {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [page, setPage] = useState<"dashboard" | "chat">("dashboard");
+  const [page, setPage] = useState<"dashboard" | "chat" | "governance">("dashboard");
 
   const refresh = useCallback(async () => {
     try {
@@ -70,7 +72,7 @@ export function App() {
       </header>
 
       <nav className="flex gap-1 border-b border-zinc-200 text-sm dark:border-zinc-800" aria-label="Sections">
-        {(["dashboard", "chat"] as const).map((p) => (
+        {(["dashboard", "chat", "governance"] as const).map((p) => (
           <button
             key={p}
             type="button"
@@ -78,7 +80,7 @@ export function App() {
             aria-current={page === p ? "page" : undefined}
             className={`-mb-px border-b-2 px-3 py-2 ${page === p ? "border-brand-600 font-medium text-brand-700 dark:text-brand-500" : "border-transparent text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"}`}
           >
-            {p === "dashboard" ? t.dashboard : t.chat}
+            {p === "dashboard" ? t.dashboard : p === "chat" ? t.chat : t.governance}
           </button>
         ))}
       </nav>
@@ -91,6 +93,8 @@ export function App() {
 
       {page === "chat" && selectedCompany && <Chat key={selectedCompany.id} company={selectedCompany} t={t} />}
       {page === "chat" && !selectedCompany && <p className="text-sm text-zinc-500">{t.noCompanies}</p>}
+      {page === "governance" && selectedCompany && <Governance key={selectedCompany.id} company={selectedCompany} t={t} />}
+      {page === "governance" && !selectedCompany && <p className="text-sm text-zinc-500">{t.noCompanies}</p>}
 
       {page === "dashboard" && (
       <section aria-labelledby="status" className="grid gap-4 sm:grid-cols-2">
@@ -140,17 +144,6 @@ export function App() {
 }
 
 type T = ReturnType<typeof stringsFor>;
-
-function Card({ title, id, children }: { title: string; id: string; children: React.ReactNode }) {
-  return (
-    <section aria-labelledby={id} className="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-      <h2 id={id} className="mb-3 text-sm font-semibold uppercase tracking-wide text-zinc-500">
-        {title}
-      </h2>
-      {children}
-    </section>
-  );
-}
 
 function Badge({ tone, children }: { tone: "green" | "red"; children: React.ReactNode }) {
   const cls = tone === "green" ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200" : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200";
@@ -292,8 +285,3 @@ function CompanyPanel({ company, t }: { company: Company; t: T }) {
     </section>
   );
 }
-
-const inputCls =
-  "w-full rounded-md border border-zinc-300 bg-white px-2.5 py-1.5 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100 dark:border-zinc-700 dark:bg-zinc-950 dark:focus:ring-zinc-800";
-const buttonCls =
-  "rounded-md bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-100 disabled:opacity-50 dark:focus:ring-zinc-700";

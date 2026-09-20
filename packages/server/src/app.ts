@@ -11,8 +11,10 @@ import { registerAgentRoutes } from "./routes/agents.js";
 import { registerAuditRoutes } from "./routes/audit.js";
 import { registerSessionRoutes } from "./routes/sessions.js";
 import { registerModelRoutes } from "./routes/models.js";
-import { AgentRuntime, NATIVE_TOOLS, NativeToolExecutor, type ProviderRegistry } from "@opifer/runtime";
+import { registerGovernanceRoutes } from "./routes/governance.js";
+import { AgentRuntime, NATIVE_TOOLS, NativeToolExecutor, type GovernanceGates, type ProviderRegistry } from "@opifer/runtime";
 import type { ProviderSetup } from "./providers.js";
+import { buildGovernance, type Governance } from "./governance.js";
 
 export interface AppOptions {
   db: DatabaseHandle;
@@ -26,8 +28,14 @@ export interface AppOptions {
   providers?: ProviderSetup;
   /** Root folder of the sessions' working directories. */
   workRoot?: string;
-  /** Tool executor; defaults to the native tools. */
+  /** Tool executor underneath governance; defaults to the native tools. */
   tools?: ConstructorParameters<typeof AgentRuntime>[0]["tools"];
+  /**
+   * Governance (budget, permissions, approvals, secrets). It needs a place
+   * for the master key; without one the runtime runs ungoverned, which is
+   * only for tests.
+   */
+  governance?: { credentialsDir: string; usdToEur?: number } | false;
 }
 
 export interface AppContext {
@@ -35,9 +43,10 @@ export interface AppContext {
   bus: EventBus;
   mode: InstallMode;
   runtime: AgentRuntime | null;
+  governance: Governance | null;
 }
 
-export function buildRuntime(db: DatabaseHandle, providers: ProviderRegistry, options: { workRoot: string; defaultModel: string; fallbackModel?: string | null; tools?: AppOptions["tools"] }): AgentRuntime {
+export function buildRuntime(db: DatabaseHandle, providers: ProviderRegistry, options: { workRoot: string; defaultModel: string; fallbackModel?: string | null; tools?: AppOptions["tools"]; gates?: GovernanceGates }): AgentRuntime {
   return new AgentRuntime({
     sql: db.sql,
     providers,
@@ -45,6 +54,7 @@ export function buildRuntime(db: DatabaseHandle, providers: ProviderRegistry, op
     workRoot: options.workRoot,
     defaultModel: options.defaultModel,
     defaultFallbackModel: options.fallbackModel ?? null,
+    ...(options.gates ? { governance: options.gates } : {}),
   });
 }
 
@@ -67,15 +77,23 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   const app = Fastify({ logger: options.logger ?? false });
   const bus = options.bus ?? new EventBus();
   const workRoot = options.workRoot ?? path.join(tmpdir(), "opifer-work");
+  const governance =
+    options.providers && options.governance
+      ? await buildGovernance(options.db, options.providers.providers, bus, {
+          credentialsDir: options.governance.credentialsDir,
+          ...(options.governance.usdToEur !== undefined ? { usdToEur: options.governance.usdToEur } : {}),
+          ...(options.tools ? { inner: options.tools } : {}),
+        })
+      : null;
   const runtime = options.providers
     ? buildRuntime(options.db, options.providers.providers, {
         workRoot,
         defaultModel: options.providers.defaultModel,
         fallbackModel: options.providers.fallbackModel,
-        ...(options.tools ? { tools: options.tools } : {}),
+        ...(governance ? { tools: governance.tools, gates: governance.gates } : options.tools ? { tools: options.tools } : {}),
       })
     : null;
-  app.decorate("opifer", { db: options.db, bus, mode: options.mode, runtime });
+  app.decorate("opifer", { db: options.db, bus, mode: options.mode, runtime, governance });
   if (runtime) {
     // After a restart the runs left "running" are marked interrupted: the history stays, no replay.
     const stale = await runtime.store.markAllStaleRunsInterrupted();
@@ -91,7 +109,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
     } catch {
       database = "error";
     }
-    return { status: database === "ok" ? "ok" : "degraded", version: OPIFER_VERSION, mode: options.mode, database, runtime: runtime ? "ok" : "absent" };
+    return { status: database === "ok" ? "ok" : "degraded", version: OPIFER_VERSION, mode: options.mode, database, runtime: runtime ? "ok" : "absent", governance: governance ? "ok" : "absent" };
   });
 
   app.get("/v1/events", { websocket: true }, (socket) => {
@@ -109,6 +127,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
     const setup = options.providers;
     await app.register(async (scope) => registerSessionRoutes(scope, { runtime, workRoot }), { prefix: "/v1" });
     await app.register(async (scope) => registerModelRoutes(scope, { runtime, setup }), { prefix: "/v1" });
+    if (governance) await app.register(async (scope) => registerGovernanceRoutes(scope, { runtime, governance }), { prefix: "/v1" });
   }
 
   if (options.uiDir && (await dirExists(options.uiDir))) {

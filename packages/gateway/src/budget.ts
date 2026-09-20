@@ -170,6 +170,8 @@ export class BudgetService implements BudgetGate {
             cap: policy.cap,
             spent: spent.total,
             currency: policy.currency,
+            policyId: policy.id,
+            window: policy.window,
           };
         }
         if (spent.total >= policy.cap * policy.warnRatio) {

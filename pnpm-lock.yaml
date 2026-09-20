@@ -113,6 +113,9 @@ importers:
       '@opifer/db':
         specifier: workspace:*
         version: link:../db
+      '@opifer/gateway':
+        specifier: workspace:*
+        version: link:../gateway
       '@opifer/provider-anthropic':
         specifier: workspace:*
         version: link:../../plugins/provider-anthropic

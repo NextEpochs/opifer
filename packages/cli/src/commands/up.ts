@@ -72,7 +72,7 @@ export async function runUp(options: UpOptions): Promise<void> {
   const providers = await setupProviders(config.models, process.env, { credentialsDir: home.credentialsDir });
   for (const r of providers.report) (r.enabled ? say.ok : say.warn)(`provider ${r.id}: ${r.detail}`);
   say.ok(`Default model: ${providers.defaultModel}`);
-  const app = await buildApp({ db: db.handle, mode: "local", bus: new EventBus(), uiDir, logger: { level: "warn" }, providers, workRoot: home.workDir });
+  const app = await buildApp({ db: db.handle, mode: "local", bus: new EventBus(), uiDir, logger: { level: "warn" }, providers, workRoot: home.workDir, governance: { credentialsDir: home.credentialsDir } });
   await app.listen({ host: config.server.host, port: config.server.port });
   await writeFile(home.pidFile, `${process.pid}\n`, "utf8");
 

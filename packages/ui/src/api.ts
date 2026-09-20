@@ -71,6 +71,7 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
     const body = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
     throw new Error(body.error ?? body.message ?? `${res.status} ${res.statusText}`);
   }
+  if (res.status === 204) return undefined as T;
   return (await res.json()) as T;
 }
 
@@ -88,7 +89,56 @@ export const api = {
   session: (id: string) => request<SessionDetail>(`/v1/sessions/${id}`),
   sendMessage: (id: string, text: string) => request<{ accepted: string }>(`/v1/sessions/${id}/messages`, { method: "POST", body: JSON.stringify({ text }) }),
   interrupt: (id: string) => request<{ interrupted: boolean }>(`/v1/sessions/${id}/interrupt`, { method: "POST" }),
+  approvals: (companyId: string, status?: string) => request<Approval[]>(`/v1/companies/${companyId}/approvals${status ? `?status=${status}` : ""}`),
+  decide: (approvalId: string, status: "approved" | "denied", note?: string, newCap?: number) =>
+    request<Approval>(`/v1/approvals/${approvalId}/decide`, { method: "POST", body: JSON.stringify({ status, ...(note ? { note } : {}), ...(newCap !== undefined ? { newCap } : {}) }) }),
+  costs: (companyId: string) => request<CostReport>(`/v1/companies/${companyId}/costs`),
+  setBudget: (companyId: string, input: { scopeKind: string; scopeId?: string; cap: number; window?: string; currency?: string }) =>
+    request<BudgetPolicy>(`/v1/companies/${companyId}/budgets`, { method: "PUT", body: JSON.stringify(input) }),
+  removeBudget: (companyId: string, policyId: string) => request<void>(`/v1/companies/${companyId}/budgets/${policyId}`, { method: "DELETE" }),
+  permissions: (agentId: string) => request<ToolPermissionView[]>(`/v1/agents/${agentId}/permissions`),
+  setToolPolicy: (companyId: string, input: { targetKind: string; targetId?: string; toolName: string; permission: string }) =>
+    request<unknown>(`/v1/companies/${companyId}/tool-policies`, { method: "PUT", body: JSON.stringify(input) }),
+  setAgentStatus: (agentId: string, status: "active" | "paused" | "archived") => request<{ status: string }>(`/v1/agents/${agentId}/status`, { method: "POST", body: JSON.stringify({ status }) }),
 };
+
+export interface Approval {
+  id: string;
+  kind: string;
+  status: "pending" | "approved" | "denied" | "expired";
+  agentId: string | null;
+  sessionId: string | null;
+  subject: Record<string, unknown>;
+  reason: string | null;
+  risk: "low" | "medium" | "high";
+  decisionNote: string | null;
+  createdAt: string;
+}
+
+export interface BudgetPolicy {
+  id: string;
+  scopeKind: string;
+  scopeId: string | null;
+  window: string;
+  cap: number;
+  currency: string;
+  warnRatio: number;
+}
+
+export interface CostReport {
+  total: { usd: number; eur: number };
+  byAgent: Array<{ agentId: string | null; agentName: string | null; usd: number; eur: number; calls: number }>;
+  byModel: Array<{ model: string | null; usd: number; eur: number; calls: number; inputTokens: number; outputTokens: number }>;
+  policies: BudgetPolicy[];
+}
+
+export interface ToolPermissionView {
+  name: string;
+  description: string;
+  risk: string;
+  permission: "automatic" | "approval" | "blocked";
+  source: "agent" | "role" | "company" | "risk";
+}
 
 export interface BusEvent {
   type: string;

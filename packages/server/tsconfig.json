@@ -21,6 +21,9 @@
       "path": "../runtime"
     },
     {
+      "path": "../gateway"
+    },
+    {
       "path": "../../plugins/provider-anthropic"
     },
     {

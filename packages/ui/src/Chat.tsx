@@ -70,7 +70,9 @@ export function Chat({ company, t }: { company: Company; t: Strings }) {
           break;
         case "done": {
           const run = e["run"] as { status?: string; error?: string | null; stopReason?: string | null } | undefined;
-          setLive(run && run.status === "failed" ? { ...emptyLive, notices: [`${t.turnFailed}: ${run.error ?? run.stopReason ?? "?"}`] } : emptyLive);
+          const notice =
+            run?.status === "failed" ? `${t.turnFailed}: ${run.error ?? run.stopReason ?? "?"}` : run?.stopReason === "approval_pending" ? t.approvalPending : run?.stopReason === "budget_exhausted" ? t.budgetExhausted : null;
+          setLive(notice ? { ...emptyLive, notices: [notice] } : emptyLive);
           void loadDetail(selected);
           void loadLists();
           break;

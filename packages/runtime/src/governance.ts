@@ -23,7 +23,7 @@ export interface CostEstimate {
 
 export type BudgetDecision =
   | { allowed: true; reservationId: string; warnings: string[] }
-  | { allowed: false; reason: string; scope: string; cap: number; spent: number; currency: string };
+  | { allowed: false; reason: string; scope: string; cap: number; spent: number; currency: string; policyId?: string; window?: string };
 
 export interface BudgetGate {
   /** Reserves the estimated cost of a call before it starts; denied when a cap is reached. */

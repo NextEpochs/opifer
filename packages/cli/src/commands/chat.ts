@@ -6,9 +6,8 @@
 
 import { createInterface } from "node:readline/promises";
 import { stdin, stdout } from "node:process";
-import { requireConfig, resolveHome } from "../home.js";
 import { c, say } from "../output.js";
-import { isPortOpen } from "../database.js";
+import { api, serverBase } from "../api.js";
 
 export interface ChatOptions {
   home?: string;
@@ -53,25 +52,17 @@ interface RuntimeEventLike {
   reason?: string;
   from?: string;
   to?: string;
+  approvalId?: string;
+  risk?: string;
+  scope?: string;
+  cap?: number;
+  spent?: number;
+  currency?: string;
   run?: { status: string; stopReason: string | null; inputTokens: number; outputTokens: number; iterations: number };
 }
 
-async function api<T>(base: string, path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${base}${path}`, { headers: { "content-type": "application/json" }, ...init });
-  if (!res.ok) {
-    const body = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
-    throw new Error(body.error ?? body.message ?? `${res.status} ${res.statusText}`);
-  }
-  return (await res.json()) as T;
-}
-
 export async function runChat(options: ChatOptions): Promise<void> {
-  const home = resolveHome(options.home);
-  const config = await requireConfig(home);
-  const base = `http://${config.server.host}:${config.server.port}`;
-  if (!(await isPortOpen(config.server.port, config.server.host === "0.0.0.0" ? "127.0.0.1" : config.server.host))) {
-    throw new Error(`The server is not running on ${base}: run o4r up first (also with --detach)`);
-  }
+  const base = await serverBase(options.home);
 
   const health = await api<{ runtime: string }>(base, "/v1/health");
   if (health.runtime !== "ok") throw new Error("The server has no model providers configured: set ANTHROPIC_API_KEY, OPENAI_API_KEY or a local endpoint and restart");
@@ -141,6 +132,15 @@ export async function runChat(options: ChatOptions): Promise<void> {
       case "notice":
         endLine();
         say.warn(e.message ?? "");
+        break;
+      case "approval_requested":
+        endLine();
+        say.warn(`approval needed for ${c.bold(e.name ?? "")} (${e.risk} risk): ${e.reason}`);
+        say.info(c.dim(`  decide with: o4r approvals approve ${e.approvalId}  |  o4r approvals deny ${e.approvalId}`));
+        break;
+      case "budget_stop":
+        endLine();
+        say.fail(`budget reached for ${e.scope}: ${e.spent?.toFixed(4)} of ${e.cap} ${e.currency}. The agent is stopped until a budget increase is approved (o4r approvals).`);
         break;
       case "done":
         endLine();

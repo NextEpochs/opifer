@@ -7,6 +7,22 @@ import { runDoctor } from "./commands/doctor.js";
 import { runInit } from "./commands/init.js";
 import { runMigrate } from "./commands/migrate.js";
 import { runDown, runUp } from "./commands/up.js";
+import {
+  runApprovalDecide,
+  runApprovalsList,
+  runBudgetList,
+  runBudgetRemove,
+  runBudgetSet,
+  runCosts,
+  runPolicyList,
+  runPolicyRemove,
+  runPolicySet,
+  runSecretBind,
+  runSecretList,
+  runSecretRemove,
+  runSecretSet,
+  runSecretUnbind,
+} from "./commands/govern.js";
 import { say, setColor } from "./output.js";
 
 const program = new Command();
@@ -99,6 +115,102 @@ migrate
   .option("--steps <n>", "how many to roll back (default 1)")
   .option("--to <version>", "go back to the given version (0 = empty schema)")
   .action(async (opts: { steps?: string; to?: string }) => runMigrate("down", { ...opts, ...homeOf(program) }));
+
+const budget = program.command("budget").description("spending caps (the most restrictive applicable cap wins)");
+budget
+  .command("list", { isDefault: true })
+  .description("show the budgets of the company")
+  .option("--company <name>", "company (default: the first one)")
+  .action(async (opts: { company?: string }) => runBudgetList({ ...opts, ...homeOf(program) }));
+budget
+  .command("set")
+  .description("set a cap for the company or one agent")
+  .requiredOption("--cap <amount>", "cap amount")
+  .option("--agent <name>", "cap one agent instead of the whole company")
+  .option("--window <monthly|daily|lifetime>", "window (default monthly)")
+  .option("--currency <EUR|USD>", "currency (default EUR)")
+  .option("--company <name>", "company (default: the first one)")
+  .action(async (opts: { cap: string; agent?: string; window?: string; currency?: string; company?: string }) => runBudgetSet({ ...opts, ...homeOf(program) }));
+budget
+  .command("remove <id>")
+  .description("remove a budget by id")
+  .option("--company <name>", "company (default: the first one)")
+  .action(async (id: string, opts: { company?: string }) => runBudgetRemove({ id, ...opts, ...homeOf(program) }));
+
+program
+  .command("costs")
+  .description("spending by agent and model")
+  .option("--all", "all time instead of the current month")
+  .option("--company <name>", "company (default: the first one)")
+  .action(async (opts: { all?: boolean; company?: string }) => runCosts({ ...opts, ...homeOf(program) }));
+
+const approvals = program.command("approvals").description("the inbox: decisions waiting for a person");
+approvals
+  .command("list", { isDefault: true })
+  .description("pending approvals")
+  .option("--all", "include decided ones")
+  .option("--company <name>", "company (default: the first one)")
+  .action(async (opts: { all?: boolean; company?: string }) => runApprovalsList({ ...opts, ...homeOf(program) }));
+approvals
+  .command("approve <id>")
+  .description("approve: the tool runs, or the budget is raised and the agent resumes")
+  .option("--note <text>", "note for the audit")
+  .option("--cap <amount>", "for a budget increase: the new cap (default: double)")
+  .action(async (id: string, opts: { note?: string; cap?: string }) => runApprovalDecide("approved", { id, ...opts, ...homeOf(program) }));
+approvals
+  .command("deny <id>")
+  .description("deny: the agent is told and continues without it")
+  .option("--note <text>", "note for the audit, shown to the agent")
+  .action(async (id: string, opts: { note?: string }) => runApprovalDecide("denied", { id, ...opts, ...homeOf(program) }));
+
+const policy = program.command("policy").description("tool permissions: automatic, approval or blocked");
+policy
+  .command("list", { isDefault: true })
+  .description("policies of the company, or the effective permissions of one agent")
+  .option("--agent <name>", "show the permissions one agent ends up with")
+  .option("--company <name>", "company (default: the first one)")
+  .action(async (opts: { agent?: string; company?: string }) => runPolicyList({ ...opts, ...homeOf(program) }));
+policy
+  .command("set <tool> <permission>")
+  .description("set a permission for the company, a role or an agent (tool \"*\" means every tool)")
+  .option("--agent <name>", "apply to one agent")
+  .option("--role <role>", "apply to every agent with this role")
+  .option("--company <name>", "company (default: the first one)")
+  .action(async (tool: string, permission: string, opts: { agent?: string; role?: string; company?: string }) => runPolicySet({ tool, permission, ...opts, ...homeOf(program) }));
+policy
+  .command("remove <id>")
+  .description("remove a policy by id")
+  .option("--company <name>", "company (default: the first one)")
+  .action(async (id: string, opts: { company?: string }) => runPolicyRemove({ id, ...opts, ...homeOf(program) }));
+
+const secret = program.command("secret").description("encrypted secrets, injected into tools and never shown to the model");
+secret
+  .command("list", { isDefault: true })
+  .description("names, versions and bindings (never the values)")
+  .option("--company <name>", "company (default: the first one)")
+  .action(async (opts: { company?: string }) => runSecretList({ ...opts, ...homeOf(program) }));
+secret
+  .command("set <name> [value]")
+  .description("store a secret (prompted, or read from stdin, when the value is omitted)")
+  .option("--company <name>", "company (default: the first one)")
+  .action(async (name: string, value: string | undefined, opts: { company?: string }) => runSecretSet({ name, ...(value !== undefined ? { value } : {}), ...opts, ...homeOf(program) }));
+secret
+  .command("remove <name>")
+  .description("remove a secret and its bindings")
+  .option("--company <name>", "company (default: the first one)")
+  .action(async (name: string, opts: { company?: string }) => runSecretRemove({ name, ...opts, ...homeOf(program) }));
+secret
+  .command("bind <name>")
+  .description("make a secret available to an agent, in every tool or one tool")
+  .requiredOption("--agent <name>", "the agent")
+  .option("--tool <tool>", "only this tool (default: every tool)")
+  .option("--company <name>", "company (default: the first one)")
+  .action(async (name: string, opts: { agent: string; tool?: string; company?: string }) => runSecretBind({ name, ...opts, ...homeOf(program) }));
+secret
+  .command("unbind <bindingId>")
+  .description("remove a binding by id")
+  .option("--company <name>", "company (default: the first one)")
+  .action(async (id: string, opts: { company?: string }) => runSecretUnbind({ id, ...opts, ...homeOf(program) }));
 
 function homeOf(cmd: Command): { home?: string } {
   const home = (cmd.opts() as { home?: string }).home;
