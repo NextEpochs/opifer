@@ -203,6 +203,40 @@ describe("Work: tasks, wake-ups and the scheduler", () => {
     expect(wakeups.find((w) => w.taskId === created.id)?.payload.changesRequested).toBe("add the enterprise tier");
   });
 
+  it("two wake-ups for the same session do not race: one turn at a time, the other waits, and nothing fails", async () => {
+    const task = (
+      await app.inject({ method: "POST", url: `/v1/companies/${companyId}/tasks`, payload: { title: "Assigned and commented at once", assigneeAgentId: nora } })
+    ).json() as {
+      id: string;
+    };
+    // The assignment and a person's comment are both pending before the scheduler looks: it would run them concurrently on one session.
+    await app.inject({ method: "POST", url: `/v1/tasks/${task.id}/comments`, payload: { body: "Start with the summary, please." } });
+    for (let round = 0; round < 3; round++) {
+      await runScheduler();
+      for (const pending of (await app.inject({ method: "GET", url: `/v1/companies/${companyId}/approvals?status=pending` })).json() as Array<{ id: string }>)
+        await app.inject({ method: "POST", url: `/v1/approvals/${pending.id}/decide`, payload: { status: "approved" } });
+    }
+    // The wake-up that found the agent busy was deferred by a few seconds, not lost.
+    await new Promise((resolve) => setTimeout(resolve, 3200));
+    await runScheduler();
+    const detail = (await app.inject({ method: "GET", url: `/v1/tasks/${task.id}` })).json() as {
+      status: string;
+      failures: number;
+      comments: Array<{ body: string }>;
+      sessions: Array<{ id: string }>;
+    };
+    expect(detail.failures).toBe(0);
+    expect(detail.status).toBe("in_review");
+    expect(detail.comments.some((c) => c.body.includes("attempt failed"))).toBe(false);
+    expect(detail.comments.some((c) => c.body === "Thanks, noted.")).toBe(true);
+    const runs = (await app.inject({ method: "GET", url: `/v1/sessions/${detail.sessions[0]!.id}/runs` })).json() as Array<{ status: string }>;
+    expect(runs.every((r) => r.status !== "failed")).toBe(true);
+    const wakeups = (await app.inject({ method: "GET", url: `/v1/companies/${companyId}/wakeups` })).json() as Array<{ taskId: string; status: string; error: string | null }>;
+    const mine = wakeups.filter((w) => w.taskId === task.id);
+    expect(mine.length).toBeGreaterThanOrEqual(2);
+    expect(mine.every((w) => w.status === "done")).toBe(true);
+  });
+
   it("a paused agent is skipped; blocking, unblocking and cancelling are audited; the overview shows the task work", async () => {
     await app.inject({ method: "POST", url: `/v1/agents/${nora}/status`, payload: { status: "paused" } });
     const created = (await app.inject({ method: "POST", url: `/v1/companies/${companyId}/tasks`, payload: { title: "While paused", assigneeAgentId: nora } })).json() as {

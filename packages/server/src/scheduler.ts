@@ -34,6 +34,7 @@ export interface SchedulerOptions {
 export class Scheduler {
   private timer: NodeJS.Timeout | null = null;
   private readonly running = new Map<string, Promise<void>>();
+  private readonly busy = new Set<string>();
   private ticking = false;
   private stopped = false;
   private readonly tickMs: number;
@@ -119,15 +120,34 @@ export class Scheduler {
     if (!agent) return work.finishWakeup(wakeup.id, "skipped", "agent not found");
     if (agent.status !== "active") return work.finishWakeup(wakeup.id, "skipped", `agent is ${agent.status}`);
 
-    const session = await this.sessionFor(task, agent.id);
-    const text = await this.brief(wakeup, task, agent.name);
-
-    // A turn already running on this session: the message reaches the agent in the next tool result.
-    if (runtime.isRunning(session.id)) {
-      if (text) runtime.inject(session.id, text);
-      return work.finishWakeup(wakeup.id, "done", "injected into the running turn");
+    // One turn per agent and task at a time: a second wake-up waits instead of racing the first for the session and the lease.
+    const key = `${task.id}:${agent.id}`;
+    if (this.busy.has(key)) {
+      const running = (await this.sessionFor(task, agent.id, { create: false }))?.id;
+      // A turn already running: the message reaches the agent in the next tool result.
+      if (running && runtime.isRunning(running)) {
+        const text = await this.brief(wakeup, task, agent.name);
+        if (text) runtime.inject(running, text);
+        return work.finishWakeup(wakeup.id, "done", "injected into the running turn");
+      }
+      return work.deferWakeup(wakeup.id, 3000, "the agent is busy on this task");
     }
+    this.busy.add(key);
+    try {
+      const session = await this.sessionFor(task, agent.id);
+      const text = await this.brief(wakeup, task, agent.name);
+      if (runtime.isRunning(session.id)) {
+        if (text) runtime.inject(session.id, text);
+        return work.finishWakeup(wakeup.id, "done", "injected into the running turn");
+      }
+      await this.runOnSession(wakeup, task, agent, session, text);
+    } finally {
+      this.busy.delete(key);
+    }
+  }
 
+  private async runOnSession(wakeup: Wakeup, task: Task, agent: { id: string; name: string }, session: SessionRecord, text: string | null): Promise<void> {
+    const { work, runtime } = this.o;
     let holding = false;
     if (task.status === "todo" || (task.status === "in_progress" && task.leaseExpiresAt && task.leaseExpiresAt < new Date())) {
       if (task.assigneeAgentId !== agent.id) return work.finishWakeup(wakeup.id, "skipped", "not the assignee");
@@ -382,7 +402,9 @@ export class Scheduler {
   }
 
   /** The task's session for this agent: reused across wake-ups, created with the why chain in the prompt. */
-  private async sessionFor(task: Task, agentId: string): Promise<SessionRecord> {
+  private async sessionFor(task: Task, agentId: string): Promise<SessionRecord>;
+  private async sessionFor(task: Task, agentId: string, options: { create: false }): Promise<SessionRecord | null>;
+  private async sessionFor(task: Task, agentId: string, options: { create: boolean } = { create: true }): Promise<SessionRecord | null> {
     const { runtime, work, sql } = this.o;
     const [existing] = await sql<{ id: string }[]>`
       SELECT id FROM sessions WHERE task_id = ${task.id} AND agent_id = ${agentId} AND status = 'active' ORDER BY created_at DESC LIMIT 1
@@ -391,6 +413,7 @@ export class Scheduler {
       const session = await runtime.store.getSession(existing.id);
       if (session) return session;
     }
+    if (!options.create) return null;
     const why = await work.whyChain(task.companyId, task);
     const workdir = why.project?.workdir ?? path.join(this.o.workRoot, `task-${task.id}`);
     return runtime.startSession({
