@@ -44,7 +44,7 @@ The default model is chosen with `--model provider/model` (for example `anthropi
 
 ### The interface
 
-Opifer is a company you walk through, not an admin panel. With the server running (`pnpm o4r up --detach`) the web interface at the server address has seven sections: **Home** (a board of widgets you can drag, resize and add to: what needs you, spend against the cap, who is working, recent results, activity), **Inbox** (every decision a person has to take, explained in plain words, with one-click answers and keyboard shortcuts: tool approvals, budget increases, deliveries to verify, blocked tasks), **Team** (an org chart: drag a role from the palette onto the person it should report to and you are hiring; drag an agent onto another to change who they report to; each agent has permissions, budget and revision history), **Work** (goals, projects and a task board you drag cards across; every task shows why it matters, what *done* means, what it cost and what was delivered), **Chat** (talk to an agent; approvals appear in the thread, the workbench shows cost and files), **Money** (costs by agent and model, caps) and **Settings**. A *Simple / Advanced* switch keeps the same screens and adds the technical layer for power users. English by default, Italian available, dark and light themes.
+Opifer is a company you walk through, not an admin panel. With the server running (`pnpm o4r up --detach`) the web interface at the server address has eight sections: **Home** (a board of widgets you can drag, resize and add to: what needs you, spend against the cap, who is working, recent results, activity), **Inbox** (every decision a person has to take, explained in plain words, with one-click answers and keyboard shortcuts: tool approvals, budget increases, deliveries to verify, blocked tasks), **Team** (an org chart: drag a role from the palette onto the person it should report to and you are hiring; drag an agent onto another to change who they report to; each agent has permissions, budget and revision history), **Work** (goals, projects and a task board you drag cards across; every task shows why it matters, what *done* means, what it cost and what was delivered), **Learning** (what the company has learned: memories to correct or retire, skills with their versions, what each job taught, the rules), **Chat** (talk to an agent; approvals appear in the thread, the workbench shows cost and files), **Money** (costs by agent and model, caps) and **Settings**. A *Simple / Advanced* switch keeps the same screens and adds the technical layer for power users. English by default, Italian available, dark and light themes.
 
 To look at the interface with scripted agents and no real model: `pnpm build && node packages/server/dist/preview.js` and open http://127.0.0.1:4790.
 
@@ -72,6 +72,28 @@ pnpm o4r task complete <id> --note "Checked on the staging site"   # request-cha
 ```
 
 Agents get the matching tools (`task_status`, `task_comment`, `task_create` for delegating downward, `task_deliver`, `task_block`) and a brief that explains the task, its why chain and the rules above.
+
+### Learning
+
+Agents learn from their work, at three levels (agent, team, company), and knowledge rises a level only with governance. After every finished conversation or task a **background review** reads a copy of it — never the live session — and keeps what is worth keeping: short **memories** (how to work here, who prefers what, which system does what) and, when a procedure emerged, a **skill** (a `SKILL.md` in the open agent-skills format, with versions). The next session of that agent starts with a capped memory snapshot and the index of its skills; the body of a skill is loaded on demand with `skill_load`. A repeated job then costs less: in the test suite the second run of the same task is 45% cheaper.
+
+Nothing learned is ever deleted: a memory is corrected (the old entry stays, superseded) or retired with a reason; a skill that goes unused is made inactive and then archived by the curator (only agent-made ones, never those pinned by a person), and can come back with one click. A skill that proves itself is proposed for the whole company; the company policy decides: `automatic`, `review` (a card in the Inbox, the default) or `forbidden`. Two skills with the same name are flagged, never merged by themselves.
+
+```bash
+pnpm o4r memory --agent Philip                  # what Philip remembers (his own, his teams', the company's)
+pnpm o4r memory --agent Philip --query "pricing"
+pnpm o4r memory add "We deploy on Fridays" --pin # company-wide, kept first in every snapshot
+pnpm o4r skill --agent Philip                   # what Philip can load
+pnpm o4r skill show compare-pricing
+pnpm o4r skill install ./skills/release-notes   # a folder with SKILL.md (+ scripts/, references/, templates/)
+pnpm o4r skill export compare-pricing ./out
+pnpm o4r skill restore compare-pricing 2        # back to a version (as a new version)
+pnpm o4r skill promote compare-pricing          # share it, per the company policy
+pnpm o4r learning                               # the rules and the last reviews
+pnpm o4r learning set promotion automatic
+```
+
+Search is full-text; when a provider that can embed is configured (OpenAI with an API key, or a local OpenAI-compatible server with an embedding model) it is also semantic. The ChatGPT subscription does not offer embeddings.
 
 ### Governance
 
@@ -121,7 +143,8 @@ Docker will instead serve as the default sandbox for the commands executed by th
 | `packages/runtime` | Agent loop, model providers, context |
 | `packages/gateway` | Governance: budget reservation, permissions, approvals, secrets, governed tool executor |
 | `packages/work` | Goals, projects, tasks: atomic checkout, leases, results, wake-ups, task tools for agents |
-| `packages/server` | HTTP API `/v1`, WebSocket events, the scheduler that wakes agents on their tasks |
+| `packages/learning` | Memory and skills at three scopes, snapshot for the prompt, search, versions, curator, promotion, background review |
+| `packages/server` | HTTP API `/v1`, WebSocket events, the scheduler that wakes agents on their tasks, the learning worker |
 | `packages/ui` | Web interface (React, Vite, Tailwind; NextEpochs look, dnd-kit widget board and task board, React Flow org chart) |
 | `packages/cli` | The `o4r` command |
 | `packages/sdk` | Contracts for plugins, channels, providers (MIT) |
