@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=Space+Grotesk:wght@700&display=swap" rel="stylesheet" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        width: 1200px;
+        height: 630px;
+        background: #0a0a0f;
+        color: #f1f1f6;
+        font-family: "Inter", system-ui, sans-serif;
+        overflow: hidden;
+      }
+      .bg {
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(55% 70% at 78% 40%, rgba(124, 58, 237, 0.45), transparent 70%);
+      }
+      .grid {
+        position: absolute;
+        inset: 0;
+        background-image: radial-gradient(rgba(241, 241, 246, 0.07) 1px, transparent 1px);
+        background-size: 26px 26px;
+      }
+      .in {
+        position: absolute;
+        left: 80px;
+        top: 90px;
+        right: 80px;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        font-family: "Space Grotesk";
+        font-weight: 700;
+        font-size: 40px;
+        letter-spacing: -0.02em;
+      }
+      .mark {
+        width: 56px;
+        height: 56px;
+        border-radius: 16px;
+        background: linear-gradient(135deg, #7c3aed, #a855f7);
+        display: grid;
+        place-items: center;
+        font-size: 30px;
+        color: #fff;
+      }
+      h1 {
+        font-family: "Space Grotesk";
+        font-weight: 700;
+        font-size: 84px;
+        line-height: 1;
+        letter-spacing: -0.035em;
+        margin: 54px 0 28px;
+        max-width: 980px;
+      }
+      p {
+        font-size: 30px;
+        color: #8888a0;
+        margin: 0;
+        max-width: 900px;
+        line-height: 1.35;
+      }
+      .foot {
+        position: absolute;
+        left: 80px;
+        bottom: 56px;
+        font-size: 24px;
+        color: #8888a0;
+      }
+      .foot b {
+        color: #c4a1ff;
+        font-weight: 500;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="bg"></div>
+    <div class="grid"></div>
+    <div class="in">
+      <div class="brand"><span class="mark">O</span>Opifer</div>
+      <h1>Hire a team of AI agents. Run it like a company.</h1>
+      <p>A boss, a budget and a job for every agent. Open source, one install, your machine.</p>
+    </div>
+    <div class="foot"><b>opifer.dev</b> &nbsp;&nbsp; AGPL-3.0 core, MIT plugins &nbsp;&nbsp; by NextEpochs</div>
+  </body>
+</html>

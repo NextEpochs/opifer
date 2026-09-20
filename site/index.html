@@ -1,0 +1,559 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Opifer — AI agents that work like a company</title>
+    <meta
+      name="description"
+      content="Opifer is an open-source platform where AI agents work, learn and are governed like an organisation: a boss, a budget and a job for every agent. One install, your machine."
+    />
+    <link rel="canonical" href="https://opifer.dev/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Opifer — AI agents that work like a company" />
+    <meta property="og:description" content="Hire a team of AI agents and run it like a company. Budgets, approvals, org chart, learning. Open source, one install." />
+    <meta property="og:url" content="https://opifer.dev/" />
+    <meta property="og:image" content="https://opifer.dev/assets/og.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="theme-color" content="#0a0a0f" />
+    <link rel="icon" href="/assets/favicon.png" />
+    <link rel="apple-touch-icon" href="/assets/icon-192.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+    <header class="top">
+      <div class="wrap">
+        <a class="brand" href="/"><span class="mark">O</span><span class="word">Opifer</span></a>
+        <nav class="nav" aria-label="Main">
+          <a href="#how">How it works</a>
+          <a href="#rules">Guarantees</a>
+          <a href="#faq">FAQ</a>
+          <a class="docs-link" href="/docs/quickstart/">Docs</a>
+          <a class="gh" href="https://github.com/NextEpochs/opifer" rel="noopener">
+            <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+              <path
+                d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"
+              />
+            </svg>
+            GitHub
+          </a>
+        </nav>
+      </div>
+    </header>
+
+    <main id="main">
+      <section class="wrap hero">
+        <div>
+          <h1>Hire a team of AI agents. Run it like a company.</h1>
+          <p class="lede">
+            Opifer gives every agent <strong>a boss, a budget and a job</strong>. You hand out work and take the decisions; they deliver, get reviewed, and the company learns. Open
+            source, one install, on your machine.
+          </p>
+          <div class="install">
+            <pre><code>git clone https://github.com/NextEpochs/opifer.git
+cd opifer &amp;&amp; pnpm install &amp;&amp; pnpm build
+pnpm o4r init --company "My company"
+pnpm o4r up      <span class="c"># http://127.0.0.1:4700</span></code></pre>
+            <button class="copy" type="button" data-copy>Copy</button>
+          </div>
+          <div class="actions">
+            <a class="btn primary" href="/docs/quickstart/">Read the ten-minute guide</a>
+            <a class="btn" href="https://github.com/NextEpochs/opifer" rel="noopener">Source on GitHub</a>
+          </div>
+          <p class="small">Node.js 22 and pnpm. The database is embedded. Docker is optional. Works with Anthropic, OpenAI, a ChatGPT subscription or a local model.</p>
+        </div>
+
+        <div class="org" aria-label="A day in an Opifer company, animated" id="org">
+          <div class="bar">
+            <span><span class="co">NextEpochs</span> <span id="org-line">is quiet right now</span></span>
+            <span class="spend"
+              >Spend this month <span class="meter"><i id="meter"></i></span> <span id="spend">€0.80 of €20</span></span
+            >
+          </div>
+          <div class="chart">
+            <svg class="edges" viewBox="0 0 600 260" preserveAspectRatio="none" aria-hidden="true">
+              <path d="M300 44 V96" />
+              <path d="M300 150 V180 H84 V214" />
+              <path d="M300 150 V180 H228 V214" />
+              <path d="M300 150 V180 H372 V214" />
+              <path d="M300 150 V180 H516 V214" />
+            </svg>
+            <div class="row">
+              <div class="node you" data-s="idle" id="n-you">
+                <span class="av" style="background: #67e8f9">YOU</span>
+                <span class="nm">You</span><span class="rl">owner</span>
+                <span class="st">2 decisions waiting</span>
+              </div>
+            </div>
+            <div class="row">
+              <div class="node" data-s="idle" id="n-philip">
+                <span class="av" style="background: #6ee7b7">PH</span>
+                <span class="nm">Philip</span><span class="rl">CEO</span>
+                <span class="st">idle</span>
+              </div>
+            </div>
+            <div class="row">
+              <div class="node" data-s="idle" id="n-nora">
+                <span class="av" style="background: #c4a1ff">NO</span>
+                <span class="nm">Nora</span><span class="rl">researcher</span>
+                <span class="st">idle</span>
+              </div>
+              <div class="node" data-s="idle" id="n-leo">
+                <span class="av" style="background: #fde68a">LE</span>
+                <span class="nm">Leo</span><span class="rl">copywriter</span>
+                <span class="st">idle</span>
+              </div>
+              <div class="node" data-s="idle" id="n-dev">
+                <span class="av" style="background: #fca5a5">DE</span>
+                <span class="nm">Dev</span><span class="rl">developer</span>
+                <span class="st">idle</span>
+              </div>
+              <div class="node" data-s="idle" id="n-sam">
+                <span class="av" style="background: #a5b4fc">SA</span>
+                <span class="nm">Sam</span><span class="rl">support</span>
+                <span class="st">idle</span>
+              </div>
+            </div>
+          </div>
+          <div class="card" id="card" aria-live="polite">
+            <span class="t" id="card-t">Weekly digest</span>
+            <span class="d" id="card-d">Philip delegates the numbers to Dev and the text to Leo, then reviews both.</span>
+            <span class="act" id="card-a"></span>
+          </div>
+          <button class="replay" type="button" id="replay" hidden>Replay the day</button>
+        </div>
+      </section>
+
+      <section class="block" id="product">
+        <div class="wrap">
+          <h2>A company you walk through, not an admin panel.</h2>
+          <p class="sub">
+            Home shows what needs you, what the team is doing and what it costs. The Inbox holds every decision in plain words. Team is an org chart you drag people onto. Work is a
+            board. Money shows where every cent goes.
+          </p>
+          <div class="shots">
+            <div class="tabs" role="tablist" aria-label="Screens">
+              <button role="tab" aria-selected="true" aria-controls="shot-home" id="tab-home">Home</button>
+              <button role="tab" aria-selected="false" aria-controls="shot-work" id="tab-work">Work</button>
+            </div>
+            <figure id="shot-home" role="tabpanel" aria-labelledby="tab-home">
+              <img
+                src="/assets/home.png"
+                width="1440"
+                height="900"
+                alt="Opifer Home: a card asking to approve a terminal command, a delivery to verify, a blocked task, spend against the cap and the team."
+              />
+              <figcaption>Home. An approval to give, a delivery to verify, a blocked task to unblock. One click each. The rest of the board is yours to arrange.</figcaption>
+            </figure>
+            <figure id="shot-work" role="tabpanel" aria-labelledby="tab-work" hidden>
+              <img
+                src="/assets/work.png"
+                width="1440"
+                height="900"
+                alt="Opifer Work: a task board with To do, In progress, In review, Blocked and Done columns, plus goals and projects."
+                loading="lazy"
+              />
+              <figcaption>Work. Every task knows its goal and its project, what done means, who has it and what it cost so far.</figcaption>
+            </figure>
+          </div>
+        </div>
+      </section>
+
+      <section class="block" id="how">
+        <div class="wrap">
+          <h2>Three things you do. Everything else, they do.</h2>
+          <p class="sub">The mental model is a company you run, not a tool you prompt. Agents are colleagues with a manager, and the manager reviews their work.</p>
+          <div class="steps">
+            <div>
+              <h3>Hire the team</h3>
+              <p>Drag a role onto the org chart: a CEO, a researcher, a developer, a copywriter, support. A job description in plain words. Any model, or a local one.</p>
+            </div>
+            <div>
+              <h3>Give the work</h3>
+              <p>A task: what to do, what <em>done</em> means, who does it. The agent wakes up at once, knows why the task matters, and can delegate to its reports.</p>
+            </div>
+            <div>
+              <h3>Decide and verify</h3>
+              <p>Approvals, budget increases and deliveries land in your Inbox, or on your phone through Telegram. One tap, and the agent carries on from where it stopped.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="block" id="rules">
+        <div class="wrap">
+          <h2>Rules that hold, whatever the model says.</h2>
+          <p class="sub">
+            Twenty invariants are the contract of the system. Each one is a test that outweighs any feature, and they are enforced by the runtime, not by the prompt.
+          </p>
+          <dl class="rules">
+            <div>
+              <dt>Budget before the call</dt>
+              <dd>Every model call reserves its cost first. A reached cap stops the agent before the next call, and a budget increase lands in your Inbox.</dd>
+            </div>
+            <div>
+              <dt>Done means verified</dt>
+              <dd>No task closes without a result and a verification, by a person or by the reviewing agent. A parent closes only after its children.</dd>
+            </div>
+            <div>
+              <dt>One assignee, taken atomically</dt>
+              <dd>A task has one worker at a time. A lease with a heartbeat frees it if the agent dies, and blocks it after two failures instead of looping.</dd>
+            </div>
+            <div>
+              <dt>Every task knows its why</dt>
+              <dd>Mission, goal, project, parent: the chain is in every brief, so the agent works towards something instead of a title.</dd>
+            </div>
+            <div>
+              <dt>Permissions per role</dt>
+              <dd>Each tool is automatic, asks, or is blocked, per agent and role. Deleting folders, sudo and force pushes always ask, whatever the policy.</dd>
+            </div>
+            <div>
+              <dt>Secrets never in the context</dt>
+              <dd>Encrypted per company, bound to an agent and a tool, injected into the tool call only, redacted from its output.</dd>
+            </div>
+            <div>
+              <dt>At most once</dt>
+              <dd>Wake-ups and scheduled runs are rows with a unique key. A second server, or the same one after a crash, cannot run them twice.</dd>
+            </div>
+            <div>
+              <dt>Nothing learned is deleted</dt>
+              <dd>A memory is corrected or retired, never erased. A skill goes inactive, then archived, and comes back with one click.</dd>
+            </div>
+            <div>
+              <dt>Every change is a revision</dt>
+              <dd>An agent's configuration can be restored to any earlier version. The audit log accepts inserts only.</dd>
+            </div>
+            <div>
+              <dt>One red button</dt>
+              <dd>Stop everything: running turns are interrupted, routines pause, no model is called until a person resumes.</dd>
+            </div>
+          </dl>
+        </div>
+      </section>
+
+      <section class="block" id="learning">
+        <div class="wrap learn">
+          <div>
+            <div class="num">45%<small>cheaper the second time the same job runs, in the test suite</small></div>
+          </div>
+          <div>
+            <h2>The company learns. Under governance.</h2>
+            <ul>
+              <li>
+                <strong>A background review</strong> reads a copy of every finished task and keeps what is worth keeping: short memories and, when a procedure emerged, a skill.
+              </li>
+              <li><strong>Skills are files</strong> in the open agent-skills format, with versions. Install one from a folder, export one, restore an older version.</li>
+              <li>
+                <strong>Knowledge rises a level only with a decision.</strong> A skill that proves itself is proposed for the whole company. The policy decides: automatic, review,
+                or forbidden.
+              </li>
+              <li><strong>Routines run at most once per due time</strong>, even after a crash, and can run as a task the agent delegates and gets reviewed on.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section class="block" id="connect">
+        <div class="wrap two">
+          <div>
+            <h2>Plugs into what you already use.</h2>
+            <p class="sub">
+              Models through provider plugins, tools through MCP servers and workflow endpoints, people through Telegram. Everything external goes through the same gate as native
+              tools: permissions, approvals, budget, audit.
+            </p>
+          </div>
+          <div class="plain" aria-label="Integrations">
+            <span class="on">Anthropic</span><span class="on">OpenAI</span><span class="on">ChatGPT subscription</span
+            ><span class="on">Ollama and any OpenAI-compatible server</span> <span>MCP servers</span><span>n8n</span><span>Zapier</span><span>Make</span
+            ><span>Inbound webhooks</span><span>Signed outbound events</span><span>Telegram</span><span>Docker sandbox</span> <span>Export and import</span
+            ><span>PostgreSQL, embedded</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="block" id="docs">
+        <div class="wrap">
+          <h2>Read before you run.</h2>
+          <div class="docs">
+            <a href="/docs/quickstart/"><b>Ten-minute guide</b><span>Install, connect a model, hire the first agent, give the first task.</span></a>
+            <a href="/docs/security/"><b>Security review</b><span>What is protected, how, and what is not done yet. Read it before exposing anything.</span></a>
+            <a href="https://github.com/NextEpochs/opifer/blob/main/CHANGELOG.md" rel="noopener"><b>Changelog</b><span>What each release brought, milestone by milestone.</span></a>
+          </div>
+        </div>
+      </section>
+
+      <section class="block faq" id="faq">
+        <div class="wrap">
+          <h2>Questions people ask.</h2>
+          <details>
+            <summary>Is it free?</summary>
+            <p>
+              Yes. The core is AGPL-3.0, the SDK and the plugins are MIT, so extending Opifer does not bind you to the AGPL. You pay your model provider, or nothing with a local
+              model.
+            </p>
+          </details>
+          <details>
+            <summary>Which models does it work with?</summary>
+            <p>
+              Anthropic and OpenAI with an API key, OpenAI through a ChatGPT subscription with no key, and any OpenAI-compatible server for local models: Ollama, LM Studio, vLLM,
+              llama.cpp. Each agent can have its own model.
+            </p>
+          </details>
+          <details>
+            <summary>How is it different from a chatbot or a coding agent?</summary>
+            <p>
+              A chatbot is an employee. Opifer is the company: the org chart, the budgets, the approvals, the audit, the learning that stays with the company rather than with one
+              conversation. Agents still chat, and they still run tools, but under the same rules a person would.
+            </p>
+          </details>
+          <details>
+            <summary>Where does it run and where does my data live?</summary>
+            <p>
+              On one machine, yours. The database is an embedded PostgreSQL under your home folder; nothing leaves it except the calls to the model provider you chose. A container
+              image is there for servers.
+            </p>
+          </details>
+          <details>
+            <summary>Can I expose it on the internet?</summary>
+            <p>
+              Not yet. Version 0.1 has no authentication and listens on localhost only. Put a reverse proxy with access control in front if you must, and read the security review
+              first. Authenticated mode is the first item on the roadmap.
+            </p>
+          </details>
+          <details>
+            <summary>What does an agent see of my secrets?</summary>
+            <p>
+              Nothing. A secret is bound to an agent and a tool, injected as an environment variable into that tool call only, and redacted if it shows up in the output. Every
+              access is logged.
+            </p>
+          </details>
+        </div>
+      </section>
+
+      <section class="close">
+        <div class="wrap">
+          <h2>Start a company this evening.</h2>
+          <div class="install">
+            <pre><code>git clone https://github.com/NextEpochs/opifer.git
+cd opifer &amp;&amp; pnpm install &amp;&amp; pnpm build
+pnpm o4r init --company "My company" &amp;&amp; pnpm o4r up</code></pre>
+            <button class="copy" type="button" data-copy>Copy</button>
+          </div>
+          <p class="small" style="color: var(--faint); font-size: 14px">
+            Want to look around before hiring anyone? <code>pnpm o4r demo</code> creates a company already at work, without calling any model.
+          </p>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <div class="wrap">
+        <span>Opifer is a <a href="https://nextepochs.com" rel="noopener">NextEpochs</a> product.</span>
+        <a href="https://github.com/NextEpochs/opifer/blob/main/LICENSE" rel="noopener">AGPL-3.0 core, MIT SDK and plugins</a>
+        <a href="https://github.com/NextEpochs/opifer/blob/main/SECURITY.md" rel="noopener">Report a vulnerability</a>
+        <span class="r">Version 0.1.0</span>
+      </div>
+    </footer>
+
+    <script>
+      // Copy buttons
+      for (const b of document.querySelectorAll("[data-copy]")) {
+        b.addEventListener("click", async () => {
+          const text = b.parentElement.querySelector("code").innerText.replace(/\s+#.*$/gm, "");
+          try {
+            await navigator.clipboard.writeText(text);
+            b.textContent = "Copied";
+          } catch {
+            b.textContent = "Select and copy";
+          }
+          setTimeout(() => (b.textContent = "Copy"), 1600);
+        });
+      }
+      // Screenshot tabs
+      const tabs = document.querySelectorAll('[role="tab"]');
+      for (const t of tabs)
+        t.addEventListener("click", () => {
+          for (const o of tabs) {
+            o.setAttribute("aria-selected", String(o === t));
+            document.getElementById(o.getAttribute("aria-controls")).hidden = o !== t;
+          }
+        });
+
+      // The living org chart: one orchestrated sequence, then it holds.
+      const $ = (id) => document.getElementById(id);
+      const set = (id, s, label) => {
+        const n = $(id);
+        n.dataset.s = s;
+        n.querySelector(".st").textContent = label;
+      };
+      const card = (t, d, actions, cls) => {
+        $("card-t").textContent = t;
+        $("card-d").innerHTML = d;
+        $("card-a").innerHTML = actions;
+        $("card").className = "card" + (cls ? " " + cls : "");
+      };
+      const spend = (eur, pct) => {
+        $("spend").textContent = "€" + eur.toFixed(2) + " of €20";
+        $("meter").style.width = pct + "%";
+      };
+      const line = (t) => ($("org-line").textContent = t);
+      const steps = [
+        [
+          0,
+          () => {
+            line("is quiet right now");
+            spend(0.8, 4);
+            set("n-you", "idle", "nothing waiting");
+            for (const n of ["philip", "nora", "leo", "dev", "sam"]) set("n-" + n, "idle", "idle");
+            card("Monday, 9:00", "The routine <em>Weekly digest</em> is due. It runs as a task for Philip.", "");
+          },
+        ],
+        [
+          1600,
+          () => {
+            line("has 1 agent working");
+            set("n-philip", "working", "working on the digest");
+            card("Philip reads the task", "Why: keep the team informed. Done when: numbers checked, digest in EN and IT.", "");
+          },
+        ],
+        [
+          3400,
+          () => {
+            line("has 2 agents working");
+            set("n-philip", "waiting", "waiting for Dev");
+            set("n-dev", "working", "counting commits");
+            card("Philip delegates", "A subtask for Dev: the repository numbers of the last seven days. Philip is its reviewer.", "");
+          },
+        ],
+        [
+          5400,
+          () => {
+            line("needs you");
+            set("n-you", "waiting", "1 decision waiting");
+            set("n-dev", "waiting", "waiting for you");
+            card(
+              "Dev wants to use the terminal",
+              "<code>git log --since=7.days --oneline | wc -l</code> is high risk under Dev's policy, so it asks.",
+              '<span class="ok" id="approve">Approve</span><span>Deny</span>',
+            );
+          },
+        ],
+        [
+          7600,
+          () => {
+            const a = $("approve");
+            if (a) a.classList.add("pressed");
+          },
+        ],
+        [
+          8000,
+          () => {
+            line("has 1 agent working");
+            set("n-you", "idle", "nothing waiting");
+            set("n-dev", "working", "counting commits");
+            card("Approved", "Dev's turn resumes exactly where it stopped. The approval, and who gave it, are in the audit.", "");
+            spend(1.12, 6);
+          },
+        ],
+        [
+          9800,
+          () => {
+            set("n-dev", "delivered", "delivered");
+            set("n-philip", "working", "reviewing Dev's numbers");
+            card("Dev delivers", "22 commits, 220 files, 15 packages, 135 tests. Philip is woken up to review.", "");
+          },
+        ],
+        [
+          11600,
+          () => {
+            set("n-dev", "done", "verified by Philip");
+            set("n-leo", "working", "writing EN and IT");
+            set("n-philip", "waiting", "waiting for Leo");
+            card("Philip approves, then delegates the text", "Leo gets the numbers and writes the digest in English and Italian.", "");
+            spend(1.61, 8);
+          },
+        ],
+        [
+          13600,
+          () => {
+            set("n-leo", "delivered", "delivered");
+            set("n-philip", "working", "reviewing Leo's text");
+            card("Leo delivers", "Philip checks the two versions against the numbers.", "");
+          },
+        ],
+        [
+          15200,
+          () => {
+            line("needs you");
+            set("n-leo", "done", "verified by Philip");
+            set("n-philip", "delivered", "delivered to you");
+            set("n-you", "waiting", "1 delivery to verify");
+            card(
+              "Philip delivers the digest",
+              "Both subtasks closed, the result attached. It waits for your verification.",
+              '<span class="ok" id="verify">Verify and close</span><span>Request changes</span>',
+            );
+            spend(2.04, 10);
+          },
+        ],
+        [
+          17400,
+          () => {
+            const v = $("verify");
+            if (v) v.classList.add("pressed");
+          },
+        ],
+        [
+          17800,
+          () => {
+            line("is quiet right now");
+            set("n-you", "idle", "nothing waiting");
+            set("n-philip", "done", "done, 3 tasks today");
+            card("Done means verified", "The task is closed with your note. The digest goes to the connected Telegram chat.", "");
+          },
+        ],
+        [
+          19600,
+          () => {
+            set("n-dev", "done", "learned a skill");
+            card("The company learned", "The background review kept a skill: <em>repository-numbers</em>. Next Monday, Dev counts in fewer calls.", "", "learned");
+            $("replay").hidden = false;
+          },
+        ],
+      ];
+      let timers = [];
+      const play = () => {
+        for (const t of timers) clearTimeout(t);
+        timers = [];
+        $("replay").hidden = true;
+        for (const [at, fn] of steps) timers.push(setTimeout(fn, at));
+      };
+      const still = () => {
+        for (const [, fn] of steps) fn();
+        $("replay").hidden = true;
+      };
+      const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      if (reduce) still();
+      else {
+        const io = new IntersectionObserver(
+          (es) => {
+            if (es.some((e) => e.isIntersecting)) {
+              play();
+              io.disconnect();
+            }
+          },
+          { threshold: 0.35 },
+        );
+        io.observe($("org"));
+        $("replay").addEventListener("click", play);
+      }
+    </script>
+  </body>
+</html>
