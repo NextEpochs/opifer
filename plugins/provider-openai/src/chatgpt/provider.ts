@@ -187,7 +187,7 @@ export class ChatGPTProvider implements ModelProvider {
       store: false,
       include: ["reasoning.encrypted_content"],
       reasoning: { effort: this.options.reasoningEffort ?? "medium", summary: "auto" },
-      ...(request.maxOutputTokens ? { max_output_tokens: request.maxOutputTokens } : {}),
+      // The Codex backend rejects max_output_tokens ("Unsupported parameter"): the plan's limits apply instead.
     };
 
     const headers = { ...(await this.headers()), session_id: randomUUID() };
