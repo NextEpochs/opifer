@@ -76,4 +76,5 @@ export async function runInit(options: InitOptions): Promise<void> {
 
   say.info("");
   say.info(`${c.bold("Ready.")} Start with ${c.cyan("o4r up")} and open http://${config.server.host}:${config.server.port}`);
+  say.info(`Want a company already at work to look around? After ${c.cyan("o4r up")}, run ${c.cyan("o4r demo")}.`);
 }

@@ -269,10 +269,10 @@ export class SkillService {
     return out.sort((a, b) => a.name.localeCompare(b.name));
   }
 
-  async version(companyId: string, skillId: string, version?: number): Promise<SkillVersion | null> {
+  async version(companyId: string, skillId: string, version?: number, db: Sql | TransactionSql = this.sql): Promise<SkillVersion | null> {
     const [row] = version
-      ? await this.sql<VersionRow[]>`SELECT * FROM skill_versions WHERE company_id = ${companyId} AND skill_id = ${skillId} AND version = ${version}`
-      : await this.sql<
+      ? await db<VersionRow[]>`SELECT * FROM skill_versions WHERE company_id = ${companyId} AND skill_id = ${skillId} AND version = ${version}`
+      : await db<
           VersionRow[]
         >`SELECT v.* FROM skill_versions v JOIN skills s ON s.id = v.skill_id WHERE v.company_id = ${companyId} AND v.skill_id = ${skillId} AND v.version = s.current_version`;
     return row ? toVersion(row) : null;
@@ -300,7 +300,7 @@ export class SkillService {
     return this.sql.begin(async (tx) => {
       const [current] = await tx<SkillRow[]>`SELECT * FROM skills WHERE id = ${skillId} AND company_id = ${companyId} FOR UPDATE`;
       if (!current) throw new LearningError("not_found", "skill not found");
-      const previous = await this.version(companyId, skillId, current.current_version);
+      const previous = await this.version(companyId, skillId, current.current_version, tx);
       const next = current.current_version + 1;
       const description = (input.description ?? current.description).trim();
       const [v] = await tx<VersionRow[]>`

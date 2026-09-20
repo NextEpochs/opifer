@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { api, type Company, type Health, type ModelsInfo } from "../api";
-import type { Locale, Strings } from "../i18n";
+import { fill, type Locale, type Strings } from "../i18n";
 import type { Theme, ViewMode } from "../prefs";
 import { Button, Card, CardHeader, Chip, Input, Segmented } from "../ui";
 
@@ -38,6 +38,35 @@ export function SettingsPage(p: SettingsProps) {
       .catch(() => setModels(null));
   }, []);
 
+  const [notice, setNotice] = useState<string | null>(null);
+  const demo = async () => {
+    setBusy(true);
+    try {
+      const created = await api.createDemoCompany();
+      await p.onCreated();
+      p.onCompanyChange(created.id);
+      setNotice(t.demoCreated);
+    } catch (e) {
+      setNotice(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  const importFile = async (file: File | null) => {
+    if (!file) return;
+    setBusy(true);
+    try {
+      const doc = JSON.parse(await file.text()) as unknown;
+      const result = await api.importCompany(doc);
+      await p.onCreated();
+      p.onCompanyChange(result.companyId);
+      setNotice(fill(t.imported, { name: result.name, secrets: result.secretsToEnter.length > 0 ? result.secretsToEnter.join(", ") : "—" }));
+    } catch (e) {
+      setNotice(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
   const create = async (e: FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
@@ -83,6 +112,26 @@ export function SettingsPage(p: SettingsProps) {
                 {t.create}
               </Button>
             </form>
+            <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-line pt-3">
+              <Button size="sm" disabled={busy} onClick={() => void demo()}>
+                {t.createDemo}
+              </Button>
+              {p.company && (
+                <a
+                  href={`/v1/companies/${p.company.id}/export`}
+                  download
+                  className="rounded-control border border-line px-3 py-1.5 text-[13px] font-semibold text-ink no-underline hover:bg-hover"
+                >
+                  {t.exportCompany}
+                </a>
+              )}
+              <label className="cursor-pointer rounded-control border border-line px-3 py-1.5 text-[13px] font-semibold hover:bg-hover">
+                {t.importCompany}
+                <input type="file" accept="application/json,.json" className="sr-only" onChange={(e) => void importFile(e.target.files?.[0] ?? null)} />
+              </label>
+              {notice && <span className="text-[13px] text-mute">{notice}</span>}
+            </div>
+            <p className="m-0 text-[12px] text-faint">{t.transferHint}</p>
           </div>
         </Card>
 

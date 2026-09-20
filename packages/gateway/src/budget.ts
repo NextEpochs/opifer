@@ -122,8 +122,9 @@ export class BudgetService implements BudgetGate {
   }
 
   /** Policies that apply to a call: company, the agent, the run (turn), the project and task when known. */
-  private async applicablePolicies(context: BudgetContext): Promise<BudgetPolicy[]> {
-    const rows = await this.sql<PolicyRow[]>`
+  /** Runs on the transaction when given: a query on the pool from inside a locked transaction can wait for a connection held by a turn waiting for that very lock. */
+  private async applicablePolicies(context: BudgetContext, db: Sql | TransactionSql = this.sql): Promise<BudgetPolicy[]> {
+    const rows = await db<PolicyRow[]>`
       SELECT * FROM budget_policies
       WHERE company_id = ${context.companyId}
         AND (
@@ -179,7 +180,7 @@ export class BudgetService implements BudgetGate {
         // Emergency stop: no new reservation until a person reactivates the company.
         return { allowed: false, reason: `the company is ${company.status}: no model call until a person resumes it`, scope: "company", cap: 0, spent: 0, currency: "EUR" };
       }
-      const policies = await this.applicablePolicies(context);
+      const policies = await this.applicablePolicies(context, tx);
       const warnings: string[] = [];
       for (const policy of policies) {
         const spent = await this.spending(policy, context, tx);

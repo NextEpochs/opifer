@@ -30,13 +30,13 @@ export async function freePort(): Promise<number> {
   });
 }
 
-export async function createTestDatabase(options: { migrate?: boolean } = {}): Promise<TestDatabase> {
+export async function createTestDatabase(options: { migrate?: boolean; poolMax?: number } = {}): Promise<TestDatabase> {
   const dataDir = await mkdtemp(path.join(tmpdir(), "opifer-test-"));
   // As root the cluster runs with the "postgres" user: the folder must be traversable.
   await chmod(dataDir, 0o755);
   const port = await freePort();
   const cluster = await startEmbeddedPostgres({ dataDir: path.join(dataDir, "postgres"), port });
-  const handle = connect(cluster.config, { max: 4 });
+  const handle = connect(cluster.config, { max: options.poolMax ?? 4 });
   if (options.migrate !== false) {
     await migrateUp(handle.sql);
   }

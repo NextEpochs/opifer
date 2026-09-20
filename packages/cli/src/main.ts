@@ -49,6 +49,9 @@ import {
   runRoutineCreate,
   runRoutineList,
   runStopAll,
+  runDemo,
+  runExport,
+  runImport,
   runWebhookCreate,
   runWebhookList,
   runWebhookRemove,
@@ -531,6 +534,21 @@ channel
   .option("--company <name>", "company (default: the first one)")
   .action(async (name: string, opts: { company?: string }) => runChannelRemove({ name, ...opts, ...homeOf(program) }));
 
+program
+  .command("demo")
+  .description("create a demo company on the running server: a team at work, tasks in every state, routines and connections")
+  .option("--name <name>", "company name (default: NextEpochs)")
+  .action(async (opts: { name?: string }) => runDemo({ ...opts, ...homeOf(program) }));
+program
+  .command("export [file]")
+  .description("export a company (configuration and work; secret values never leave) to a JSON file")
+  .option("--company <name>", "company (default: the first one)")
+  .action(async (file: string | undefined, opts: { company?: string }) => runExport({ ...(file ? { file } : {}), ...opts, ...homeOf(program) }));
+program
+  .command("import <file>")
+  .description("import a company from an export file, as a copy with new ids")
+  .option("--name <name>", "name for the imported company")
+  .action(async (file: string, opts: { name?: string }) => runImport({ file, ...opts, ...homeOf(program) }));
 program
   .command("stop")
   .description("emergency stop: every agent of the company stops, routines pause, no model is called until resume")

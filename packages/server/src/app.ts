@@ -127,6 +127,29 @@ async function dirExists(p: string): Promise<boolean> {
 
 export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   const app = Fastify({ logger: options.logger ?? false });
+  // Security headers on every answer (see docs/security.md): no sniffing, no framing, no referrer, a strict policy for the interface.
+  app.addHook("onSend", async (request, reply) => {
+    reply.header("x-content-type-options", "nosniff");
+    reply.header("x-frame-options", "DENY");
+    reply.header("referrer-policy", "no-referrer");
+    if (!request.url.startsWith("/v1/"))
+      reply.header(
+        "content-security-policy",
+        "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self' ws: wss:; worker-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
+      );
+  });
+  // Public webhook endpoint: a small per-address limiter keeps a token guess slow (60 calls a minute).
+  const hookCalls = new Map<string, { count: number; since: number }>();
+  app.addHook("onRequest", async (request, reply) => {
+    if (!request.url.startsWith("/v1/hooks/")) return;
+    const now = Date.now();
+    const entry = hookCalls.get(request.ip) ?? { count: 0, since: now };
+    if (now - entry.since > 60_000) Object.assign(entry, { count: 0, since: now });
+    entry.count++;
+    hookCalls.set(request.ip, entry);
+    if (hookCalls.size > 10_000) hookCalls.clear();
+    if (entry.count > 60) return reply.code(429).send({ error: "too many calls: at most 60 a minute per address" });
+  });
   const bus = options.bus ?? new EventBus();
   const workRoot = options.workRoot ?? path.join(tmpdir(), "opifer-work");
   const work = new WorkService(options.db.sql, {

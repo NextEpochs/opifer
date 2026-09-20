@@ -1,5 +1,7 @@
 import { dockerAvailable } from "@opifer/runtime";
 import { existsSync } from "node:fs";
+import { statfs } from "node:fs/promises";
+import { totalmem } from "node:os";
 import path from "node:path";
 import { migrationStatus } from "@opifer/db";
 import { setupProviders } from "@opifer/server";
@@ -79,6 +81,55 @@ export async function runDoctor(options: { home?: string }): Promise<void> {
 
   const ui = existsSync(path.join(uiDistDir(), "index.html"));
   checks.push({ name: "Compiled interface", ok: ui, detail: ui ? uiDistDir() : "missing: pnpm build" });
+
+  // Disk and memory: the embedded database and the sandboxes need room; 4 GB and 2 GB free are comfortable.
+  try {
+    const stat = await statfs(home.dir);
+    const freeGb = (stat.bavail * stat.bsize) / 1024 ** 3;
+    checks.push({ name: "Disk space", ok: freeGb >= 2, warn: freeGb >= 0.5, detail: `${freeGb.toFixed(1)} GB free in ${home.dir}` });
+  } catch {
+    // an unknown filesystem is not a failure
+  }
+  const totalGb = totalmem() / 1024 ** 3;
+  checks.push({
+    name: "Memory",
+    ok: totalGb >= 4,
+    warn: true,
+    detail: `${totalGb.toFixed(1)} GB (4 GB recommended; the MVP was tested with 20 agents and 10 concurrent runs on 2 vCPU / 4 GB)`,
+  });
+
+  // The live server, when it runs: health, sandbox in use and whether a company is stopped.
+  if (config && (await isPortOpen(config.server.port))) {
+    try {
+      const health = (await (await fetch(`http://${config.server.host === "0.0.0.0" ? "127.0.0.1" : config.server.host}:${config.server.port}/v1/health`)).json()) as {
+        status: string;
+        database: string;
+        runtime: string;
+        governance: string;
+        sandbox?: { kind: string };
+      };
+      checks.push({
+        name: "Health",
+        ok: health.status === "ok",
+        detail: `${health.status} (database ${health.database}, runtime ${health.runtime}, governance ${health.governance}, sandbox ${health.sandbox?.kind ?? "?"})`,
+      });
+      const companies = (await (await fetch(`http://${config.server.host === "0.0.0.0" ? "127.0.0.1" : config.server.host}:${config.server.port}/v1/companies`)).json()) as Array<{
+        name: string;
+        status: string;
+      }>;
+      const stopped = companies.filter((co) => co.status === "suspended");
+      if (stopped.length > 0) checks.push({ name: "Emergency stop", ok: false, warn: true, detail: `${stopped.map((co) => co.name).join(", ")} stopped: o4r resume when ready` });
+    } catch (error) {
+      checks.push({ name: "Health", ok: false, detail: `the server does not answer: ${String(error).slice(0, 80)}` });
+    }
+    if (config.server.host === "0.0.0.0")
+      checks.push({
+        name: "Exposure",
+        ok: false,
+        warn: true,
+        detail: "the server listens on every interface with no authentication (local mode): keep it behind a firewall or a reverse proxy with access control",
+      });
+  }
 
   for (const check of checks) {
     (check.ok ? say.ok : check.warn ? say.warn : say.fail)(`${c.bold(check.name)}: ${check.detail}`);

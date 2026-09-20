@@ -3,6 +3,7 @@
  * terminal. Everything goes through the server.
  */
 
+import { readFile, writeFile } from "node:fs/promises";
 import { api, resolveAgent, resolveCompany, serverBase } from "../api.js";
 import { c, say } from "../output.js";
 
@@ -20,6 +21,51 @@ async function connect(options: Common) {
 }
 
 const when = (iso: string | null) => (iso ? iso.slice(0, 16).replace("T", " ") : "—");
+
+/** A demo company on the running server: a team already at work, no model call. */
+export async function runDemo(options: Common & { name?: string }): Promise<void> {
+  const base = await serverBase(options.home);
+  const company = await api<{ id: string; name: string }>(base, "/v1/companies/demo", { method: "POST", body: JSON.stringify(options.name ? { name: options.name } : {}) });
+  say.ok(
+    `Demo company ${c.bold(company.name)} created: four agents, a goal, two projects, tasks in every state, memories, skills, routines, a webhook and a subscription. Open ${base} and pick it in Settings.`,
+  );
+}
+
+/** Company export: configuration and work as one JSON file; secret values never leave. */
+export async function runExport(options: Common & { file?: string }): Promise<void> {
+  const { base, company } = await connect(options);
+  const doc = await api<{ tables: Record<string, unknown[]>; secretNames: string[] }>(base, `/v1/companies/${company.id}/export`);
+  const file = options.file ?? `opifer-${company.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.json`;
+  await writeFile(file, JSON.stringify(doc, null, 2));
+  const counts = Object.entries(doc.tables)
+    .filter(([, rows]) => rows.length > 0)
+    .map(([table, rows]) => `${rows.length} ${table.replace(/_/g, " ")}`)
+    .join(", ");
+  say.ok(`Exported ${c.bold(company.name)} to ${c.bold(file)}: ${counts}.`);
+  if (doc.secretNames.length > 0) say.info(`Secrets are not in the file (names only): ${doc.secretNames.join(", ")} must be set again after an import.`);
+}
+
+/** Company import: a copy with new ids; webhook tokens and subscription secrets are minted afresh and shown once. */
+export async function runImport(options: Common & { file: string; name?: string }): Promise<void> {
+  const base = await serverBase(options.home);
+  const doc = JSON.parse(await readFile(options.file, "utf8")) as unknown;
+  const result = await api<{
+    companyId: string;
+    name: string;
+    counts: Record<string, number>;
+    webhooks: Array<{ name: string; token: string }>;
+    subscriptions: Array<{ name: string; secret: string }>;
+    secretsToEnter: string[];
+  }>(base, `/v1/companies/import${options.name ? `?name=${encodeURIComponent(options.name)}` : ""}`, { method: "POST", body: JSON.stringify(doc) });
+  say.ok(
+    `Imported ${c.bold(result.name)} ${c.dim(result.companyId)}: ${Object.entries(result.counts)
+      .map(([t, n]) => `${n} ${t.replace(/_/g, " ")}`)
+      .join(", ")}.`,
+  );
+  for (const w of result.webhooks) say.info(`Webhook ${w.name}: new token ${c.bold(w.token)} (shown once)`);
+  for (const s of result.subscriptions) say.info(`Subscription ${s.name}: new signing secret ${c.bold(s.secret)} (shown once)`);
+  if (result.secretsToEnter.length > 0) say.warn(`Set these secrets again: ${result.secretsToEnter.join(", ")} (o4r secret set <name>)`);
+}
 
 /** Emergency stop: every agent of the company stops, routines pause, no model is called until `resume`. */
 export async function runStopAll(options: Common & { reason?: string; resume?: boolean }): Promise<void> {

@@ -1,0 +1,80 @@
+# Opifer in ten minutes
+
+You need Node.js 22 and pnpm. Nothing else: the database is embedded, Docker is optional.
+
+## 1. Install
+
+```bash
+git clone https://github.com/NextEpochs/opifer.git
+cd opifer
+pnpm install && pnpm build        # about two minutes on a laptop
+pnpm o4r init --company "My company"
+```
+
+`o4r init` writes the configuration in `~/.opifer`, starts the embedded PostgreSQL, applies the migrations and creates your company. Give it a model:
+
+- **Anthropic**: `export ANTHROPIC_API_KEY=…`
+- **OpenAI with a key**: `export OPENAI_API_KEY=…`
+- **OpenAI with your ChatGPT subscription**: `pnpm o4r login chatgpt` (a browser opens; no key needed)
+- **A local model**: `pnpm o4r init --local-url http://127.0.0.1:11434/v1` (Ollama, LM Studio, vLLM…)
+
+Then:
+
+```bash
+pnpm o4r up --detach
+pnpm o4r doctor                   # every check green?
+```
+
+Open http://127.0.0.1:4700.
+
+## 2. Look around with a company already at work
+
+```bash
+pnpm o4r demo
+```
+
+This creates a demo company with four agents, a goal, two projects, tasks in every state, memories, skills, two routines, a workflow connection, a webhook and a subscription — no model is called. Pick it in **Settings**, then walk through Home, Inbox, Team, Work, Learning and Connections.
+
+## 3. Your first agent and your first task
+
+In **Team**, drag a role from the palette onto *You*: that is a hire. Give it a name and a job description in plain words ("Researcher. Reads, compares, summarises; every number comes with its source.").
+
+In **Work**, press *New task*: a title, what to do, what *done* means, who does it. The agent wakes up at once. If it needs to run a command that asks for approval, the card appears in your **Inbox** (and on your phone, if Telegram is connected): approve or deny with one click. When the agent delivers, the result waits for your verification: *Verify and close* closes it; *Request changes* sends it back with a note.
+
+Talk to any agent in **Chat**. Ask "how are things in the company?": the agent reads the company status and can hand out work to its reports.
+
+## 4. Money, permissions, learning
+
+**Money** shows where every euro goes and lets you set caps (company, agent, project, task). When a cap is reached the agent stops *before* the next call and asks you.
+
+Each agent's drawer in **Team** has its permissions per tool (Auto / Ask / Off). Dangerous commands (deleting folders, sudo, force push) always ask.
+
+After every finished task a background review keeps what is worth keeping: memories and skills, in **Learning**. A repeated job costs less the second time. A skill that proves itself is proposed for the whole company, and you decide.
+
+## 5. Routines and connections
+
+In **Work → Routines** give an agent a recurring job: every day at 9, Monday at 9, every two hours, a cron expression. *Run as a task* lets the agent delegate to its reports and get reviewed. Every due time runs at most once, even after a crash.
+
+In **Connections** add an MCP server or a workflow (n8n, Zapier, Make) as tools; create a webhook so an automation can open tasks; subscribe a URL to the company's events (signed); connect the Telegram bot of the company to talk to the agents from your phone and approve with one tap.
+
+## 6. When something goes wrong
+
+- **Stop everything**: the red button in the sidebar (or `pnpm o4r stop`). Every agent stops, routines pause, no model is called until you resume.
+- `pnpm o4r doctor` says what is missing.
+- Every step is in the audit (Home → Activity) and in the costs.
+- Export your company from Settings (configuration and work, never secret values) and import it elsewhere.
+
+## Command line
+
+```bash
+pnpm o4r status                   # is it running?
+pnpm o4r chat Philip              # talk from the terminal
+pnpm o4r task create "Compare three CRMs" --agent Nora
+pnpm o4r approvals                # what waits for you
+pnpm o4r routine create "Weekly digest" --agent Philip --every "monday 9" --as-task --prompt "…"
+pnpm o4r export                   # opifer-<company>.json
+pnpm o4r stop / pnpm o4r resume   # emergency stop
+pnpm o4r down                     # stop the server
+```
+
+Everything the interface does, the API does: `http://127.0.0.1:4700/v1/…` (see the README).

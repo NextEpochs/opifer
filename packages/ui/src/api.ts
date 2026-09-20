@@ -111,6 +111,8 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
 export const api = {
   health: () => request<Health>("/v1/health"),
   companies: () => request<Company[]>("/v1/companies"),
+  createDemoCompany: () => request<Company>("/v1/companies/demo", { method: "POST", body: JSON.stringify({}) }),
+  importCompany: (doc: unknown) => request<{ companyId: string; name: string; secretsToEnter: string[] }>("/v1/companies/import", { method: "POST", body: JSON.stringify(doc) }),
   stopCompany: (companyId: string, reason?: string) => request<StopResult>(`/v1/companies/${companyId}/stop`, { method: "POST", body: JSON.stringify({ reason: reason ?? "" }) }),
   resumeCompany: (companyId: string) => request<Company>(`/v1/companies/${companyId}/resume`, { method: "POST" }),
   createCompany: (name: string, mission?: string) =>

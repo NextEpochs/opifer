@@ -1,5 +1,8 @@
+import { OPIFER_VERSION } from "@opifer/core";
 import { audit } from "@opifer/db";
 import type { FastifyInstance } from "fastify";
+import { seedDemoCompany } from "../demo.js";
+import { exportCompany, importCompany, type CompanyExport } from "../transfer.js";
 
 interface CompanyRow {
   id: string;
@@ -83,6 +86,43 @@ export async function registerCompanyRoutes(app: FastifyInstance): Promise<void>
     });
     app.opifer.bus.publish("company.stopped", row.id, { reason: request.body?.reason ?? null, interruptedSessions: stoppedSessions });
     return { ...toCompany(row), interruptedSessions: stoppedSessions.length, routinesSuspended: Number(routines[0]?.n ?? 0) };
+  });
+
+  // The demo company: a team, goals, tasks in every state, memories, skills, routines and connections; no model is called.
+  app.post<{ Body: { name?: string; mission?: string } }>("/companies/demo", async (request, reply) => {
+    const { companyId } = await seedDemoCompany(app, {
+      sessions: false,
+      ...(request.body?.name ? { name: request.body.name } : {}),
+      ...(request.body?.mission ? { mission: request.body.mission } : {}),
+    });
+    const [row] = await sql<CompanyRow[]>`SELECT * FROM companies WHERE id = ${companyId}`;
+    const company = toCompany(row!);
+    app.opifer.bus.publish("company.created", company.id, company);
+    return reply.code(201).send(company);
+  });
+
+  // Export and import: configuration and work, never secret values or history (see transfer.ts).
+  app.get<{ Params: { id: string } }>("/companies/:id/export", async (request, reply) => {
+    const doc = await exportCompany(sql, request.params.id, OPIFER_VERSION);
+    if (!doc) return reply.code(404).send({ error: "company not found" });
+    reply.header(
+      "content-disposition",
+      `attachment; filename="opifer-${String(doc.company["name"])
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")}.json"`,
+    );
+    return doc;
+  });
+
+  app.post<{ Body: CompanyExport & { name?: string }; Querystring: { name?: string } }>("/companies/import", { bodyLimit: 64 * 1024 * 1024 }, async (request, reply) => {
+    try {
+      const result = await importCompany(sql, request.body, { webhooks: app.opifer.webhooks, events: app.opifer.events }, request.query.name ? { name: request.query.name } : {});
+      const [row] = await sql<CompanyRow[]>`SELECT * FROM companies WHERE id = ${result.companyId}`;
+      app.opifer.bus.publish("company.created", result.companyId, toCompany(row!));
+      return reply.code(201).send(result);
+    } catch (error) {
+      return reply.code(400).send({ error: error instanceof Error ? error.message : String(error) });
+    }
   });
 
   app.post<{ Params: { id: string } }>("/companies/:id/resume", async (request, reply) => {
