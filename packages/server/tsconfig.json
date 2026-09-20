@@ -4,6 +4,30 @@
     "rootDir": "src",
     "outDir": "dist"
   },
-  "include": ["src"],
-  "references": [{ "path": "../core" }, { "path": "../db" }]
+  "include": [
+    "src"
+  ],
+  "references": [
+    {
+      "path": "../core"
+    },
+    {
+      "path": "../db"
+    },
+    {
+      "path": "../sdk"
+    },
+    {
+      "path": "../runtime"
+    },
+    {
+      "path": "../../plugins/provider-anthropic"
+    },
+    {
+      "path": "../../plugins/provider-openai"
+    },
+    {
+      "path": "../../plugins/provider-openai-compatible"
+    }
+  ]
 }

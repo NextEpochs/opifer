@@ -1,4 +1,5 @@
 import { audit, migrateUp } from "@opifer/db";
+import { setupProviders } from "@opifer/server";
 import { isPortOpen, openDatabase } from "../database.js";
 import { DEFAULT_CONFIG, readConfig, resolveHome, writeConfig, type OpiferConfig } from "../home.js";
 import { c, say } from "../output.js";
@@ -9,6 +10,8 @@ export interface InitOptions {
   host?: string;
   port?: string;
   dbPort?: string;
+  model?: string;
+  localUrl?: string;
 }
 
 export async function runInit(options: InitOptions): Promise<void> {
@@ -18,6 +21,9 @@ export async function runInit(options: InitOptions): Promise<void> {
   if (options.host) config.server.host = options.host;
   if (options.port) config.server.port = Number(options.port);
   if (options.dbPort) config.database.port = Number(options.dbPort);
+  config.models ??= { default: null, fallback: null, auxiliary: null, local: null };
+  if (options.model) config.models.default = options.model;
+  if (options.localUrl) config.models.local = { baseURL: options.localUrl };
 
   say.step(`Cartella di Opifer: ${c.bold(home.dir)}`);
   if (!existing) {
@@ -57,6 +63,15 @@ export async function runInit(options: InitOptions): Promise<void> {
     }
   } finally {
     await db.close();
+  }
+
+  say.step("Provider di modelli");
+  const setup = setupProviders(config.models);
+  for (const r of setup.report) (r.enabled ? say.ok : say.warn)(`${r.id}: ${r.detail}`);
+  if (!setup.report.some((r) => r.enabled)) {
+    say.warn("Nessun provider configurato: imposta ANTHROPIC_API_KEY o OPENAI_API_KEY, oppure un endpoint locale con --local-url");
+  } else {
+    say.ok(`Modello di default: ${c.bold(setup.defaultModel)}`);
   }
 
   say.info("");

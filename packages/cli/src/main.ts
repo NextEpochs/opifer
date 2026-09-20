@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { Command } from "commander";
 import { OPIFER_VERSION } from "@opifer/core";
+import { runChat } from "./commands/chat.js";
 import { runDoctor } from "./commands/doctor.js";
 import { runInit } from "./commands/init.js";
 import { runMigrate } from "./commands/migrate.js";
@@ -27,7 +28,9 @@ program
   .option("--host <indirizzo>", "indirizzo del server (default 127.0.0.1)")
   .option("--port <n>", "porta del server (default 4700)")
   .option("--db-port <n>", "porta del database incorporato (default 4701)")
-  .action(async (opts: { company?: string; host?: string; port?: string; dbPort?: string }) => {
+  .option("--model <provider/modello>", "modello di default (es. anthropic/claude-sonnet-5)")
+  .option("--local-url <url>", "endpoint compatibile OpenAI per modelli locali (es. http://127.0.0.1:11434/v1)")
+  .action(async (opts: { company?: string; host?: string; port?: string; dbPort?: string; model?: string; localUrl?: string }) => {
     await runInit({ ...opts, ...homeOf(program) });
   });
 
@@ -44,6 +47,16 @@ program
   .description("ferma il server avviato in background")
   .action(async () => {
     await runDown(homeOf(program));
+  });
+
+program
+  .command("chat [agente]")
+  .description("conversazione da terminale con un agente (richiede il server avviato)")
+  .option("--company <nome>", "azienda (default: la prima)")
+  .option("--resume <sessione>", "riprende una sessione esistente")
+  .option("--model <provider/modello>", "modello per la nuova sessione")
+  .action(async (agente: string | undefined, opts: { company?: string; resume?: string; model?: string }) => {
+    await runChat({ ...(agente ? { agent: agente } : {}), ...opts, ...homeOf(program) });
   });
 
 program

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { api, eventsSocket, type Agent, type AuditEntry, type Company, type Health } from "./api";
 import { detectLocale, saveLocale, stringsFor, type Locale } from "./i18n";
+import { Chat } from "./Chat";
 
 export function App() {
   const [locale, setLocale] = useState<Locale>(detectLocale);
@@ -10,6 +11,7 @@ export function App() {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState<"cruscotto" | "chat">("cruscotto");
 
   const refresh = useCallback(async () => {
     try {
@@ -67,12 +69,30 @@ export function App() {
         </div>
       </header>
 
+      <nav className="flex gap-1 border-b border-zinc-200 text-sm dark:border-zinc-800" aria-label="Sezioni">
+        {(["cruscotto", "chat"] as const).map((p) => (
+          <button
+            key={p}
+            type="button"
+            onClick={() => setPage(p)}
+            aria-current={page === p ? "page" : undefined}
+            className={`-mb-px border-b-2 px-3 py-2 ${page === p ? "border-brand-600 font-medium text-brand-700 dark:text-brand-500" : "border-transparent text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"}`}
+          >
+            {p === "cruscotto" ? t.dashboard : t.chat}
+          </button>
+        ))}
+      </nav>
+
       {error && (
         <div role="alert" className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200">
           {error}
         </div>
       )}
 
+      {page === "chat" && selectedCompany && <Chat key={selectedCompany.id} company={selectedCompany} t={t} />}
+      {page === "chat" && !selectedCompany && <p className="text-sm text-zinc-500">{t.noCompanies}</p>}
+
+      {page === "cruscotto" && (
       <section aria-labelledby="status" className="grid gap-4 sm:grid-cols-2">
         <Card title={t.status} id="status">
           <dl className="grid grid-cols-2 gap-y-1 text-sm">
@@ -112,7 +132,9 @@ export function App() {
         </Card>
       </section>
 
-      {selectedCompany && <CompanyPanel key={selectedCompany.id} company={selectedCompany} t={t} />}
+      )}
+
+      {page === "cruscotto" && selectedCompany && <CompanyPanel key={selectedCompany.id} company={selectedCompany} t={t} />}
     </div>
   );
 }

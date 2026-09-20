@@ -13,7 +13,9 @@
       "default": "./dist/index.js"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc -b",
@@ -24,6 +26,15 @@
     "@fastify/websocket": "^11.3.0",
     "@opifer/core": "workspace:*",
     "@opifer/db": "workspace:*",
+    "@opifer/provider-anthropic": "workspace:*",
+    "@opifer/provider-openai": "workspace:*",
+    "@opifer/provider-openai-compatible": "workspace:*",
+    "@opifer/runtime": "workspace:*",
+    "@opifer/sdk": "workspace:*",
     "fastify": "^5.6.0"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.18.0",
+    "ws": "^8.18.0"
   }
 }

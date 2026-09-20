@@ -8,6 +8,8 @@ export interface Strings {
   newCompany: string; companyName: string; mission: string; create: string; noCompanies: string; agents: string;
   noAgents: string; newAgent: string; agentName: string; agentRole: string; reportsTo: string; nobody: string;
   audit: string; milestone: string; modes: Record<string, string>;
+  chat: string; newSession: string; noSessions: string; untitled: string; pickSession: string; working: string;
+  message: string; messageHint: string; injectHint: string; send: string; stop: string; you: string; toolResults: string;
 }
 
 const strings: Record<Locale, Strings> = {
@@ -38,8 +40,21 @@ const strings: Record<Locale, Strings> = {
     reportsTo: "Risponde a",
     nobody: "nessuno (radice)",
     audit: "Audit",
-    milestone: "Milestone M0 — fondamenta",
+    milestone: "Milestone M1 — runtime",
     modes: { locale: "locale fidata", autenticata: "autenticata", gestita: "gestita" },
+    chat: "Chat",
+    newSession: "Nuova conversazione",
+    noSessions: "Nessuna conversazione.",
+    untitled: "(senza titolo)",
+    pickSession: "Scegli una conversazione o avviane una nuova.",
+    working: "l'agente sta lavorando…",
+    message: "Messaggio",
+    messageHint: "Scrivi all'agente…",
+    injectHint: "Turno in corso: il messaggio arriva all'agente nel prossimo risultato di tool",
+    send: "Invia",
+    stop: "Ferma",
+    you: "Tu",
+    toolResults: "Risultati dei tool",
   },
   en: {
     tagline: "AI agents that work, learn and are governed like an organisation",
@@ -68,8 +83,21 @@ const strings: Record<Locale, Strings> = {
     reportsTo: "Reports to",
     nobody: "nobody (root)",
     audit: "Audit",
-    milestone: "Milestone M0 — foundations",
+    milestone: "Milestone M1 — runtime",
     modes: { locale: "trusted local", autenticata: "authenticated", gestita: "managed" },
+    chat: "Chat",
+    newSession: "New conversation",
+    noSessions: "No conversations yet.",
+    untitled: "(untitled)",
+    pickSession: "Pick a conversation or start a new one.",
+    working: "the agent is working…",
+    message: "Message",
+    messageHint: "Write to the agent…",
+    injectHint: "Turn in progress: your message reaches the agent in the next tool result",
+    send: "Send",
+    stop: "Stop",
+    you: "You",
+    toolResults: "Tool results",
   },
 };
 

@@ -239,6 +239,14 @@ export class SessionStore {
     return rows.map(toRun);
   }
 
+  /** All'avvio del server: tutte le esecuzioni "in corso" di ogni sessione sono interrotte. */
+  async markAllStaleRunsInterrupted(): Promise<number> {
+    const rows = await this.sql<{ id: string }[]>`
+      UPDATE runs SET status = 'interrotta', stop_reason = 'riavvio', finished_at = now() WHERE status = 'in_corso' RETURNING id
+    `;
+    return rows.length;
+  }
+
   async appendRunEvent(run: { id: string; companyId: string }, type: string, payload: Record<string, unknown>): Promise<void> {
     await this.sql`
       INSERT INTO run_events (company_id, run_id, seq, type, payload)

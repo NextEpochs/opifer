@@ -5,7 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { EventBus } from "@opifer/core";
 import { migrateUp } from "@opifer/db";
-import { buildApp } from "@opifer/server";
+import { buildApp, setupProviders } from "@opifer/server";
 import { isPortOpen, openDatabase } from "../database.js";
 import { requireConfig, resolveHome, type OpiferHome } from "../home.js";
 import { c, say } from "../output.js";
@@ -69,7 +69,10 @@ export async function runUp(options: UpOptions): Promise<void> {
   await migrateUp(db.handle.sql, { log: (m) => say.info(`  ${m}`) });
 
   const uiDir = uiDistDir();
-  const app = await buildApp({ db: db.handle, mode: "locale", bus: new EventBus(), uiDir, logger: false });
+  const providers = setupProviders(config.models);
+  for (const r of providers.report) (r.enabled ? say.ok : say.warn)(`provider ${r.id}: ${r.detail}`);
+  say.ok(`Modello di default: ${providers.defaultModel}`);
+  const app = await buildApp({ db: db.handle, mode: "locale", bus: new EventBus(), uiDir, logger: false, providers, workRoot: home.workDir });
   await app.listen({ host: config.server.host, port: config.server.port });
   await writeFile(home.pidFile, `${process.pid}\n`, "utf8");
 

@@ -98,9 +98,31 @@ importers:
       '@opifer/db':
         specifier: workspace:*
         version: link:../db
+      '@opifer/provider-anthropic':
+        specifier: workspace:*
+        version: link:../../plugins/provider-anthropic
+      '@opifer/provider-openai':
+        specifier: workspace:*
+        version: link:../../plugins/provider-openai
+      '@opifer/provider-openai-compatible':
+        specifier: workspace:*
+        version: link:../../plugins/provider-openai-compatible
+      '@opifer/runtime':
+        specifier: workspace:*
+        version: link:../runtime
+      '@opifer/sdk':
+        specifier: workspace:*
+        version: link:../sdk
       fastify:
         specifier: ^5.6.0
         version: 5.12.5
+    devDependencies:
+      '@types/ws':
+        specifier: ^8.18.0
+        version: 8.18.1
+      ws:
+        specifier: ^8.18.0
+        version: 8.21.3
 
   packages/ui:
     dependencies:
@@ -640,6 +662,9 @@ packages:
 
   '@types/react@19.3.0':
     resolution: {integrity: sha512-N0rFCuH9YoxG9/m61l9MfpJKfmLOVU0em7ipIz6TRgSSkvReLB9vL85GB+yr8Bs5leqpvg96JSwF4ZS1s4viQg==}
+
+  '@types/ws@8.18.1':
+    resolution: {integrity: sha512-ThVF6DCVhA8kUGy+aazFQ4kXQ7E1Ty7A3ypFOe0IcJV8O/M511G99AW24irKrW56Wt44yG9+ij8FaqoBGkuBXg==}
 
   '@vitejs/plugin-react@6.1.1':
     resolution: {integrity: sha512-yxLaQV9gkhS8ezJqCM6+ndU7mDY6gqAg75NQ+0IjwEI8IYOmQCgkRwHKVSfWXW076DsqMo0Dk+0FK1U+M5RgFw==}
@@ -1843,6 +1868,10 @@ snapshots:
   '@types/react@19.3.0':
     dependencies:
       csstype: 3.2.3
+
+  '@types/ws@8.18.1':
+    dependencies:
+      '@types/node': 22.20.4
 
   '@vitejs/plugin-react@6.1.1(vite@8.3.0(@types/node@22.20.4)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.14))':
     dependencies:

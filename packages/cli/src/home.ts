@@ -11,12 +11,20 @@ export interface OpiferConfig {
   version: 1;
   server: { host: string; port: number };
   database: { port: number };
+  /** Modelli: default, riserva, ausiliario ed endpoint locale (le chiavi restano nell'ambiente fino alla M2). */
+  models?: {
+    default?: string | null;
+    fallback?: string | null;
+    auxiliary?: string | null;
+    local?: { baseURL: string; models?: string[]; tools?: boolean } | null;
+  };
 }
 
 export const DEFAULT_CONFIG: OpiferConfig = {
   version: 1,
   server: { host: "127.0.0.1", port: 4700 },
   database: { port: 4701 },
+  models: { default: null, fallback: null, auxiliary: null, local: null },
 };
 
 export interface OpiferHome {
@@ -25,6 +33,8 @@ export interface OpiferHome {
   postgresDir: string;
   pidFile: string;
   logFile: string;
+  /** Cartelle di lavoro delle sessioni. */
+  workDir: string;
 }
 
 export function resolveHome(override?: string): OpiferHome {
@@ -35,6 +45,7 @@ export function resolveHome(override?: string): OpiferHome {
     postgresDir: path.join(dir, "postgres"),
     pidFile: path.join(dir, "server.pid"),
     logFile: path.join(dir, "server.log"),
+    workDir: path.join(dir, "work"),
   };
 }
 
