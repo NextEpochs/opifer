@@ -113,7 +113,7 @@ export function MoneyPage({ ws }: { ws: Workspace }) {
               const ratio = p.cap > 0 ? Math.min(1, spent / p.cap) : 1;
               return (
                 <div key={p.id} className="flex items-center gap-3.5 rounded-control border border-line px-3 py-2.5">
-                  <Avatar name={agent?.name ?? company.name} size={30} colour={p.scopeKind === "company" ? "var(--o-accent-strong)" : undefined} />
+                  <Avatar name={agent?.name ?? company.name} size={30} colour={p.scopeKind === "company" ? "#c084fc" : undefined} />
                   <div className="w-44">
                     <div className="text-sm font-bold">{p.scopeKind === "company" ? t.wholeCompany : (agent?.name ?? p.scopeKind)}</div>
                     <div className="text-[12px] text-mute">{p.window}</div>

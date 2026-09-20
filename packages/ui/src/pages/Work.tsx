@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { DndContext, DragOverlay, PointerSensor, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent, type DragStartEvent } from "@dnd-kit/core";
-import { Plus, X } from "lucide-react";
+import { Plus, X, GripVertical } from "lucide-react";
 import { api, eventsSocket, type Goal, type Project, type Task, type TaskStatus } from "../api";
 import { Button, Card, Chip, Input, Segmented } from "../ui";
 import { RoutinesView } from "../components/Routines";
@@ -197,9 +197,19 @@ function Draggable({ task, ws, onOpen }: { task: Task; ws: Workspace; onOpen: (i
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: task.id,
   });
+  // The card is dragged with the pointer from anywhere; the keyboard drags it from the grip, so no control nests inside another (WCAG).
   return (
-    <div ref={setNodeRef} {...listeners} {...attributes} className={isDragging ? "opacity-40" : ""}>
+    <div ref={setNodeRef} {...listeners} className={`relative ${isDragging ? "opacity-40" : ""}`}>
       <TaskCard task={task} ws={ws} onOpen={onOpen} />
+      <button
+        type="button"
+        {...attributes}
+        {...listeners}
+        aria-label={`${ws.t.dragToReorder}: ${task.title}`}
+        className="absolute right-1.5 top-1.5 rounded-control p-1 text-faint opacity-0 hover:bg-hover focus-visible:opacity-100 group-hover:opacity-100"
+      >
+        <GripVertical size={14} aria-hidden="true" />
+      </button>
     </div>
   );
 }

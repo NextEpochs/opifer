@@ -4,7 +4,7 @@ import { SortableContext, arrayMove, rectSortingStrategy, sortableKeyboardCoordi
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, Plus, X } from "lucide-react";
 import { api, eventsSocket, type CostReport, type LearningReview, type ModelsInfo } from "../api";
-import { fill } from "../i18n";
+import { fill, plural } from "../i18n";
 import { DEFAULT_LAYOUT, usePref, type WidgetPlacement, type WidgetSize } from "../prefs";
 import { ActivityChip, Avatar, Button, Card, CardHeader, Chip, EmptyState, money, timeAgo } from "../ui";
 import { ApprovalCard } from "../components/ApprovalCard";
@@ -58,9 +58,9 @@ export function HomePage({ ws }: { ws: Workspace }) {
           <p className="mt-1.5 text-[15px] text-mute">
             {overview
               ? fill(t.summary, {
-                  agents: overview.agents.length,
-                  working: overview.working,
-                  pending: overview.pending + ws.attention.length,
+                  agents: plural(t.summaryAgents, overview.agents.length, ws.locale),
+                  working: plural(t.summaryWorking, overview.working, ws.locale),
+                  pending: plural(t.summaryPending, overview.pending + ws.attention.length, ws.locale),
                 })
               : "…"}
           </p>

@@ -7,6 +7,7 @@ import { EventBus, OPIFER_VERSION, type InstallMode } from "@opifer/core";
 import type { DatabaseHandle } from "@opifer/db";
 import Fastify, { type FastifyInstance } from "fastify";
 import { registerCompanyRoutes } from "./routes/companies.js";
+import { registerPreferenceRoutes } from "./routes/preferences.js";
 import { registerAgentRoutes } from "./routes/agents.js";
 import { registerAuditRoutes } from "./routes/audit.js";
 import { registerSessionRoutes } from "./routes/sessions.js";
@@ -328,6 +329,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   });
 
   await app.register(registerCompanyRoutes, { prefix: "/v1" });
+  await app.register(registerPreferenceRoutes, { prefix: "/v1" });
   await app.register(registerAgentRoutes, { prefix: "/v1" });
   await app.register(registerAuditRoutes, { prefix: "/v1" });
   await app.register(async (scope) => registerWorkRoutes(scope, { work, runtime }), { prefix: "/v1" });

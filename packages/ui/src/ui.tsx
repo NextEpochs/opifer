@@ -24,12 +24,14 @@ export function Avatar({ name, size = 34, colour, ring }: { name: string; size?:
   return (
     <span
       aria-hidden="true"
-      className="inline-flex shrink-0 items-center justify-center rounded-full font-extrabold text-white"
+      className="inline-flex shrink-0 items-center justify-center rounded-full font-extrabold"
       style={{
         width: size,
         height: size,
         fontSize: Math.max(11, Math.round(size / 2.6)),
         background: colour ?? colourFor(name),
+        // Dark ink on every avatar colour: at least 4.5:1 (WCAG AA) where white would fail on cyan, green and amber.
+        color: "#0a0a0f",
         boxShadow: ring ? `0 0 0 2px var(--o-card), 0 0 0 4px ${ring}` : undefined,
       }}
     >
@@ -180,10 +182,20 @@ export function Segmented<T extends string>({
 }
 
 /** Currency formatting; tiny amounts keep enough decimals to be visible. */
+let displayLocale = "en-GB";
+/** The interface language decides how money and numbers are written (1.234,56 € in Italian, €1,234.56 in English). */
+export function setDisplayLocale(locale: "it" | "en"): void {
+  displayLocale = locale === "it" ? "it-IT" : "en-GB";
+}
+
 export function money(amount: number, currency = "EUR", digits = 2): string {
   const small = amount !== 0 && Math.abs(amount) < 0.01 && digits <= 2;
   const fraction = small ? 4 : digits;
-  return new Intl.NumberFormat(undefined, { style: "currency", currency, minimumFractionDigits: Math.min(fraction, 2), maximumFractionDigits: fraction }).format(amount);
+  return new Intl.NumberFormat(displayLocale, { style: "currency", currency, minimumFractionDigits: Math.min(fraction, 2), maximumFractionDigits: fraction }).format(amount);
+}
+
+export function number(n: number): string {
+  return new Intl.NumberFormat(displayLocale).format(n);
 }
 
 export function timeAgo(iso: string, t: Strings): string {

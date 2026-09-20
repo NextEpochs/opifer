@@ -32,6 +32,7 @@ const en = {
   offline: "reconnecting…",
   owner: "owner",
   noCompanies: "No company yet.",
+  skipToContent: "Skip to content",
   stopAll: "Stop everything",
   stopAllConfirm: "Stop every agent of {company} now? Running turns are interrupted, routines pause and no model is called until you resume.",
   stoppedBanner: "{company} is stopped: nothing runs until you resume.",
@@ -47,7 +48,10 @@ const en = {
   },
   atWork: "{company} is at work.",
   quiet: "{company} is quiet right now.",
-  summary: "{agents} agents · {working} working · {pending} decisions waiting for you",
+  summary: "{agents} · {working} · {pending}",
+  summaryAgents: "{n} agent|agents",
+  summaryWorking: "{n} working",
+  summaryPending: "{n} decision|decisions waiting for you",
   talkTo: "Talk to {agent}",
   giveTask: "Give a task",
   addWidget: "Add a widget",
@@ -84,6 +88,7 @@ const en = {
   hireAgent: "Hire an agent",
   noResults: "No results yet: give someone a task.",
   waitingCount: "{n} waiting",
+  callsCount: "{n} call|calls",
   // agent activity
   activity: {
     working: "working",
@@ -514,7 +519,7 @@ const en = {
   connDescription: "When the agent should use it",
   connResultField: "Response field to hand to the agent (optional)",
   connCheck: "Check",
-  connTools: "{n} tools",
+  connTools: "{n} tool|tools",
   connCheckedAgo: "checked {when}",
   connEnable: "Enable",
   connDisable: "Disable",
@@ -551,7 +556,7 @@ const en = {
   webhookActions: { create_task: "Create a task", wake_agent: "Wake an agent", comment: "Comment on a task", decide_approval: "Decide an approval" },
   webhookDefaultAgent: "Default agent",
   webhookCreated: "Created. The token is shown once — copy it now:",
-  webhookCalls: "{n} calls",
+  webhookCalls: "{n} call|calls",
   rotate: "New token",
   subUrl: "URL",
   subEvents: "Events (comma-separated; * for all; task.* for a family)",
@@ -615,6 +620,7 @@ const it: Strings = {
   offline: "riconnessione…",
   owner: "titolare",
   noCompanies: "Nessuna azienda.",
+  skipToContent: "Vai al contenuto",
   stopAll: "Ferma tutto",
   stopAllConfirm: "Fermare adesso tutti gli agenti di {company}? I turni in corso vengono interrotti, le routine si fermano e nessun modello viene chiamato finché non riprendi.",
   stoppedBanner: "{company} è ferma: non gira niente finché non riprendi.",
@@ -629,7 +635,10 @@ const it: Strings = {
   },
   atWork: "{company} è al lavoro.",
   quiet: "{company} è tranquilla in questo momento.",
-  summary: "{agents} agenti · {working} al lavoro · {pending} decisioni in attesa",
+  summary: "{agents} · {working} · {pending}",
+  summaryAgents: "{n} agente|agenti",
+  summaryWorking: "{n} al lavoro",
+  summaryPending: "{n} decisione|decisioni in attesa",
   talkTo: "Parla con {agent}",
   giveTask: "Assegna un compito",
   addWidget: "Aggiungi un widget",
@@ -666,6 +675,7 @@ const it: Strings = {
   hireAgent: "Assumi un agente",
   noResults: "Nessun risultato: assegna un compito a qualcuno.",
   waitingCount: "{n} in attesa",
+  callsCount: "{n} chiamata|chiamate",
   activity: {
     working: "al lavoro",
     waiting: "aspetta te",
@@ -1098,7 +1108,7 @@ const it: Strings = {
   connDescription: "Quando l'agente deve usarlo",
   connResultField: "Campo della risposta da passare all'agente (opzionale)",
   connCheck: "Verifica",
-  connTools: "{n} strumenti",
+  connTools: "{n} strumento|strumenti",
   connCheckedAgo: "verificata {when}",
   connEnable: "Abilita",
   connDisable: "Disabilita",
@@ -1135,7 +1145,7 @@ const it: Strings = {
   webhookActions: { create_task: "Crea un task", wake_agent: "Sveglia un agente", comment: "Commenta un task", decide_approval: "Decide un'approvazione" },
   webhookDefaultAgent: "Agente predefinito",
   webhookCreated: "Creato. Il token si vede una volta sola — copialo ora:",
-  webhookCalls: "{n} chiamate",
+  webhookCalls: "{n} chiamata|chiamate",
   rotate: "Nuovo token",
   subUrl: "URL",
   subEvents: "Eventi (separati da virgola; * per tutti; task.* per una famiglia)",
@@ -1189,18 +1199,22 @@ export function fill(template: string, values: Record<string, string | number>):
   return template.replace(/\{(\w+)\}/g, (_, key: string) => String(values[key] ?? `{${key}}`));
 }
 
-export function detectLocale(): Locale {
-  const saved = safeGet("opifer.locale");
-  if (saved === "it" || saved === "en") return saved;
-  return navigator.language.toLowerCase().startsWith("it") ? "it" : "en";
+/**
+ * Plural forms: "{n} agent|agents" picks by count (Intl.PluralRules for the
+ * locale), or a plain template when there is no "|". Counts stay in the text.
+ */
+export function plural(template: string, n: number, locale: Locale, values: Record<string, string | number> = {}): string {
+  const rules = new Intl.PluralRules(locale === "it" ? "it-IT" : "en-GB");
+  const one = rules.select(n) === "one";
+  const chosen = template.replace(/(\S+)\|(\S+)/g, (_, singular: string, pluralForm: string) => (one ? singular : pluralForm));
+  return fill(chosen, { n, ...values });
 }
 
-export function saveLocale(locale: Locale): void {
-  try {
-    localStorage.setItem("opifer.locale", locale);
-  } catch {
-    // storage unavailable: the choice lasts for the session
-  }
+export function detectLocale(): Locale {
+  const saved = safeGet("opifer.locale");
+  if (saved === '"it"' || saved === "it") return "it";
+  if (saved === '"en"' || saved === "en") return "en";
+  return navigator.language.toLowerCase().startsWith("it") ? "it" : "en";
 }
 
 function safeGet(key: string): string | null {

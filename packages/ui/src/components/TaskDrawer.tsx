@@ -230,7 +230,7 @@ export function TaskDrawer({ ws, taskId, onClose }: { ws: Workspace; taskId: str
           <div className="space-y-2">
             {task.comments.map((c) => (
               <div key={c.id} className="flex gap-2">
-                <Avatar name={authorName(c.authorKind, c.authorId)} size={24} colour={c.authorKind === "person" ? "#06B6D4" : c.authorKind === "system" ? "#5C5C78" : undefined} />
+                <Avatar name={authorName(c.authorKind, c.authorId)} size={24} colour={c.authorKind === "person" ? "#06B6D4" : c.authorKind === "system" ? "#9a9ab4" : undefined} />
                 <div className="min-w-0 flex-1">
                   <div className="text-[12px] text-mute">
                     <strong className="text-ink">{authorName(c.authorKind, c.authorId)}</strong> · {timeAgo(c.createdAt, t)}

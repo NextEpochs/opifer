@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Coins, GraduationCap, Home as HomeIcon, OctagonX, Plug, Inbox as InboxIcon, KanbanSquare, MessageSquare, Settings as SettingsIcon, Users } from "lucide-react";
 import { api, eventsSocket, type Approval, type Company, type Overview, type Task } from "./api";
-import { detectLocale, fill, saveLocale, stringsFor, type Locale, type Strings } from "./i18n";
+import { detectLocale, fill, stringsFor, type Locale, type Strings } from "./i18n";
+import { setDisplayLocale } from "./ui";
 import { useDocumentAttributes, usePref, type Theme, type ViewMode } from "./prefs";
 import { Avatar, Segmented } from "./ui";
 import { HomePage } from "./pages/Home";
@@ -42,10 +43,14 @@ export interface Workspace {
 }
 
 export function App() {
-  const [locale, setLocale] = useState<Locale>(detectLocale);
+  const [locale, setLocale] = usePref<Locale>("locale", detectLocale());
   const [mode, setMode] = usePref<ViewMode>("mode", "simple");
   const [theme, setTheme] = usePref<Theme>("theme", "dark");
   useDocumentAttributes(mode, theme);
+  useEffect(() => {
+    document.documentElement.lang = locale;
+    setDisplayLocale(locale);
+  }, [locale]);
   const t = stringsFor(locale);
 
   const [route, setRoute] = useState(pageFromHash);
@@ -116,10 +121,7 @@ export function App() {
     }, setLive);
   }, [company, refresh, loadCompanies]);
 
-  const switchLocale = (next: Locale) => {
-    setLocale(next);
-    saveLocale(next);
-  };
+  const switchLocale = (next: Locale) => setLocale(next);
 
   const agentName = useCallback((id: string | null) => overview?.agents.find((a) => a.id === id)?.name ?? "—", [overview]);
   const [stopNotice, setStopNotice] = useState<string | null>(null);
@@ -160,6 +162,9 @@ export function App() {
 
   return (
     <div className="flex h-full min-h-screen">
+      <a href="#main" className="skip-link">
+        {t.skipToContent}
+      </a>
       <nav className="flex w-[232px] shrink-0 flex-col gap-1.5 border-r border-line bg-panel px-4 py-6" aria-label={t.nav.home}>
         <a href="#/home" className="mb-4 flex items-center gap-2.5 px-2 font-display text-2xl font-semibold tracking-tight text-ink no-underline">
           <span className="accent-gradient flex h-[30px] w-[30px] items-center justify-center rounded-[9px] font-sans text-[15px] font-extrabold text-white">O</span>
@@ -221,7 +226,7 @@ export function App() {
         </div>
       </nav>
 
-      <main className="min-w-0 flex-1 overflow-auto">
+      <main id="main" tabIndex={-1} className="min-w-0 flex-1 overflow-auto">
         {company && company.status === "suspended" && (
           <div role="alert" className="m-4 flex flex-wrap items-center gap-3 rounded-control border border-danger/40 bg-danger-soft px-3 py-2 text-sm text-danger">
             <OctagonX size={18} aria-hidden="true" />

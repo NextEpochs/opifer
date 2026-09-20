@@ -5,7 +5,7 @@
  */
 
 import { sql } from "drizzle-orm";
-import { boolean, customType, index, integer, jsonb, numeric, pgTable, primaryKey, real, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
+import { boolean, customType, index, integer, jsonb, numeric, pgTable, primaryKey, real, text, timestamp, unique, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 
 const bytea = customType<{ data: Buffer; driverData: Buffer }>({
   dataType() {
@@ -123,8 +123,8 @@ export const auditLog = pgTable(
   (t) => [index("audit_log_company_time_idx").on(t.companyId, t.occurredAt)],
 );
 
-/** Domain tables: all of them must carry company_id (companies are the root, people are global). */
-export const DOMAIN_TABLES_WITHOUT_COMPANY_ID: readonly string[] = ["companies", "users", "schema_migrations"];
+/** Tables that belong to no company by nature: the companies themselves, the people (who may belong to several), their interface preferences, and the migration ledger. */
+export const DOMAIN_TABLES_WITHOUT_COMPANY_ID: readonly string[] = ["companies", "users", "user_preferences", "schema_migrations"];
 
 // --- Sessions (0002) --------------------------------------------------------
 
@@ -1105,4 +1105,19 @@ export const channelBindings = pgTable(
     ...timestamps,
   },
   (t) => [unique("channel_bindings_channel_id_external_chat_id_external_sender_id_key").on(t.channelId, t.externalChatId, t.externalSenderId)],
+);
+
+/** 0009: interface preferences per person; user_id null in local mode. */
+export const userPreferences = pgTable(
+  "user_preferences",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
+    key: text("key").notNull(),
+    value: jsonb("value").notNull(),
+    ...timestamps,
+  },
+  (t) => [uniqueIndex("user_preferences_key_idx").on(sql`coalesce(${t.userId}, '00000000-0000-0000-0000-000000000000'::uuid)`, t.key)],
 );

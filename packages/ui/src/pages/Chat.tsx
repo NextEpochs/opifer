@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { Plus, Square } from "lucide-react";
 import { api, eventsSocket, type Session, type SessionDetail, type StoredMessage } from "../api";
-import { fill, type Strings } from "../i18n";
+import { fill, plural, type Strings } from "../i18n";
 import { Avatar, Button, Chip, Code, Input, Select, money } from "../ui";
 import { ApprovalCard } from "../components/ApprovalCard";
 import type { Workspace } from "../App";
@@ -329,9 +329,7 @@ export function ChatPage({ ws, param }: { ws: Workspace; param: string | null })
             <div className="text-[13px] text-mute">{t.thisConversation}</div>
             <div className="flex items-baseline gap-2">
               <span className="font-display text-[26px] font-semibold">{money(agentOf(detail.agentId)?.spend.eur ?? 0)}</span>
-              <span className="text-[12px] text-mute">
-                · {detail.runs.length} {t.calls}
-              </span>
+              <span className="text-[12px] text-mute">· {plural(t.callsCount, detail.runs.length, ws.locale)}</span>
             </div>
             <div className="text-[12px] text-mute">
               {totalIn} / {totalOut} {t.tokens}

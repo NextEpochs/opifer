@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { Plus, RefreshCw, X } from "lucide-react";
 import { api, eventsSocket, type ChannelBinding, type ChannelRecord, type EventDelivery, type EventSubscription, type Health, type ToolConnection, type Webhook } from "../api";
-import { fill } from "../i18n";
+import { fill, plural } from "../i18n";
 import { Button, Card, Chip, Code, Input, Segmented, Select, timeAgo } from "../ui";
 import type { Workspace } from "../App";
 
@@ -120,7 +120,7 @@ function ToolsTab({ ws, companyId }: { ws: Workspace; companyId: string }) {
               </div>
               {c.description && <p className="m-0 text-[13px]">{c.description}</p>}
               <p className="m-0 text-[12px] text-mute">
-                {fill(t.connTools, { n: c.tools.length })} · {t.risks[c.risk]}
+                {plural(t.connTools, c.tools.length, ws.locale)} · {t.risks[c.risk]}
                 {c.lastCheckedAt ? ` · ${fill(t.connCheckedAgo, { when: timeAgo(c.lastCheckedAt, t) })}` : ""}
                 {c.statusDetail ? ` · ${c.statusDetail}` : ""}
               </p>
@@ -610,7 +610,7 @@ function WebhooksTab({ ws, companyId }: { ws: Workspace; companyId: string }) {
               <span className="font-bold">{h.name}</span>
               <Chip tone="mute">{t.webhookActions[h.action]}</Chip>
               <code className="font-mono text-[11px] text-mute">POST /v1/hooks/{h.id.slice(0, 8)}…</code>
-              <span className="text-mute">{fill(t.webhookCalls, { n: h.calls })}</span>
+              <span className="text-mute">{plural(t.webhookCalls, h.calls, ws.locale)}</span>
               <span className="ml-auto flex gap-2">
                 <button
                   type="button"

@@ -57,7 +57,7 @@
   --o-ink: #f1f1f6;
   --o-ink-2: #b4b4c8;
   --o-mute: #8888a0;
-  --o-faint: #5c5c78;
+  --o-faint: #8a8aa6;
   --o-accent: #a855f7;
   --o-accent-strong: #7c3aed;
   --o-accent-soft: rgba(168, 85, 247, 0.14);
@@ -83,19 +83,19 @@
   --o-line-strong: #d4d4e2;
   --o-ink: #14141e;
   --o-ink-2: #3a3a52;
-  --o-mute: #6b6b85;
-  --o-faint: #9a9ab4;
+  --o-mute: #5f5f7a;
+  --o-faint: #71718c;
   --o-accent: #7c3aed;
   --o-accent-strong: #6d28d9;
   --o-accent-soft: rgba(124, 58, 237, 0.1);
   --o-accent-text: #6d28d9;
-  --o-ok: #059669;
+  --o-ok: #046c4e;
   --o-ok-soft: rgba(16, 185, 129, 0.14);
-  --o-warn: #b45309;
+  --o-warn: #a14a05;
   --o-warn-soft: rgba(251, 191, 36, 0.2);
-  --o-danger: #e11d48;
+  --o-danger: #b3123a;
   --o-danger-soft: rgba(244, 63, 94, 0.12);
-  --o-info: #0891b2;
+  --o-info: #0e7490;
   --o-info-soft: rgba(6, 182, 212, 0.14);
 }
 
@@ -210,4 +210,22 @@ input[type="range"] {
     animation: none;
     opacity: 0.7;
   }
+}
+
+/* Keyboard users land on the content with one Tab. */
+.skip-link {
+  position: absolute;
+  left: 8px;
+  top: -48px;
+  z-index: 50;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: var(--o-accent-strong);
+  color: #fff;
+  font-weight: 700;
+  text-decoration: none;
+  transition: top 0.15s;
+}
+.skip-link:focus-visible {
+  top: 8px;
 }
