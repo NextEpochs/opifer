@@ -147,9 +147,11 @@ export const sessions = pgTable(
     status: text("status", { enum: ["active", "suspended", "closed"] }).notNull().default("active"),
     workdir: text("workdir"),
     lastSeq: integer("last_seq").notNull().default(0),
+    // 0004: a session can belong to a task
+    taskId: uuid("task_id"),
     ...timestamps,
   },
-  (t) => [index("sessions_company_agent_idx").on(t.companyId, t.agentId, t.createdAt)],
+  (t) => [index("sessions_company_agent_idx").on(t.companyId, t.agentId, t.createdAt), index("sessions_task_idx").on(t.taskId)],
 );
 
 export const runs = pgTable(
@@ -383,4 +385,166 @@ export const secretAccessEvents = pgTable(
     ...timestamps,
   },
   (t) => [index("secret_access_events_company_idx").on(t.companyId, t.occurredAt)],
+);
+
+// --- Work (0004) ----------------------------------------------------------
+
+export const goals = pgTable(
+  "goals",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+    parentId: uuid("parent_id"),
+    title: text("title").notNull(),
+    description: text("description").notNull().default(""),
+    measure: text("measure").notNull().default(""),
+    status: text("status", { enum: ["active", "reached", "dropped"] }).notNull().default("active"),
+    dueAt: timestamp("due_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (t) => [index("goals_company_idx").on(t.companyId, t.parentId)],
+);
+
+export const projects = pgTable(
+  "projects",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+    goalId: uuid("goal_id").references(() => goals.id, { onDelete: "set null" }),
+    name: text("name").notNull(),
+    description: text("description").notNull().default(""),
+    status: text("status", { enum: ["active", "paused", "done", "archived"] }).notNull().default("active"),
+    workdir: text("workdir"),
+    ...timestamps,
+  },
+  (t) => [index("projects_company_idx").on(t.companyId), unique().on(t.companyId, t.name)],
+);
+
+export const tasks = pgTable(
+  "tasks",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+    projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }),
+    goalId: uuid("goal_id").references(() => goals.id, { onDelete: "set null" }),
+    parentId: uuid("parent_id"),
+    title: text("title").notNull(),
+    description: text("description").notNull().default(""),
+    acceptance: text("acceptance").notNull().default(""),
+    status: text("status", { enum: ["todo", "in_progress", "in_review", "blocked", "done", "cancelled"] }).notNull().default("todo"),
+    priority: text("priority", { enum: ["low", "normal", "high", "urgent"] }).notNull().default("normal"),
+    assigneeAgentId: uuid("assignee_agent_id").references(() => agents.id, { onDelete: "set null" }),
+    assigneeUserId: uuid("assignee_user_id").references(() => users.id, { onDelete: "set null" }),
+    reviewerAgentId: uuid("reviewer_agent_id").references(() => agents.id, { onDelete: "set null" }),
+    createdByKind: text("created_by_kind", { enum: ["person", "agent", "system"] }).notNull().default("person"),
+    createdById: uuid("created_by_id"),
+    dueAt: timestamp("due_at", { withTimezone: true }),
+    leaseRunId: uuid("lease_run_id").references(() => runs.id, { onDelete: "set null" }),
+    leaseSessionId: uuid("lease_session_id").references(() => sessions.id, { onDelete: "set null" }),
+    leaseExpiresAt: timestamp("lease_expires_at", { withTimezone: true }),
+    checkedOutAt: timestamp("checked_out_at", { withTimezone: true }),
+    failures: integer("failures").notNull().default(0),
+    blockedReason: text("blocked_reason"),
+    result: jsonb("result"),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (t) => [
+    index("tasks_company_status_idx").on(t.companyId, t.status, t.priority),
+    index("tasks_assignee_idx").on(t.assigneeAgentId, t.status),
+    index("tasks_parent_idx").on(t.parentId),
+    index("tasks_project_idx").on(t.projectId),
+  ],
+);
+
+export const taskComments = pgTable(
+  "task_comments",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+    taskId: uuid("task_id")
+      .notNull()
+      .references(() => tasks.id, { onDelete: "cascade" }),
+    authorKind: text("author_kind", { enum: ["person", "agent", "system"] }).notNull(),
+    authorId: uuid("author_id"),
+    body: text("body").notNull(),
+    mentions: jsonb("mentions").notNull().default(sql`'[]'::jsonb`),
+    ...timestamps,
+  },
+  (t) => [index("task_comments_task_idx").on(t.taskId, t.createdAt)],
+);
+
+export const taskRelations = pgTable(
+  "task_relations",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+    taskId: uuid("task_id")
+      .notNull()
+      .references(() => tasks.id, { onDelete: "cascade" }),
+    relatedId: uuid("related_id")
+      .notNull()
+      .references(() => tasks.id, { onDelete: "cascade" }),
+    kind: text("kind", { enum: ["depends_on", "blocks", "relates_to"] }).notNull(),
+    ...timestamps,
+  },
+  (t) => [index("task_relations_company_idx").on(t.companyId), unique().on(t.taskId, t.relatedId, t.kind)],
+);
+
+export const workProducts = pgTable(
+  "work_products",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+    taskId: uuid("task_id")
+      .notNull()
+      .references(() => tasks.id, { onDelete: "cascade" }),
+    runId: uuid("run_id").references(() => runs.id, { onDelete: "set null" }),
+    kind: text("kind", { enum: ["file", "link", "diff", "document", "decision", "note"] }).notNull(),
+    title: text("title").notNull(),
+    ref: text("ref").notNull().default(""),
+    summary: text("summary").notNull().default(""),
+    createdByKind: text("created_by_kind", { enum: ["person", "agent", "system"] }).notNull().default("agent"),
+    createdById: uuid("created_by_id"),
+    ...timestamps,
+  },
+  (t) => [index("work_products_task_idx").on(t.taskId, t.createdAt)],
+);
+
+export const wakeups = pgTable(
+  "wakeups",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+    agentId: uuid("agent_id")
+      .notNull()
+      .references(() => agents.id, { onDelete: "cascade" }),
+    reason: text("reason", { enum: ["assignment", "mention", "heartbeat", "routine", "external", "decision", "retry"] }).notNull(),
+    taskId: uuid("task_id").references(() => tasks.id, { onDelete: "cascade" }),
+    payload: jsonb("payload").notNull().default(sql`'{}'::jsonb`),
+    dedupeKey: text("dedupe_key"),
+    status: text("status", { enum: ["pending", "running", "done", "failed", "skipped"] }).notNull().default("pending"),
+    scheduledAt: timestamp("scheduled_at", { withTimezone: true }).notNull().defaultNow(),
+    claimedAt: timestamp("claimed_at", { withTimezone: true }),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+    attempts: integer("attempts").notNull().default(0),
+    error: text("error"),
+    ...timestamps,
+  },
+  (t) => [index("wakeups_pending_idx").on(t.scheduledAt)],
 );

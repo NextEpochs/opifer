@@ -160,9 +160,58 @@ describe("the twenty invariants", () => {
   });
 
   describe("work", () => {
-    it.todo(invariantById("atomic-checkout").title);
-    it.todo(invariantById("every-task-knows-its-why").title);
-    it.todo(invariantById("at-most-once").title);
+    let db: TestDatabase;
+    let companyId: string;
+    let agentId: string;
+
+    beforeAll(async () => {
+      db = await createTestDatabase();
+      const [company] = await db.sql<{ id: string }[]>`INSERT INTO companies (name, mission) VALUES ('Work', 'Make small companies faster') RETURNING id`;
+      const [agent] = await db.sql<{ id: string }[]>`INSERT INTO agents (company_id, name) VALUES (${company!.id}, 'Worker') RETURNING id`;
+      companyId = company!.id;
+      agentId = agent!.id;
+    }, 120_000);
+
+    afterAll(async () => {
+      await db?.destroy();
+    });
+
+    it(invariantById("atomic-checkout").title, async () => {
+      // One assignee, one transaction: of 100 concurrent checkouts exactly one wins, the others see "taken".
+      const { WorkService } = await import("@opifer/work");
+      const work = new WorkService(db.sql);
+      const task = await work.createTask({ companyId, title: "Only one may take this", assigneeAgentId: agentId }, { kind: "person" });
+      const outcomes = await Promise.all(Array.from({ length: 100 }, () => work.checkout(companyId, task.id, { agentId })));
+      expect(outcomes.filter((o) => o.ok)).toHaveLength(1);
+      expect(outcomes.filter((o) => !o.ok && o.reason === "taken")).toHaveLength(99);
+      await expect(db.sql`UPDATE tasks SET assignee_agent_id = ${agentId}, assignee_user_id = ${agentId} WHERE id = ${task.id}`).rejects.toThrow();
+    });
+
+    it(invariantById("every-task-knows-its-why").title, async () => {
+      const { WorkService } = await import("@opifer/work");
+      const work = new WorkService(db.sql);
+      const person = { kind: "person" as const };
+      const goal = await work.createGoal({ companyId, title: "Ship the MVP" }, person);
+      const sub = await work.createGoal({ companyId, title: "Governance done", parentId: goal.id }, person);
+      const project = await work.createProject({ companyId, name: "Opifer", goalId: sub.id }, person);
+      const task = await work.createTask({ companyId, title: "Write the budget service", projectId: project.id }, person);
+      const why = await work.whyChain(companyId, task);
+      expect(why.mission).toBe("Make small companies faster");
+      expect(why.goals.map((g) => g.title)).toEqual(["Ship the MVP", "Governance done"]);
+      expect(why.project?.name).toBe("Opifer");
+    });
+
+    it(invariantById("at-most-once").title, async () => {
+      // A due wake-up is claimed (state advanced) before it runs: 40 concurrent claimers on 5 wake-ups never share one.
+      const { WorkService } = await import("@opifer/work");
+      const work = new WorkService(db.sql);
+      const keys = ["a", "b", "c", "d", "e"];
+      for (const k of keys) await work.wake(companyId, agentId, "routine", { dedupeKey: `routine:${k}` });
+      const claims = (await Promise.all(Array.from({ length: 40 }, () => work.claimWakeup()))).filter((w) => w !== null && w.reason === "routine");
+      expect(claims).toHaveLength(5);
+      expect(new Set(claims.map((w) => w!.id)).size).toBe(5);
+      expect(claims.every((w) => w!.status === "running" && w!.attempts === 1)).toBe(true);
+    });
     it(invariantById("no-tool-replay").title, async () => {
       // A turn dies after the model asked for a tool: on resume the tool is not re-run.
       const { AgentRuntime, NATIVE_TOOLS, NativeToolExecutor, ProviderRegistry } = await import("@opifer/runtime");
@@ -207,7 +256,18 @@ describe("the twenty invariants", () => {
         await db.destroy();
       }
     });
-    it.todo(invariantById("done-means-verified").title);
+    it(invariantById("done-means-verified").title, async () => {
+      // The database refuses "done" without a result; the service refuses an empty summary.
+      const { WorkService } = await import("@opifer/work");
+      const work = new WorkService(db.sql);
+      const task = await work.createTask({ companyId, title: "Needs a result", assigneeAgentId: agentId }, { kind: "person" });
+      expect((await work.checkout(companyId, task.id, { agentId })).ok).toBe(true);
+      await expect(db.sql`UPDATE tasks SET status = 'done' WHERE id = ${task.id}`).rejects.toThrow(/done means verified/);
+      await expect(db.sql`UPDATE tasks SET status = 'done', result = '{"summary": ""}'::jsonb WHERE id = ${task.id}`).rejects.toThrow(/done means verified/);
+      await expect(work.complete(companyId, task.id, { summary: "   " }, { kind: "person" })).rejects.toThrow(/summary/);
+      const done = await work.complete(companyId, task.id, { summary: "Budget service written; 9 tests pass", verification: "vitest run packages/gateway" }, { kind: "person" });
+      expect(done.status).toBe("done");
+    });
   });
 
   describe("governance", () => {

@@ -1,8 +1,8 @@
 {
-  "name": "@opifer/core",
+  "name": "@opifer/work",
   "version": "0.0.1",
   "private": true,
-  "description": "Opifer domain model, invariants and events.",
+  "description": "Goals, projects and tasks: atomic checkout, leases, comments, results, wake-ups.",
   "license": "AGPL-3.0-only",
   "type": "module",
   "main": "./dist/index.js",
@@ -20,10 +20,10 @@
     "build": "tsc -b",
     "typecheck": "tsc -b"
   },
-  "devDependencies": {
+  "dependencies": {
+    "@opifer/core": "workspace:*",
     "@opifer/db": "workspace:*",
-    "@opifer/runtime": "workspace:*",
-    "@opifer/gateway": "workspace:*",
-    "@opifer/work": "workspace:*"
-  }
+    "postgres": "^3.4.7"
+  },
+  "devDependencies": {}
 }

@@ -22,6 +22,13 @@ const DRIZZLE_TABLES = [
   schema.secrets,
   schema.secretBindings,
   schema.secretAccessEvents,
+  schema.goals,
+  schema.projects,
+  schema.tasks,
+  schema.taskComments,
+  schema.taskRelations,
+  schema.workProducts,
+  schema.wakeups,
 ];
 
 describe("the Drizzle schema mirrors the migrations", () => {
