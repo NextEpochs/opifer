@@ -128,6 +128,9 @@ export async function decideApproval(
       // A task session resumes through the scheduler, which holds the lease.
       await app.opifer.work.wake(session.companyId, session.agentId, "decision", { taskId: session.taskId, dedupeKey: `decision:${approval.id}` });
       followUp = followUp ? `${followUp}; task resumed` : "task_resumed";
+    } else if (session.kind === "routine") {
+      // A routine run waits for its decisions inside the scheduler and resumes there.
+      followUp = followUp ? `${followUp}; routine resumed` : "routine_resumed";
     } else {
       startTurnInBackground(app, runtime, session);
       followUp = followUp ? `${followUp}; session resumed` : "session_resumed";

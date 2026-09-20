@@ -41,6 +41,7 @@ describe("Routines: scheduled runs in their own session", () => {
         if (r.startsWith("Task:") && r.includes("run of the routine"))
           return { kind: "tools", calls: [{ name: "task_create", arguments: { title: "Collect the week's numbers", assignee: "Dev" } }] };
         if (r.startsWith("Task:") && r.includes("Numbers:")) return { kind: "tools", calls: [{ name: "terminal", arguments: { command: "echo check-ok" } }] };
+        if (r.includes("healthy")) return { kind: "text", text: `Health: all good (${r.trim().slice(0, 20)})` };
         if (r.includes("check-ok")) return { kind: "tools", calls: [{ name: "task_approve", arguments: { verification: "the numbers match pnpm test" } }] };
         if (r.startsWith("Task:"))
           return { kind: "tools", calls: [{ name: "task_deliver", arguments: { summary: "Numbers: 16 packages, 134 tests green", verification: "pnpm test" } }] };
@@ -48,6 +49,7 @@ describe("Routines: scheduled runs in their own session", () => {
         if (r.includes("still open")) return { kind: "text", text: "Waiting for Dev." };
         return { kind: "text", text: `ok: ${r.slice(0, 40)}` };
       }
+      if (text.startsWith("Check health")) return { kind: "tools", calls: [{ name: "terminal", arguments: { command: "echo healthy" } }] };
       if (text.startsWith("You have been assigned") || text.includes("for your review") || text.startsWith("The subtask"))
         return { kind: "tools", calls: [{ name: "task_status", arguments: {} }] };
       if (request.system.includes("Skill to follow:")) return { kind: "text", text: `Report done by the skill: 3 packages, 0 failures. (${text.slice(0, 20)})` };
@@ -234,6 +236,35 @@ describe("Routines: scheduled runs in their own session", () => {
     expect(delivered).toContainEqual({ routine: "Weekly digest", text: "Digest verified and sent" });
     await runScheduler();
     expect((await app.inject({ method: "GET", url: `/v1/companies/${companyId}/wakeups?status=pending` })).json()).toEqual([]);
+  });
+
+  it("a run that needs an approval waits for the decision and finishes with the real result", async () => {
+    const routine = (
+      await app.inject({
+        method: "POST",
+        url: `/v1/companies/${companyId}/routines`,
+        payload: { agentId: sam, name: "Health probe", prompt: "Check health with a command.", scheduleKind: "interval", schedule: "600", idleTimeoutSeconds: 2 },
+      })
+    ).json() as { id: string };
+    await app.inject({ method: "POST", url: `/v1/companies/${companyId}/routines/${routine.id}/run` });
+    const scheduler = app.opifer.scheduler!;
+    await scheduler.tick();
+    let pending: Array<{ id: string; sessionId: string }> = [];
+    for (let i = 0; i < 100 && pending.length === 0; i++) {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      pending = (await app.inject({ method: "GET", url: `/v1/companies/${companyId}/approvals?status=pending` })).json() as typeof pending;
+    }
+    expect(pending).toHaveLength(1);
+    // Waiting for the person is not inactivity: well past the idle timeout the run is still running.
+    await new Promise((resolve) => setTimeout(resolve, 2500));
+    let [run] = (await app.inject({ method: "GET", url: `/v1/companies/${companyId}/routines/${routine.id}/runs` })).json() as Array<{ status: string; result: string | null }>;
+    expect(run!.status).toBe("running");
+    const decided = (await app.inject({ method: "POST", url: `/v1/approvals/${pending[0]!.id}/decide`, payload: { status: "approved" } })).json() as { followUp: string };
+    expect(decided.followUp).toBe("routine_resumed");
+    await scheduler.drain();
+    [run] = (await app.inject({ method: "GET", url: `/v1/companies/${companyId}/routines/${routine.id}/runs` })).json() as (typeof run)[];
+    expect(run!.status).toBe("done");
+    expect(run!.result).toContain("Health: all good (healthy");
   });
 
   it("a run that goes quiet is stopped for inactivity, not for duration", async () => {

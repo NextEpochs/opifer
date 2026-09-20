@@ -218,6 +218,11 @@ describe("Work: tasks, wake-ups and the scheduler", () => {
     }
     // The wake-up that found the agent busy was deferred by a few seconds, not lost.
     await new Promise((resolve) => setTimeout(resolve, 3200));
+    for (let round = 0; round < 3; round++) {
+      await runScheduler();
+      for (const pending of (await app.inject({ method: "GET", url: `/v1/companies/${companyId}/approvals?status=pending` })).json() as Array<{ id: string }>)
+        await app.inject({ method: "POST", url: `/v1/approvals/${pending.id}/decide`, payload: { status: "approved" } });
+    }
     await runScheduler();
     const detail = (await app.inject({ method: "GET", url: `/v1/tasks/${task.id}` })).json() as {
       status: string;

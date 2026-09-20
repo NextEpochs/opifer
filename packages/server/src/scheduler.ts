@@ -238,6 +238,16 @@ export class Scheduler {
     await work.finishWakeup(wakeup.id, "done", `task ${task.id} created`);
   }
 
+  /** Polls until the session has no pending approval; false when stopped meanwhile. */
+  private async waitForDecisions(sessionId: string, signal: AbortSignal): Promise<boolean> {
+    for (;;) {
+      if (signal.aborted || this.stopped) return false;
+      const [row] = await this.o.sql<{ n: string }[]>`SELECT count(*)::text AS n FROM approvals WHERE session_id = ${sessionId} AND status = 'pending'`;
+      if (Number(row?.n ?? 0) === 0) return true;
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+    }
+  }
+
   /** A task closed: if it was a routine run, the run closes with it and the result is delivered. */
   async closeTaskRun(task: Task, outcome: "success" | "failure"): Promise<void> {
     const { routines } = this.o;
@@ -312,18 +322,34 @@ export class Scheduler {
     let failed: string | null = null;
     let interrupted = false;
     try {
-      const result = await runtime.runTurn({
-        sessionId: session.id,
-        text: routine.prompt,
-        signal: controller.signal,
-        onEvent: (event: RuntimeEvent) => {
+      let first = true;
+      for (;;) {
+        const result = await runtime.runTurn({
+          sessionId: session.id,
+          ...(first ? { text: routine.prompt } : {}),
+          signal: controller.signal,
+          onEvent: (event: RuntimeEvent) => {
+            touch();
+            this.o.bus.publish("session.event", wakeup.companyId, { sessionId: session.id, runId: event.type === "done" ? event.run.id : null, event });
+          },
+        });
+        first = false;
+        text = result.assistantText || text;
+        if (result.run.status === "failed") failed = result.run.error ?? "run failed";
+        if (result.stopReason === "interrupted") interrupted = true;
+        // Waiting for a person's decision is not inactivity: the clock stops, the run resumes once decided.
+        if (result.stopReason === "approval_pending" && !failed) {
+          if (idle) clearTimeout(idle);
+          const decided = await this.waitForDecisions(session.id, controller.signal);
+          if (!decided) {
+            interrupted = true;
+            break;
+          }
           touch();
-          this.o.bus.publish("session.event", wakeup.companyId, { sessionId: session.id, runId: event.type === "done" ? event.run.id : null, event });
-        },
-      });
-      text = result.assistantText;
-      if (result.run.status === "failed") failed = result.run.error ?? "run failed";
-      if (result.stopReason === "interrupted") interrupted = true;
+          continue;
+        }
+        break;
+      }
     } catch (error) {
       failed = error instanceof Error ? error.message : String(error);
     } finally {
