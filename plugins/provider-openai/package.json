@@ -1,0 +1,14 @@
+{
+  "name": "@opifer/provider-openai",
+  "version": "0.0.1",
+  "description": "Provider di modelli OpenAI per Opifer.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } },
+  "files": ["dist", "LICENSE"],
+  "scripts": { "build": "tsc -b", "typecheck": "tsc -b" },
+  "opifer": { "kind": "provider", "permissions": ["rete:api.openai.com"] },
+  "dependencies": { "@opifer/sdk": "workspace:*", "openai": "^7.20.0" }
+}

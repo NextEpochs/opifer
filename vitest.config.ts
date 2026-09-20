@@ -2,7 +2,7 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   test: {
-    include: ["packages/*/test/**/*.test.ts"],
+    include: ["packages/*/test/**/*.test.ts", "plugins/*/test/**/*.test.ts"],
     // Ogni file di test che usa il database avvia un Postgres incorporato: tempi generosi.
     testTimeout: 30_000,
     hookTimeout: 120_000,

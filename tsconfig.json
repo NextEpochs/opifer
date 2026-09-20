@@ -1,12 +1,35 @@
 {
   "files": [],
   "references": [
-    { "path": "packages/core" },
-    { "path": "packages/db" },
-    { "path": "packages/sdk" },
-    { "path": "packages/runtime" },
-    { "path": "packages/gateway" },
-    { "path": "packages/server" },
-    { "path": "packages/cli" }
+    {
+      "path": "packages/core"
+    },
+    {
+      "path": "packages/db"
+    },
+    {
+      "path": "packages/sdk"
+    },
+    {
+      "path": "packages/runtime"
+    },
+    {
+      "path": "packages/gateway"
+    },
+    {
+      "path": "packages/server"
+    },
+    {
+      "path": "packages/cli"
+    },
+    {
+      "path": "plugins/provider-anthropic"
+    },
+    {
+      "path": "plugins/provider-openai"
+    },
+    {
+      "path": "plugins/provider-openai-compatible"
+    }
   ]
 }
