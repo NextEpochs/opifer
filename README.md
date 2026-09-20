@@ -44,7 +44,7 @@ The default model is chosen with `--model provider/model` (for example `anthropi
 
 ### The interface
 
-Opifer is a company you walk through, not an admin panel. With the server running (`pnpm o4r up --detach`) the web interface at the server address has eight sections: **Home** (a board of widgets you can drag, resize and add to: what needs you, spend against the cap, who is working, recent results, activity), **Inbox** (every decision a person has to take, explained in plain words, with one-click answers and keyboard shortcuts: tool approvals, budget increases, deliveries to verify, blocked tasks), **Team** (an org chart: drag a role from the palette onto the person it should report to and you are hiring; drag an agent onto another to change who they report to; each agent has permissions, budget and revision history), **Work** (goals, projects and a task board you drag cards across; every task shows why it matters, what *done* means, what it cost and what was delivered), **Learning** (what the company has learned: memories to correct or retire, skills with their versions, what each job taught, the rules), **Chat** (talk to an agent; approvals appear in the thread, the workbench shows cost and files), **Money** (costs by agent and model, caps) and **Settings**. A *Simple / Advanced* switch keeps the same screens and adds the technical layer for power users. English by default, Italian available, dark and light themes.
+Opifer is a company you walk through, not an admin panel. With the server running (`pnpm o4r up --detach`) the web interface at the server address has nine sections: **Home** (a board of widgets you can drag, resize and add to: what needs you, spend against the cap, who is working, recent results, activity), **Inbox** (every decision a person has to take, explained in plain words, with one-click answers and keyboard shortcuts: tool approvals, budget increases, deliveries to verify, blocked tasks), **Team** (an org chart: drag a role from the palette onto the person it should report to and you are hiring; drag an agent onto another to change who they report to; each agent has permissions, budget and revision history), **Work** (goals, projects and a task board you drag cards across; every task shows why it matters, what *done* means, what it cost and what was delivered), **Learning** (what the company has learned: memories to correct or retire, skills with their versions, what each job taught, the rules), **Connections** (what the agents can reach: MCP servers and workflow tools, the Telegram bot and the chats linked to it, inbound webhooks and outbound signed events; the *Routines* view in Work schedules recurring jobs), **Chat** (talk to an agent; approvals appear in the thread, the workbench shows cost and files), **Money** (costs by agent and model, caps) and **Settings**. A *Simple / Advanced* switch keeps the same screens and adds the technical layer for power users. English by default, Italian available, dark and light themes.
 
 To look at the interface with scripted agents and no real model: `pnpm build && node packages/server/dist/preview.js` and open http://127.0.0.1:4790.
 
@@ -95,6 +95,32 @@ pnpm o4r learning set promotion automatic
 
 Search is full-text; when a provider that can embed is configured (OpenAI with an API key, or a local OpenAI-compatible server with an embedding model) it is also semantic. The ChatGPT subscription does not offer embeddings.
 
+### Routines and connections
+
+Recurring work is a **routine**: an agent, a prompt, a schedule (`every 2 hours`, `monday 9`, a cron expression, a date) and where the result goes. Every due time runs **at most once**, even across restarts and with several servers; missed due times inside the catch-up window run late, older ones are recorded as skipped. A routine runs in its own session by default (stopped for inactivity, never for its duration, no memory unless you say so); with `--as-task` every run becomes a task, so the agent can delegate to its reports, be reviewed and verified like any other work, and the run closes with the task. When an agent delegates, it becomes the reviewer of that subtask: it is woken up on delivery, checks the result and approves it (`task_approve`) or sends it back (`task_request_changes`); a parent is delivered only after its subtasks are closed.
+
+```bash
+pnpm o4r routine create "Weekly digest" --agent Philip --every "monday 9" --as-task \
+  --prompt "Delegate the repository numbers to Dev and the digest to Leo, review both, deliver EN + IT."
+pnpm o4r routine create "Health check" --agent Sam --every "weekdays 9" --prompt "curl the health endpoint and report."
+pnpm o4r routine run "Weekly digest"      # now, outside the schedule
+pnpm o4r routine runs "Weekly digest"     # what happened, run by run
+```
+
+**Connections** give the agents tools beyond the native ones, under the same gate (permissions per role, approvals, budget, audit): an **MCP server** (local command or remote URL, secrets by name) or a **workflow** (an n8n, Zapier, Make or script endpoint exposed as one tool). Tools are named `<connection>__<tool>` and carry the connection's risk. **Inbound webhooks** let an automation create a task, wake an agent, comment or decide an approval with one `POST /v1/hooks/<id>` and a bearer token shown once; **outbound events** send the company's events, signed (`X-Opifer-Signature: t=<unix>,v1=HMAC-SHA256(secret, "<unix>.<body>")`), to the URLs you subscribe, with retries. A **Telegram** bot per company lets you talk to the agents from your phone and approve with one tap: whoever writes to the bot gets a six-digit code, and nothing else, until a person links that chat in Opifer.
+
+```bash
+pnpm o4r connection add-mcp github --command npx --args "-y,@modelcontextprotocol/server-github" --secret GITHUB_TOKEN --risk medium
+pnpm o4r connection add-workflow n8n_report --url https://n8n.example.com/webhook/report --secret N8N_TOKEN --description "Runs the monthly report"
+pnpm o4r connection check github
+pnpm o4r webhook create zapier --action create_task --agent Dev      # prints the URL and the token once
+pnpm o4r webhook subscribe crm https://crm.example.com/opifer --events "task.*,approval.*"
+pnpm o4r channel add-telegram --token 123456:ABC…                     # stored as the company secret TELEGRAM_BOT_TOKEN
+pnpm o4r channel pair 482913                                          # the code the bot sent you
+```
+
+Commands run by the agents execute in a **Docker sandbox** (no network, the task's working folder mounted) whenever a Docker daemon is available; otherwise they run on the machine, and `o4r doctor`, `/v1/health` and the Connections page say so.
+
 ### Governance
 
 Agents work under the same rules as people in an organisation. Everything below is also in the interface: the Inbox, the Money page and each agent's Permissions and Budget tabs.
@@ -132,7 +158,7 @@ Docker is not needed for the local installation. It is a deployment option for s
 docker compose up -d      # builds the image, creates database and first company in the opifer-data volume
 ```
 
-Docker will instead serve as the default sandbox for the commands executed by the agents (from milestone M5).
+Docker is also the default sandbox for the commands executed by the agents when a daemon is available (see *Routines and connections*).
 
 ## Monorepo structure
 
@@ -142,13 +168,14 @@ Docker will instead serve as the default sandbox for the commands executed by th
 | `packages/db` | Schema, forward and backward migrations, embedded Postgres |
 | `packages/runtime` | Agent loop, model providers, context |
 | `packages/gateway` | Governance: budget reservation, permissions, approvals, secrets, governed tool executor |
-| `packages/work` | Goals, projects, tasks: atomic checkout, leases, results, wake-ups, task tools for agents |
+| `packages/work` | Goals, projects, tasks and routines: atomic checkout, leases, results, wake-ups, at-most-once runs, task tools for agents (delegation, review) |
 | `packages/learning` | Memory and skills at three scopes, snapshot for the prompt, search, versions, curator, promotion, background review |
-| `packages/server` | HTTP API `/v1`, WebSocket events, the scheduler that wakes agents on their tasks, the learning worker |
+| `packages/connections` | Tool connections (MCP servers, workflow endpoints), inbound webhooks, outbound signed events, messaging channels and pairing |
+| `packages/server` | HTTP API `/v1`, WebSocket events, the scheduler that wakes agents on their tasks and routines, the learning worker, the channel hub |
 | `packages/ui` | Web interface (React, Vite, Tailwind; NextEpochs look, dnd-kit widget board and task board, React Flow org chart) |
 | `packages/cli` | The `o4r` command |
 | `packages/sdk` | Contracts for plugins, channels, providers (MIT) |
-| `plugins/*` | Plugins maintained by NextEpochs (MIT): Anthropic, OpenAI (API key and ChatGPT sign-in), OpenAI-compatible endpoints |
+| `plugins/*` | Plugins maintained by NextEpochs (MIT): Anthropic, OpenAI (API key and ChatGPT sign-in), OpenAI-compatible endpoints, the Telegram channel |
 
 ## The twenty invariants
 

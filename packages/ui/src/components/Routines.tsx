@@ -98,7 +98,7 @@ export function RoutinesView({ ws }: { ws: Workspace }) {
                 key={r.id}
                 className={`flex flex-wrap items-center gap-3 rounded-[14px] border bg-card px-4 py-3 ${open === r.id ? "border-accent" : "border-line"} ${r.enabled ? "" : "opacity-60"}`}
               >
-                <button type="button" onClick={() => setOpen(open === r.id ? null : r.id)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
+                <button type="button" onClick={() => setOpen(open === r.id ? null : r.id)} className="flex min-w-0 flex-1 basis-[240px] items-center gap-3 text-left">
                   <Avatar name={ws.agentName(r.agentId)} size={30} />
                   <span className="min-w-0">
                     <span className="block truncate font-bold">{r.name}</span>
@@ -125,7 +125,7 @@ export function RoutinesView({ ws }: { ws: Workspace }) {
             ))}
           </ul>
           {open && (
-            <aside className="w-[380px] shrink-0 rounded-card border border-line bg-panel p-4">
+            <aside className="w-[380px] min-w-0 shrink rounded-card border border-line bg-panel p-4">
               <h3 className="m-0 mb-2 text-[12px] font-bold uppercase tracking-wide text-mute">{t.runs}</h3>
               <p className="m-0 mb-3 whitespace-pre-wrap text-[13px] text-mute">{routines.find((r) => r.id === open)?.prompt}</p>
               {runs.length === 0 ? (

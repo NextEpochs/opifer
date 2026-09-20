@@ -353,6 +353,7 @@ const en = {
   appearance: "Appearance",
   // misc
   ago: { now: "just now", m: "{n} min ago", h: "{n} h ago", d: "{n} d ago" },
+  in: { now: "any moment", m: "in {n} min", h: "in {n} h", d: "in {n} d" },
   actions: {
     "agent.created": "{actor} hired {subject}",
     "agent.updated": "{actor} changed an agent's configuration",
@@ -922,6 +923,7 @@ const it: Strings = {
   providers: "Provider dei modelli",
   appearance: "Aspetto",
   ago: { now: "adesso", m: "{n} min fa", h: "{n} h fa", d: "{n} g fa" },
+  in: { now: "a momenti", m: "tra {n} min", h: "tra {n} h", d: "tra {n} g" },
   actions: {
     "agent.created": "{actor} ha assunto {subject}",
     "agent.updated": "{actor} ha cambiato la configurazione di un agente",

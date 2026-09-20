@@ -188,12 +188,14 @@ export function money(amount: number, currency = "EUR", digits = 2): string {
 
 export function timeAgo(iso: string, t: Strings): string {
   const diff = Date.now() - new Date(iso).getTime();
-  const minutes = Math.round(diff / 60_000);
-  if (minutes < 1) return t.ago.now;
-  if (minutes < 60) return t.ago.m.replace("{n}", String(minutes));
+  // A date in the future reads "in 2 h", not "2 h ago".
+  const words = diff < -30_000 ? t.in : t.ago;
+  const minutes = Math.round(Math.abs(diff) / 60_000);
+  if (minutes < 1) return words.now;
+  if (minutes < 60) return words.m.replace("{n}", String(minutes));
   const hours = Math.round(minutes / 60);
-  if (hours < 24) return t.ago.h.replace("{n}", String(hours));
-  return t.ago.d.replace("{n}", String(Math.round(hours / 24)));
+  if (hours < 24) return words.h.replace("{n}", String(hours));
+  return words.d.replace("{n}", String(Math.round(hours / 24)));
 }
 
 export function EmptyState({ children }: { children: ReactNode }) {
