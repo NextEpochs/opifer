@@ -13,9 +13,12 @@ import { registerSessionRoutes } from "./routes/sessions.js";
 import { registerModelRoutes } from "./routes/models.js";
 import { registerGovernanceRoutes } from "./routes/governance.js";
 import { registerOverviewRoutes } from "./routes/overview.js";
+import { registerWorkRoutes } from "./routes/work.js";
 import { AgentRuntime, NATIVE_TOOLS, NativeToolExecutor, type GovernanceGates, type ProviderRegistry } from "@opifer/runtime";
+import { WorkService, taskTools } from "@opifer/work";
 import type { ProviderSetup } from "./providers.js";
 import { buildGovernance, type Governance } from "./governance.js";
+import { Scheduler } from "./scheduler.js";
 
 export interface AppOptions {
   db: DatabaseHandle;
@@ -37,6 +40,8 @@ export interface AppOptions {
    * only for tests.
    */
   governance?: { credentialsDir: string; usdToEur?: number } | false;
+  /** Task leases and the scheduler; `scheduler: false` leaves wake-ups unprocessed (tests drive them by hand). */
+  work?: { leaseMs?: number; failureThreshold?: number; scheduler?: boolean; tickMs?: number; concurrency?: number };
 }
 
 export interface AppContext {
@@ -45,6 +50,8 @@ export interface AppContext {
   mode: InstallMode;
   runtime: AgentRuntime | null;
   governance: Governance | null;
+  work: WorkService;
+  scheduler: Scheduler | null;
 }
 
 export function buildRuntime(db: DatabaseHandle, providers: ProviderRegistry, options: { workRoot: string; defaultModel: string; fallbackModel?: string | null; tools?: AppOptions["tools"]; gates?: GovernanceGates }): AgentRuntime {
@@ -78,12 +85,15 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   const app = Fastify({ logger: options.logger ?? false });
   const bus = options.bus ?? new EventBus();
   const workRoot = options.workRoot ?? path.join(tmpdir(), "opifer-work");
+  const work = new WorkService(options.db.sql, { ...(options.work?.leaseMs !== undefined ? { leaseMs: options.work.leaseMs } : {}), ...(options.work?.failureThreshold !== undefined ? { failureThreshold: options.work.failureThreshold } : {}) });
+  // Native tools plus the task tools, under governance when it is on.
+  const inner = options.tools ?? new NativeToolExecutor([...NATIVE_TOOLS, ...taskTools(work, options.db.sql)]);
   const governance =
     options.providers && options.governance
       ? await buildGovernance(options.db, options.providers.providers, bus, {
           credentialsDir: options.governance.credentialsDir,
           ...(options.governance.usdToEur !== undefined ? { usdToEur: options.governance.usdToEur } : {}),
-          ...(options.tools ? { inner: options.tools } : {}),
+          inner,
         })
       : null;
   const runtime = options.providers
@@ -91,10 +101,18 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
         workRoot,
         defaultModel: options.providers.defaultModel,
         fallbackModel: options.providers.fallbackModel,
-        ...(governance ? { tools: governance.tools, gates: governance.gates } : options.tools ? { tools: options.tools } : {}),
+        tools: governance ? governance.tools : inner,
+        ...(governance ? { gates: governance.gates } : {}),
       })
     : null;
-  app.decorate("opifer", { db: options.db, bus, mode: options.mode, runtime, governance });
+  const scheduler = runtime
+    ? new Scheduler({ sql: options.db.sql, work, runtime, bus, workRoot, log: app.log, ...(options.work?.tickMs !== undefined ? { tickMs: options.work.tickMs } : {}), ...(options.work?.concurrency !== undefined ? { concurrency: options.work.concurrency } : {}) })
+    : null;
+  app.decorate("opifer", { db: options.db, bus, mode: options.mode, runtime, governance, work, scheduler });
+  if (scheduler && options.work?.scheduler !== false) {
+    app.addHook("onReady", async () => scheduler.start());
+    app.addHook("onClose", async () => scheduler.stop());
+  }
   if (runtime) {
     // After a restart the runs left "running" are marked interrupted: the history stays, no replay.
     const stale = await runtime.store.markAllStaleRunsInterrupted();
@@ -124,6 +142,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   await app.register(registerCompanyRoutes, { prefix: "/v1" });
   await app.register(registerAgentRoutes, { prefix: "/v1" });
   await app.register(registerAuditRoutes, { prefix: "/v1" });
+  await app.register(async (scope) => registerWorkRoutes(scope, { work, runtime }), { prefix: "/v1" });
   if (runtime && options.providers) {
     const setup = options.providers;
     await app.register(async (scope) => registerSessionRoutes(scope, { runtime, workRoot }), { prefix: "/v1" });

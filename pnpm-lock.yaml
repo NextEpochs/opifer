@@ -134,9 +134,15 @@ importers:
       '@opifer/sdk':
         specifier: workspace:*
         version: link:../sdk
+      '@opifer/work':
+        specifier: workspace:*
+        version: link:../work
       fastify:
         specifier: ^5.6.0
         version: 5.12.5
+      postgres:
+        specifier: ^3.4.7
+        version: 3.4.9
     devDependencies:
       '@types/ws':
         specifier: ^8.18.0
@@ -202,6 +208,12 @@ importers:
       '@opifer/db':
         specifier: workspace:*
         version: link:../db
+      '@opifer/runtime':
+        specifier: workspace:*
+        version: link:../runtime
+      '@opifer/sdk':
+        specifier: workspace:*
+        version: link:../sdk
       postgres:
         specifier: ^3.4.7
         version: 3.4.9

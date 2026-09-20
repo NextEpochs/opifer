@@ -16,6 +16,10 @@ export interface SessionRecord {
   fallbackModel: string | null;
   status: SessionStatus;
   workdir: string | null;
+  /** The task this session works on (kind "task"); null for chats. */
+  taskId: string | null;
+  /** The task's project, for the budget context. */
+  projectId: string | null;
   lastSeq: number;
   createdAt: string;
   updatedAt: string;

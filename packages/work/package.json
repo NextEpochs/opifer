@@ -23,6 +23,8 @@
   "dependencies": {
     "@opifer/core": "workspace:*",
     "@opifer/db": "workspace:*",
+    "@opifer/runtime": "workspace:*",
+    "@opifer/sdk": "workspace:*",
     "postgres": "^3.4.7"
   },
   "devDependencies": {}

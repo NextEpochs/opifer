@@ -165,15 +165,22 @@ export async function registerGovernanceRoutes(app: FastifyInstance, options: Go
     bus.publish("approval.decided", companyId, { approvalId: approval.id, kind: approval.kind, status: approval.status, agentId: approval.agentId, sessionId: approval.sessionId });
 
     let followUp: string | null = null;
+    const resume = async (sessionId: string) => {
+      if (runtime.isRunning(sessionId)) return;
+      const session = await runtime.store.getSession(sessionId);
+      if (!session || session.status !== "active") return;
+      if (session.taskId) {
+        // A task session resumes through the scheduler, which holds the lease.
+        await app.opifer.work.wake(session.companyId, session.agentId, "decision", { taskId: session.taskId, dedupeKey: `decision:${approval.id}` });
+        followUp = followUp ? `${followUp}; task resumed` : "task_resumed";
+      } else {
+        startTurnInBackground(app, runtime, session);
+        followUp = followUp ? `${followUp}; session resumed` : "session_resumed";
+      }
+    };
     if (approval.kind === "tool_use" || approval.kind === "dangerous_command") {
       // Either way the session resumes: the approved call runs, the denied one is refused to the model.
-      if (approval.sessionId && !runtime.isRunning(approval.sessionId)) {
-        const session = await runtime.store.getSession(approval.sessionId);
-        if (session && session.status === "active") {
-          startTurnInBackground(app, runtime, session);
-          followUp = "session_resumed";
-        }
-      }
+      if (approval.sessionId) await resume(approval.sessionId);
     } else if (approval.kind === "budget_increase" && approval.status === "approved" && approval.agentId) {
       const subject = approval.subject as { policyId?: string | null; cap?: number };
       const policy = subject.policyId ? (await budget.listPolicies(companyId)).find((p) => p.id === subject.policyId) : undefined;
@@ -184,10 +191,7 @@ export async function registerGovernanceRoutes(app: FastifyInstance, options: Go
       }
       await agents.setStatus(companyId, approval.agentId, "active", { reason: "budget increase approved" });
       bus.publish("agent.status_changed", companyId, { agentId: approval.agentId, status: "active" });
-      if (approval.sessionId && !runtime.isRunning(approval.sessionId)) {
-        const session = await runtime.store.getSession(approval.sessionId);
-        if (session && session.status === "active") startTurnInBackground(app, runtime, session);
-      }
+      if (approval.sessionId) await resume(approval.sessionId);
     }
     return { ...approval, followUp };
   });

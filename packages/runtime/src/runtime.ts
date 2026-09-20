@@ -41,6 +41,8 @@ export interface StartSessionInput {
   workdir?: string | null;
   taskContext?: string;
   locale?: "it" | "en";
+  /** The task this session works on: it becomes a "task" session and enters the budget context. */
+  taskId?: string | null;
 }
 
 export interface TurnInput {
@@ -111,13 +113,14 @@ export class AgentRuntime {
     return this.store.createSession({
       companyId: input.companyId,
       agentId: input.agentId,
-      kind: input.kind ?? "chat",
+      kind: input.kind ?? (input.taskId ? "task" : "chat"),
       title: input.title ?? null,
       systemPrompt,
       systemPromptHash: hashPrompt(systemPrompt),
       model,
       fallbackModel,
       workdir,
+      taskId: input.taskId ?? null,
     });
   }
 

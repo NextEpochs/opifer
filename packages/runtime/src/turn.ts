@@ -162,7 +162,7 @@ export class Turn {
     const budget = this.deps.governance.budget;
     if (!budget) return null;
     const { session, run, emit } = this.ctx;
-    const context = { companyId: session.companyId, agentId: session.agentId, sessionId: session.id, runId: run.id };
+    const context = { companyId: session.companyId, agentId: session.agentId, sessionId: session.id, runId: run.id, projectId: session.projectId, taskId: session.taskId };
     const decision = await budget.reserve(context, {
       modelId: this.ctx.primary.id,
       inputTokens: estimateInputTokens(request.system, request.messages),
@@ -275,6 +275,7 @@ export class Turn {
       workdir: session.workdir ?? `${this.deps.workRoot}/${session.id}`,
       signal: this.ctx.controller.signal,
       approved,
+      taskId: session.taskId,
     };
   }
 

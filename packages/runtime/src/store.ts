@@ -20,6 +20,8 @@ interface SessionRow {
   fallback_model: string | null;
   status: SessionRecord["status"];
   workdir: string | null;
+  task_id: string | null;
+  project_id?: string | null;
   last_seq: number;
   created_at: Date;
   updated_at: Date;
@@ -66,6 +68,8 @@ function toSession(r: SessionRow): SessionRecord {
     fallbackModel: r.fallback_model,
     status: r.status,
     workdir: r.workdir,
+    taskId: r.task_id ?? null,
+    projectId: r.project_id ?? null,
     lastSeq: r.last_seq,
     createdAt: r.created_at.toISOString(),
     updatedAt: r.updated_at.toISOString(),
@@ -113,6 +117,7 @@ export interface CreateSessionInput {
   model: string;
   fallbackModel?: string | null;
   workdir?: string | null;
+  taskId?: string | null;
 }
 
 export class SessionStore {
@@ -120,10 +125,10 @@ export class SessionStore {
 
   async createSession(input: CreateSessionInput): Promise<SessionRecord> {
     const [row] = await this.sql<SessionRow[]>`
-      INSERT INTO sessions (company_id, agent_id, kind, title, system_prompt, system_prompt_hash, model, fallback_model, workdir)
+      INSERT INTO sessions (company_id, agent_id, kind, title, system_prompt, system_prompt_hash, model, fallback_model, workdir, task_id)
       VALUES (
         ${input.companyId}, ${input.agentId}, ${input.kind ?? "chat"}, ${input.title ?? null},
-        ${input.systemPrompt}, ${input.systemPromptHash}, ${input.model}, ${input.fallbackModel ?? null}, ${input.workdir ?? null}
+        ${input.systemPrompt}, ${input.systemPromptHash}, ${input.model}, ${input.fallbackModel ?? null}, ${input.workdir ?? null}, ${input.taskId ?? null}
       )
       RETURNING *
     `;
@@ -131,14 +136,14 @@ export class SessionStore {
   }
 
   async getSession(id: string): Promise<SessionRecord | null> {
-    const [row] = await this.sql<SessionRow[]>`SELECT * FROM sessions WHERE id = ${id}`;
+    const [row] = await this.sql<SessionRow[]>`SELECT s.*, t.project_id FROM sessions s LEFT JOIN tasks t ON t.id = s.task_id WHERE s.id = ${id}`;
     return row ? toSession(row) : null;
   }
 
   async listSessions(companyId: string, agentId?: string): Promise<SessionRecord[]> {
     const rows = agentId
-      ? await this.sql<SessionRow[]>`SELECT * FROM sessions WHERE company_id = ${companyId} AND agent_id = ${agentId} ORDER BY created_at DESC`
-      : await this.sql<SessionRow[]>`SELECT * FROM sessions WHERE company_id = ${companyId} ORDER BY created_at DESC`;
+      ? await this.sql<SessionRow[]>`SELECT s.*, t.project_id FROM sessions s LEFT JOIN tasks t ON t.id = s.task_id WHERE s.company_id = ${companyId} AND s.agent_id = ${agentId} ORDER BY s.created_at DESC`
+      : await this.sql<SessionRow[]>`SELECT s.*, t.project_id FROM sessions s LEFT JOIN tasks t ON t.id = s.task_id WHERE s.company_id = ${companyId} ORDER BY s.created_at DESC`;
     return rows.map(toSession);
   }
 

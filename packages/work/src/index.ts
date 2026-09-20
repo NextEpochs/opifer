@@ -25,3 +25,4 @@ export type {
   WorkProduct,
   WorkProductKind,
 } from "./types.js";
+export { taskTools, describeTask, TASK_GUIDE } from "./tools.js";

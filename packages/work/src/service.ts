@@ -382,6 +382,26 @@ export class WorkService {
     return rows.length > 0;
   }
 
+  /** The holder waits for a decision (approval, budget): the lease stops expiring until the work resumes. */
+  async suspendLease(id: string, holder: { sessionId: string }, reason: string): Promise<boolean> {
+    const rows = await this.sql<{ id: string; company_id: string }[]>`
+      UPDATE tasks SET lease_expires_at = NULL, lease_run_id = NULL WHERE id = ${id} AND status = 'in_progress' AND lease_session_id = ${holder.sessionId} RETURNING id, company_id
+    `;
+    if (rows.length === 0) return false;
+    await audit(this.sql, { companyId: rows[0]!.company_id, actorKind: "system", action: "task.suspended", subjectKind: "task", subjectId: id, taskId: id, after: { reason, sessionId: holder.sessionId } });
+    return true;
+  }
+
+  /** Takes a suspended lease up again, for the same session. */
+  async resumeLease(id: string, holder: { sessionId: string; runId?: string | null }, now: Date = new Date()): Promise<boolean> {
+    const expires = new Date(now.getTime() + this.leaseMs);
+    const rows = await this.sql<{ id: string }[]>`
+      UPDATE tasks SET lease_expires_at = ${expires}, lease_run_id = ${holder.runId ?? null}
+      WHERE id = ${id} AND status = 'in_progress' AND lease_session_id = ${holder.sessionId} AND lease_expires_at IS NULL RETURNING id
+    `;
+    return rows.length > 0;
+  }
+
   /** Gives the task back: paused or interrupted work keeps the count, a failure adds to it; past the threshold the task blocks. */
   async release(companyId: string, id: string, outcome: { kind: "paused" | "interrupted" | "failed"; reason?: string | null; runId?: string | null }, actor: Actor): Promise<Task> {
     return this.sql.begin(async (tx) => {
@@ -589,6 +609,11 @@ export class WorkService {
       RETURNING *
     `;
     return row ? toWakeup(row) : null;
+  }
+
+  /** Puts a claimed wake-up back in the queue for later (for example while its session waits for a decision). */
+  async deferWakeup(id: string, delayMs: number, note?: string | null): Promise<void> {
+    await this.sql`UPDATE wakeups SET status = 'pending', claimed_at = NULL, scheduled_at = ${new Date(Date.now() + delayMs)}, error = ${note ?? null} WHERE id = ${id} AND status = 'running'`;
   }
 
   async finishWakeup(id: string, status: "done" | "failed" | "skipped", error?: string | null): Promise<void> {

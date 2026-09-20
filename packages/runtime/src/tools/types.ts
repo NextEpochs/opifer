@@ -12,6 +12,8 @@ export interface ToolContext {
   signal: AbortSignal;
   /** A person approved this exact call: governance must not ask again. */
   approved?: boolean;
+  /** The task the session works on, if any. */
+  taskId?: string | null;
   /** Secret values bound to this agent and tool, injected at execution time and never shown to the model. */
   secrets?: Record<string, string>;
 }
