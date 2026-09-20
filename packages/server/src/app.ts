@@ -12,6 +12,7 @@ import { registerAuditRoutes } from "./routes/audit.js";
 import { registerSessionRoutes } from "./routes/sessions.js";
 import { registerModelRoutes } from "./routes/models.js";
 import { registerGovernanceRoutes } from "./routes/governance.js";
+import { registerOverviewRoutes } from "./routes/overview.js";
 import { AgentRuntime, NATIVE_TOOLS, NativeToolExecutor, type GovernanceGates, type ProviderRegistry } from "@opifer/runtime";
 import type { ProviderSetup } from "./providers.js";
 import { buildGovernance, type Governance } from "./governance.js";
@@ -128,6 +129,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
     await app.register(async (scope) => registerSessionRoutes(scope, { runtime, workRoot }), { prefix: "/v1" });
     await app.register(async (scope) => registerModelRoutes(scope, { runtime, setup }), { prefix: "/v1" });
     if (governance) await app.register(async (scope) => registerGovernanceRoutes(scope, { runtime, governance }), { prefix: "/v1" });
+    await app.register(async (scope) => registerOverviewRoutes(scope, { runtime, governance }), { prefix: "/v1" });
   }
 
   if (options.uiDir && (await dirExists(options.uiDir))) {

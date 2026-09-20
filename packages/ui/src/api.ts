@@ -5,6 +5,8 @@ export interface Health {
   version: string;
   mode: string;
   database: "ok" | "error";
+  runtime?: "ok" | "absent";
+  governance?: "ok" | "absent";
 }
 
 export interface Company {
@@ -100,6 +102,13 @@ export const api = {
   setToolPolicy: (companyId: string, input: { targetKind: string; targetId?: string; toolName: string; permission: string }) =>
     request<unknown>(`/v1/companies/${companyId}/tool-policies`, { method: "PUT", body: JSON.stringify(input) }),
   setAgentStatus: (agentId: string, status: "active" | "paused" | "archived") => request<{ status: string }>(`/v1/agents/${agentId}/status`, { method: "POST", body: JSON.stringify({ status }) }),
+  updateAgent: (agentId: string, patch: { name?: string; role?: string; model?: string | null; reportsToAgentId?: string | null; note?: string }) =>
+    request<{ revision: number }>(`/v1/agents/${agentId}`, { method: "PATCH", body: JSON.stringify(patch) }),
+  revisions: (agentId: string) => request<Array<{ revision: number; config: { name: string; role: string; model: string | null }; note: string | null; createdAt: string }>>(`/v1/agents/${agentId}/revisions`),
+  restoreRevision: (agentId: string, revision: number) => request<{ revision: number }>(`/v1/agents/${agentId}/revisions/${revision}/restore`, { method: "POST" }),
+  overview: (companyId: string) => request<Overview>(`/v1/companies/${companyId}/overview`),
+  models: () => request<ModelsInfo>("/v1/models"),
+  sessionsAll: (companyId: string) => request<Session[]>(`/v1/companies/${companyId}/sessions`),
 };
 
 export interface Approval {
@@ -138,6 +147,58 @@ export interface ToolPermissionView {
   risk: string;
   permission: "automatic" | "approval" | "blocked";
   source: "agent" | "role" | "company" | "risk";
+}
+
+export type AgentActivity = "working" | "waiting" | "idle" | "paused" | "stopped";
+
+export interface AgentView extends Agent {
+  activity: AgentActivity;
+  /** Title of the conversation or task the agent is on, if any. */
+  doing: string | null;
+  pendingApprovals: number;
+  spend: { eur: number; usd: number; calls: number; cap: number | null; currency: string };
+  lastActiveAt: string | null;
+}
+
+export interface RecentRun {
+  id: string;
+  sessionId: string;
+  sessionTitle: string | null;
+  agentId: string;
+  status: string;
+  stopReason: string | null;
+  error: string | null;
+  startedAt: string;
+  finishedAt: string | null;
+  preview: string | null;
+}
+
+export interface ActivityEntry {
+  id: string;
+  actorKind: string;
+  actorId: string | null;
+  action: string;
+  subjectKind: string;
+  subjectId: string | null;
+  after: Record<string, unknown> | null;
+  occurredAt: string;
+}
+
+export interface Overview {
+  company: { id: string; name: string; mission: string | null };
+  agents: AgentView[];
+  pending: number;
+  spend: { eur: number; usd: number; cap: number | null; currency: string; since: string };
+  recentRuns: RecentRun[];
+  activity: ActivityEntry[];
+  working: number;
+}
+
+export interface ModelsInfo {
+  default: string;
+  fallback: string | null;
+  providers: Array<{ id: string; enabled: boolean; detail: string }>;
+  models: Array<{ id: string; provider: string; contextWindow: number; price: { inputPerMillion: number; outputPerMillion: number; currency: string } }>;
 }
 
 export interface BusEvent {

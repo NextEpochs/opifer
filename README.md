@@ -42,9 +42,15 @@ Opifer talks to models through provider plugins. Three ways to connect one:
 
 The default model is chosen with `--model provider/model` (for example `anthropic/claude-sonnet-5`); `pnpm o4r doctor` shows which providers are active.
 
+### The interface
+
+Opifer is a company you walk through, not an admin panel. With the server running (`pnpm o4r up --detach`) the web interface at the server address has six sections: **Home** (a board of widgets you can drag, resize and add to: what needs you, spend against the cap, who is working, recent results, activity), **Inbox** (every decision a person has to take, explained in plain words, with one-click answers and keyboard shortcuts), **Team** (agents as colleagues: hire, pause, permissions, budget, revision history), **Chat** (talk to an agent; approvals appear in the thread, the workbench shows cost and files), **Money** (costs by agent and model, caps) and **Settings**. A *Simple / Advanced* switch keeps the same screens and adds the technical layer for power users. English by default, Italian available, dark and light themes.
+
+To look at the interface with scripted agents and no real model: `pnpm build && node packages/server/dist/preview.js` and open http://127.0.0.1:4790.
+
 ### Talking to an agent
 
-With the server running (`pnpm o4r up --detach`), agents are created from the web interface and you can talk to them from the Chat page or from the terminal:
+Agents are hired from the Team page and you can talk to them from the Chat page or from the terminal:
 
 ```bash
 pnpm o4r chat "Agent name"           # new conversation
@@ -55,7 +61,7 @@ Every conversation is persisted: it survives a restart and resumes from the save
 
 ### Governance
 
-Agents work under the same rules as people in an organisation. Everything below is also on the **Governance** page of the web interface.
+Agents work under the same rules as people in an organisation. Everything below is also in the interface: the Inbox, the Money page and each agent's Permissions and Budget tabs.
 
 - **Budgets.** Every model call reserves its estimated cost *before* it starts; when a cap is reached the call never happens, the agent is stopped and a *budget increase* lands in the inbox. Costs are settled per call with each provider's price list.
   ```bash
@@ -101,7 +107,7 @@ Docker will instead serve as the default sandbox for the commands executed by th
 | `packages/runtime` | Agent loop, model providers, context |
 | `packages/gateway` | Governance: budget reservation, permissions, approvals, secrets, governed tool executor |
 | `packages/server` | HTTP API `/v1`, WebSocket events |
-| `packages/ui` | Web interface (React, Vite, Tailwind) |
+| `packages/ui` | Web interface (React, Vite, Tailwind; NextEpochs look, dnd-kit widget board) |
 | `packages/cli` | The `o4r` command |
 | `packages/sdk` | Contracts for plugins, channels, providers (MIT) |
 | `plugins/*` | Plugins maintained by NextEpochs (MIT): Anthropic, OpenAI (API key and ChatGPT sign-in), OpenAI-compatible endpoints |

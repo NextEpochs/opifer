@@ -113,6 +113,33 @@ describe("Governance API", () => {
     await waitFor((e) => e.type === "session.event" && (e.payload["sessionId"] as string) === session.id && (e.payload["event"] as { type: string; run?: { stopReason: string } }).run?.stopReason === "final_answer" && (e.payload["runId"] as string | null) !== null, 15_000);
   });
 
+  it("summarises the company for the Home board", async () => {
+    type Overview = {
+      agents: Array<{ id: string; activity: string; spend: { eur: number; cap: number | null } }>;
+      pending: number;
+      spend: { eur: number; cap: number | null };
+      recentRuns: Array<{ status: string; preview: string | null }>;
+      activity: Array<{ action: string }>;
+      working: number;
+    };
+    // The previous turn finishes a moment after its "done" event: wait until nothing runs.
+    let overview: Overview;
+    for (let i = 0; ; i++) {
+      overview = (await app.inject({ method: "GET", url: `/v1/companies/${companyId}/overview` })).json() as Overview;
+      if (overview.working === 0 || i > 50) break;
+      await new Promise((r) => setTimeout(r, 20));
+    }
+    const ops = overview.agents.find((a) => a.id === agentId)!;
+    expect(ops.activity).toBe("idle");
+    expect(ops.spend.eur).toBeGreaterThan(1);
+    expect(ops.spend.cap).toBe(1000);
+    expect(overview.pending).toBe(0);
+    expect(overview.spend.cap).toBeNull();
+    expect(overview.recentRuns.some((r) => r.preview?.startsWith("done: hi"))).toBe(true);
+    expect(overview.activity.length).toBeGreaterThan(5);
+    expect((await app.inject({ method: "GET", url: "/v1/companies/00000000-0000-0000-0000-000000000000/overview" })).statusCode).toBe(404);
+  });
+
   it("stores secrets without ever returning their values, and versions agent changes", async () => {
     const put = await app.inject({ method: "PUT", url: `/v1/companies/${companyId}/secrets`, payload: { name: "API_KEY", value: "very-secret-value" } });
     expect(put.statusCode).toBe(201);
