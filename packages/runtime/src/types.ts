@@ -60,6 +60,8 @@ export type RuntimeEvent =
   | { type: "retry"; attempt: number; delayMs: number; reason: string }
   | { type: "fallback"; from: string; to: string; reason: string }
   | { type: "notice"; message: string }
+  | { type: "approval_requested"; approvalId: string; callId: string; name: string; reason: string; risk: "low" | "medium" | "high" }
+  | { type: "budget_stop"; scope: string; cap: number; spent: number; currency: string; reason: string }
   | { type: "done"; run: RunRecord };
 
 export type RuntimeEventListener = (event: RuntimeEvent) => void;

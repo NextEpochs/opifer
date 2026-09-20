@@ -6,9 +6,11 @@
 
 import { sql } from "drizzle-orm";
 import {
+  customType,
   index,
   integer,
   jsonb,
+  numeric,
   pgTable,
   primaryKey,
   text,
@@ -16,6 +18,12 @@ import {
   unique,
   uuid,
 } from "drizzle-orm/pg-core";
+
+const bytea = customType<{ data: Buffer; driverData: Buffer }>({
+  dataType() {
+    return "bytea";
+  },
+});
 
 const timestamps = {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -211,4 +219,168 @@ export const runEvents = pgTable(
     ...timestamps,
   },
   (t) => [index("run_events_company_idx").on(t.companyId), unique().on(t.runId, t.seq)],
+);
+
+// --- Governance (0003) -----------------------------------------------------
+
+export const budgetPolicies = pgTable(
+  "budget_policies",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+    scopeKind: text("scope_kind", { enum: ["company", "project", "agent", "task", "turn"] }).notNull(),
+    scopeId: uuid("scope_id"),
+    window: text("window", { enum: ["monthly", "daily", "lifetime"] }).notNull().default("monthly"),
+    cap: numeric("cap", { precision: 14, scale: 6 }).notNull(),
+    currency: text("currency", { enum: ["EUR", "USD"] }).notNull().default("EUR"),
+    warnRatio: numeric("warn_ratio", { precision: 4, scale: 3 }).notNull().default("0.8"),
+    ...timestamps,
+  },
+  (t) => [index("budget_policies_company_idx").on(t.companyId), unique().on(t.companyId, t.scopeKind, t.scopeId, t.window)],
+);
+
+export const costEvents = pgTable(
+  "cost_events",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+    agentId: uuid("agent_id").references(() => agents.id, { onDelete: "set null" }),
+    sessionId: uuid("session_id").references(() => sessions.id, { onDelete: "set null" }),
+    runId: uuid("run_id").references(() => runs.id, { onDelete: "set null" }),
+    projectId: uuid("project_id"),
+    taskId: uuid("task_id"),
+    kind: text("kind", { enum: ["model", "auxiliary_model", "tool", "sandbox"] }).notNull(),
+    provider: text("provider"),
+    model: text("model"),
+    inputTokens: integer("input_tokens").notNull().default(0),
+    cachedInputTokens: integer("cached_input_tokens").notNull().default(0),
+    outputTokens: integer("output_tokens").notNull().default(0),
+    amountUsd: numeric("amount_usd", { precision: 14, scale: 6 }).notNull().default("0"),
+    amountEur: numeric("amount_eur", { precision: 14, scale: 6 }).notNull().default("0"),
+    occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull().defaultNow(),
+    ...timestamps,
+  },
+  (t) => [
+    index("cost_events_company_time_idx").on(t.companyId, t.occurredAt),
+    index("cost_events_agent_time_idx").on(t.agentId, t.occurredAt),
+    index("cost_events_run_idx").on(t.runId),
+  ],
+);
+
+export const budgetReservations = pgTable(
+  "budget_reservations",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+    agentId: uuid("agent_id").references(() => agents.id, { onDelete: "set null" }),
+    sessionId: uuid("session_id").references(() => sessions.id, { onDelete: "set null" }),
+    runId: uuid("run_id").references(() => runs.id, { onDelete: "set null" }),
+    projectId: uuid("project_id"),
+    taskId: uuid("task_id"),
+    estimatedUsd: numeric("estimated_usd", { precision: 14, scale: 6 }).notNull().default("0"),
+    estimatedEur: numeric("estimated_eur", { precision: 14, scale: 6 }).notNull().default("0"),
+    status: text("status", { enum: ["open", "settled", "released"] }).notNull().default("open"),
+    costEventId: uuid("cost_event_id").references(() => costEvents.id, { onDelete: "set null" }),
+    ...timestamps,
+    settledAt: timestamp("settled_at", { withTimezone: true }),
+  },
+  (t) => [index("budget_reservations_open_idx").on(t.companyId, t.status)],
+);
+
+export const approvals = pgTable(
+  "approvals",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+    kind: text("kind", { enum: ["tool_use", "dangerous_command", "budget_increase", "agent_hire", "plan", "skill_promotion", "config_change", "secret_access"] }).notNull(),
+    agentId: uuid("agent_id").references(() => agents.id, { onDelete: "set null" }),
+    sessionId: uuid("session_id").references(() => sessions.id, { onDelete: "set null" }),
+    runId: uuid("run_id").references(() => runs.id, { onDelete: "set null" }),
+    taskId: uuid("task_id"),
+    subject: jsonb("subject").$type<Record<string, unknown>>().notNull().default({}),
+    reason: text("reason"),
+    estimatedCost: numeric("estimated_cost", { precision: 14, scale: 6 }),
+    risk: text("risk", { enum: ["low", "medium", "high"] }).notNull().default("medium"),
+    status: text("status", { enum: ["pending", "approved", "denied", "expired"] }).notNull().default("pending"),
+    decidedBy: uuid("decided_by").references(() => users.id, { onDelete: "set null" }),
+    decisionNote: text("decision_note"),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    decidedAt: timestamp("decided_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (t) => [index("approvals_company_status_idx").on(t.companyId, t.status, t.createdAt), index("approvals_session_idx").on(t.sessionId)],
+);
+
+export const toolPolicies = pgTable(
+  "tool_policies",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+    targetKind: text("target_kind", { enum: ["company", "role", "agent"] }).notNull(),
+    targetId: text("target_id"),
+    toolName: text("tool_name").notNull(),
+    permission: text("permission", { enum: ["automatic", "approval", "blocked"] }).notNull(),
+    ...timestamps,
+  },
+  (t) => [index("tool_policies_company_idx").on(t.companyId), unique().on(t.companyId, t.targetKind, t.targetId, t.toolName)],
+);
+
+export const secrets = pgTable(
+  "secrets",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    version: integer("version").notNull().default(1),
+    ciphertext: bytea("ciphertext").notNull(),
+    nonce: bytea("nonce").notNull(),
+    createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+    ...timestamps,
+  },
+  (t) => [index("secrets_company_name_idx").on(t.companyId, t.name), unique().on(t.companyId, t.name, t.version)],
+);
+
+export const secretBindings = pgTable(
+  "secret_bindings",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+    secretName: text("secret_name").notNull(),
+    agentId: uuid("agent_id").references(() => agents.id, { onDelete: "cascade" }),
+    toolName: text("tool_name"),
+    ...timestamps,
+  },
+  (t) => [index("secret_bindings_company_idx").on(t.companyId), unique().on(t.companyId, t.secretName, t.agentId, t.toolName)],
+);
+
+export const secretAccessEvents = pgTable(
+  "secret_access_events",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+    secretName: text("secret_name").notNull(),
+    agentId: uuid("agent_id").references(() => agents.id, { onDelete: "set null" }),
+    sessionId: uuid("session_id").references(() => sessions.id, { onDelete: "set null" }),
+    runId: uuid("run_id").references(() => runs.id, { onDelete: "set null" }),
+    toolName: text("tool_name"),
+    occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull().defaultNow(),
+    ...timestamps,
+  },
+  (t) => [index("secret_access_events_company_idx").on(t.companyId, t.occurredAt)],
 );

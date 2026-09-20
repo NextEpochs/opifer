@@ -134,7 +134,29 @@ describe("the twenty invariants", () => {
       expect(roles).toEqual(["user", "assistant", "tool", "assistant"]);
     });
 
-    it.todo(invariantById("budget-before-the-call").title);
+    it(invariantById("budget-before-the-call").title, async () => {
+      // With the cap already reached, the reservation is refused and the model is never called.
+      const { BudgetService, PriceBook } = await import("@opifer/gateway");
+      const { ProviderRegistry } = await import("@opifer/runtime");
+      const { FakeProvider } = await import("@opifer/runtime/testing");
+      const [agent] = await db.sql<{ id: string }[]>`INSERT INTO agents (company_id, name) VALUES (${session.companyId}, 'Spender') RETURNING id`;
+      const [run] = await db.sql<{ id: string }[]>`INSERT INTO runs (company_id, session_id, agent_id) VALUES (${session.companyId}, ${session.id}, ${agent!.id}) RETURNING id`;
+      const provider = new FakeProvider(() => ({ kind: "text", text: "never" }));
+      const prices = new PriceBook(new ProviderRegistry().register(provider));
+      prices.set("fake/echo", { inputPerMillion: 1_000_000, outputPerMillion: 1_000_000, currency: "EUR" });
+      const budget = new BudgetService(db.sql, prices);
+      await budget.setPolicy({ companyId: session.companyId, scopeKind: "company", cap: 1, currency: "EUR" });
+      const context = { companyId: session.companyId, agentId: agent!.id, sessionId: session.id, runId: run!.id };
+      const first = await budget.reserve(context, { modelId: "fake/echo", inputTokens: 10, maxOutputTokens: 10 });
+      expect(first.allowed).toBe(true);
+      if (first.allowed) await budget.settle(first.reservationId, "fake/echo", { inputTokens: 10, outputTokens: 10 });
+      const second = await budget.reserve(context, { modelId: "fake/echo", inputTokens: 10, maxOutputTokens: 10 });
+      expect(second).toMatchObject({ allowed: false, scope: "company", cap: 1 });
+      const [reservations] = await db.sql<{ n: string }[]>`SELECT count(*)::text AS n FROM budget_reservations WHERE run_id = ${run!.id}`;
+      expect(Number(reservations!.n)).toBe(1);
+      const [blocked] = await db.sql<{ n: string }[]>`SELECT count(*)::text AS n FROM audit_log WHERE action = 'budget.blocked' AND subject_id = ${run!.id}`;
+      expect(Number(blocked!.n)).toBe(1);
+    });
   });
 
   describe("work", () => {
@@ -199,8 +221,43 @@ describe("the twenty invariants", () => {
       await db?.destroy();
     });
 
-    it.todo(invariantById("permission-per-role-on-every-tool").title);
-    it.todo(invariantById("secrets-never-in-context").title);
+    it(invariantById("permission-per-role-on-every-tool").title, async () => {
+      // Every native tool resolves to one of the three states; without a policy the default is by risk, and high risk asks.
+      const { PermissionService } = await import("@opifer/gateway");
+      const { NATIVE_TOOLS } = await import("@opifer/runtime");
+      const [company] = await db.sql<{ id: string }[]>`INSERT INTO companies (name) VALUES ('Permissions') RETURNING id`;
+      const [agent] = await db.sql<{ id: string }[]>`INSERT INTO agents (company_id, name, role) VALUES (${company!.id}, 'Agent', 'engineer') RETURNING id`;
+      const permissions = new PermissionService(db.sql);
+      for (const tool of NATIVE_TOOLS) {
+        const resolved = await permissions.resolve({ companyId: company!.id, agentId: agent!.id, agentRole: "engineer", toolName: tool.definition.name, risk: tool.risk });
+        expect(["automatic", "approval", "blocked"]).toContain(resolved.permission);
+        if (tool.risk === "high") expect(resolved.permission).toBe("approval");
+      }
+      await permissions.setPolicy({ companyId: company!.id, targetKind: "role", targetId: "engineer", toolName: "terminal", permission: "blocked" });
+      expect((await permissions.resolve({ companyId: company!.id, agentId: agent!.id, agentRole: "engineer", toolName: "terminal", risk: "high" })).permission).toBe("blocked");
+      expect((await permissions.resolve({ companyId: company!.id, agentId: agent!.id, agentRole: "designer", toolName: "terminal", risk: "high" })).permission).toBe("approval");
+    });
+
+    it(invariantById("secrets-never-in-context").title, async () => {
+      // A secret is bound to agent and company, decrypted only when a tool runs, and every access leaves a row.
+      const { SecretCipher, SecretService } = await import("@opifer/gateway");
+      const { randomBytes } = await import("node:crypto");
+      const [company] = await db.sql<{ id: string }[]>`INSERT INTO companies (name) VALUES ('Secrets') RETURNING id`;
+      const [agent] = await db.sql<{ id: string }[]>`INSERT INTO agents (company_id, name) VALUES (${company!.id}, 'Agent') RETURNING id`;
+      const [other] = await db.sql<{ id: string }[]>`INSERT INTO agents (company_id, name) VALUES (${company!.id}, 'Other') RETURNING id`;
+      const secrets = new SecretService(db.sql, new SecretCipher(randomBytes(32)));
+      const value = "token-8f3a9c1d2e";
+      await secrets.set({ companyId: company!.id, name: "API_TOKEN", value });
+      const [stored] = await db.sql<{ ciphertext: Buffer }[]>`SELECT ciphertext FROM secrets WHERE company_id = ${company!.id}`;
+      expect(Buffer.from(stored!.ciphertext).toString("utf8")).not.toContain(value);
+      expect(await secrets.resolveFor({ companyId: company!.id, agentId: agent!.id, toolName: "terminal" })).toEqual({});
+      await secrets.bind({ companyId: company!.id, secretName: "API_TOKEN", agentId: agent!.id });
+      expect(await secrets.resolveFor({ companyId: company!.id, agentId: agent!.id, toolName: "terminal" })).toEqual({ API_TOKEN: value });
+      expect(await secrets.resolveFor({ companyId: company!.id, agentId: other!.id, toolName: "terminal" })).toEqual({});
+      expect(await secrets.accessLog(company!.id)).toMatchObject([{ secretName: "API_TOKEN", agentId: agent!.id, toolName: "terminal" }]);
+      const [leaks] = await db.sql<{ n: string }[]>`SELECT count(*)::text AS n FROM audit_log WHERE company_id = ${company!.id} AND (after::text LIKE ${"%" + value + "%"} OR before::text LIKE ${"%" + value + "%"})`;
+      expect(Number(leaks!.n)).toBe(0);
+    });
 
     it(invariantById("immutable-audit").title, async () => {
       const [company] = await db.sql<{ id: string }[]>`INSERT INTO companies (name) VALUES ('Test') RETURNING id`;
@@ -214,7 +271,24 @@ describe("the twenty invariants", () => {
       expect(still?.action).toBe("try");
     });
 
-    it.todo(invariantById("versioned-configuration").title);
+    it(invariantById("versioned-configuration").title, async () => {
+      // Each change is a revision; restoring an old one is a new revision, nothing is rewritten.
+      const { AgentConfigService } = await import("@opifer/gateway");
+      const [company] = await db.sql<{ id: string }[]>`INSERT INTO companies (name) VALUES ('Revisions') RETURNING id`;
+      const [agent] = await db.sql<{ id: string }[]>`INSERT INTO agents (company_id, name, role, model) VALUES (${company!.id}, 'Agent', 'first role', 'fake/one') RETURNING id`;
+      await db.sql`INSERT INTO agent_revisions (company_id, agent_id, revision, config, author_kind) VALUES (${company!.id}, ${agent!.id}, 1, ${{ name: "Agent", role: "first role", model: "fake/one" } as never}::jsonb, 'person')`;
+      const agents = new AgentConfigService(db.sql);
+      const second = await agents.update(company!.id, agent!.id, { role: "second role" });
+      expect(second).toMatchObject({ revision: 2, config: { role: "second role", model: "fake/one" } });
+      const restored = await agents.restore(company!.id, agent!.id, 1);
+      expect(restored).toMatchObject({ revision: 3, config: { role: "first role" } });
+      const revisions = await agents.revisions(company!.id, agent!.id);
+      expect(revisions.map((r) => [r.revision, r.config.role])).toEqual([[3, "first role"], [2, "second role"], [1, "first role"]]);
+      const [row] = await db.sql<{ role: string; current_revision: number }[]>`SELECT role, current_revision FROM agents WHERE id = ${agent!.id}`;
+      expect(row).toEqual({ role: "first role", current_revision: 3 });
+      const [audited] = await db.sql<{ n: string }[]>`SELECT count(*)::text AS n FROM audit_log WHERE subject_id = ${agent!.id} AND action = 'agent.updated'`;
+      expect(Number(audited!.n)).toBe(2);
+    });
   });
 
   describe("learning", () => {

@@ -28,3 +28,29 @@ export function checkCommand(command: string): CommandVerdict {
   }
   return { allowed: true };
 }
+
+/** Patterns that are allowed but need a person's approval, whatever the tool permission says. */
+const DANGEROUS: Array<{ pattern: RegExp; reason: string }> = [
+  { pattern: /\brm\s+-[a-z]*r/i, reason: "recursive deletion" },
+  { pattern: /\bgit\s+(push\b.*--force|reset\s+--hard|clean\s+-[a-z]*f|branch\s+-D)/i, reason: "destructive git operation" },
+  { pattern: /\b(sudo|doas)\b/i, reason: "privilege escalation" },
+  { pattern: /\b(curl|wget)\b.*\s-(X\s*(POST|PUT|DELETE|PATCH)|d\s|-data)/i, reason: "network request that changes remote state" },
+  { pattern: /\b(kill|pkill|killall)\b/i, reason: "terminating processes" },
+  { pattern: /\b(npm|pnpm|yarn)\s+publish\b/i, reason: "publishing a package" },
+  { pattern: /\b(docker|kubectl)\s+(rm|delete|prune|push)\b/i, reason: "destructive container operation" },
+  { pattern: /\b(DROP|TRUNCATE)\s+(TABLE|DATABASE|SCHEMA)\b/i, reason: "destructive SQL" },
+  { pattern: /\bchmod\s+(-R\s+)?[0-7]*[27]7[0-7]?\b/i, reason: "loosening permissions" },
+  { pattern: /(^|[;&|]\s*)mv\s+[^;&|]*\s\/(?!tmp)/i, reason: "moving files into system paths" },
+];
+
+export type CommandClass = "ok" | "dangerous" | "forbidden";
+
+/** Three-way classification: forbidden never runs, dangerous needs approval, ok follows the tool permission. */
+export function classifyCommand(command: string): { class: CommandClass; reason?: string } {
+  const verdict = checkCommand(command);
+  if (!verdict.allowed) return { class: "forbidden", ...(verdict.reason ? { reason: verdict.reason } : {}) };
+  for (const { pattern, reason } of DANGEROUS) {
+    if (pattern.test(command)) return { class: "dangerous", reason };
+  }
+  return { class: "ok" };
+}

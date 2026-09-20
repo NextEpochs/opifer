@@ -50,7 +50,7 @@ export const terminalTool: NativeTool = {
     }
     const env = await environmentFor(context);
     const timeoutMs = typeof args["timeout_seconds"] === "number" ? args["timeout_seconds"] * 1000 : 120_000;
-    const result = await env.run(["sh", "-c", command], { timeoutMs, signal: context.signal });
+    const result = await env.run(["sh", "-c", command], { timeoutMs, signal: context.signal, ...(context.secrets ? { env: context.secrets } : {}) });
     const parts = [];
     if (result.stdout.trim()) parts.push(result.stdout.trimEnd());
     if (result.stderr.trim()) parts.push(`[stderr]\n${result.stderr.trimEnd()}`);

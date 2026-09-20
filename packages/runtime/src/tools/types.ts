@@ -4,8 +4,23 @@ export interface ToolContext {
   sessionId: string;
   companyId: string;
   agentId: string;
+  runId: string;
+  callId: string;
+  /** Role of the agent in the org chart, for permission resolution. */
+  agentRole: string;
   workdir: string;
   signal: AbortSignal;
+  /** A person approved this exact call: governance must not ask again. */
+  approved?: boolean;
+  /** Secret values bound to this agent and tool, injected at execution time and never shown to the model. */
+  secrets?: Record<string, string>;
+}
+
+export interface ApprovalNeeded {
+  kind: "tool_use" | "dangerous_command";
+  reason: string;
+  risk: "low" | "medium" | "high";
+  subject: Record<string, unknown>;
 }
 
 export interface ToolOutcome {
@@ -13,6 +28,8 @@ export interface ToolOutcome {
   isError?: boolean;
   /** The turn stops after this tool (for example a question to the person). */
   endTurn?: { stopReason: string };
+  /** Governance asks a person before running this call; the turn suspends until the decision. */
+  approvalNeeded?: ApprovalNeeded;
 }
 
 export interface NativeTool {
@@ -25,6 +42,10 @@ export interface NativeTool {
 export interface ToolExecutor {
   definitions(): ToolDefinition[];
   execute(name: string, args: Record<string, unknown>, context: ToolContext): Promise<ToolOutcome>;
+  /** Governance check without executing: what a person must approve first, if anything. */
+  preflight?(name: string, args: Record<string, unknown>, context: ToolContext): Promise<ApprovalNeeded | null>;
+  /** Declared risk of a tool, when known. */
+  riskOf?(name: string): "low" | "medium" | "high" | undefined;
 }
 
 /** Executor of native tools: no governance (it arrives with the gateway in M2). */
@@ -43,6 +64,10 @@ export class NativeToolExecutor implements ToolExecutor {
 
   definitions(): ToolDefinition[] {
     return [...this.tools.values()].map((t) => t.definition);
+  }
+
+  riskOf(name: string): NativeTool["risk"] | undefined {
+    return this.tools.get(name)?.risk;
   }
 
   async execute(name: string, args: Record<string, unknown>, context: ToolContext): Promise<ToolOutcome> {

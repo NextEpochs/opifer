@@ -22,6 +22,7 @@
   },
   "devDependencies": {
     "@opifer/db": "workspace:*",
-    "@opifer/runtime": "workspace:*"
+    "@opifer/runtime": "workspace:*",
+    "@opifer/gateway": "workspace:*"
   }
 }

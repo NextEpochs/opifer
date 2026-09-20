@@ -4,6 +4,21 @@
     "rootDir": "src",
     "outDir": "dist"
   },
-  "include": ["src"],
-  "references": [{ "path": "../core" }, { "path": "../sdk" }]
+  "include": [
+    "src"
+  ],
+  "references": [
+    {
+      "path": "../core"
+    },
+    {
+      "path": "../sdk"
+    },
+    {
+      "path": "../db"
+    },
+    {
+      "path": "../runtime"
+    }
+  ]
 }
