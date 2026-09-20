@@ -174,7 +174,11 @@ export class BudgetService implements BudgetGate {
     const money = await this.prices.estimate(estimate.modelId, estimate.inputTokens, estimate.maxOutputTokens);
     return this.sql.begin(async (tx) => {
       // One reservation at a time per company: concurrent turns cannot both slip under a cap.
-      await tx`SELECT id FROM companies WHERE id = ${context.companyId} FOR UPDATE`;
+      const [company] = await tx<{ status: string }[]>`SELECT status FROM companies WHERE id = ${context.companyId} FOR UPDATE`;
+      if (company && company.status !== "active") {
+        // Emergency stop: no new reservation until a person reactivates the company.
+        return { allowed: false, reason: `the company is ${company.status}: no model call until a person resumes it`, scope: "company", cap: 0, spent: 0, currency: "EUR" };
+      }
       const policies = await this.applicablePolicies(context);
       const warnings: string[] = [];
       for (const policy of policies) {

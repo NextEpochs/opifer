@@ -18,6 +18,7 @@ describe("Work: tasks, wake-ups and the scheduler", () => {
   let companyId: string;
   let philip: string;
   let nora: string;
+  let seenChatTools: string[] = [];
   const events: Array<{ type: string; payload: Record<string, unknown> }> = [];
 
   const waitFor = (predicate: (e: { type: string; payload: Record<string, unknown> }) => boolean, timeoutMs = 10_000) =>
@@ -68,6 +69,11 @@ describe("Work: tasks, wake-ups and the scheduler", () => {
         return { kind: "text", text: `ok: ${r.slice(0, 40)}` };
       }
       if (text.startsWith("You have been assigned") || text.startsWith("The reviewer sent")) return { kind: "tools", calls: [{ name: "task_status", arguments: {} }] };
+      if (text.startsWith("delegate:")) {
+        seenChatTools = tools;
+        return { kind: "tools", calls: [{ name: "task_create", arguments: { title: text.slice(9).trim(), assignee: "Nora" } }] };
+      }
+      if (text.startsWith("status?")) return { kind: "tools", calls: [{ name: "company_status", arguments: {} }] };
       if (text.startsWith("New comment") && tools.includes("task_comment"))
         return { kind: "tools", text: "Replying.", calls: [{ name: "task_comment", arguments: { body: "Thanks, noted." } }] };
       return { kind: "text", text: `echo: ${text.slice(0, 40)}` };
@@ -240,6 +246,43 @@ describe("Work: tasks, wake-ups and the scheduler", () => {
     const mine = wakeups.filter((w) => w.taskId === task.id);
     expect(mine.length).toBeGreaterThanOrEqual(2);
     expect(mine.every((w) => w.status === "done")).toBe(true);
+  });
+
+  it("in a conversation an agent sees the company, hands out work with task_create, and has no task-bound tools", async () => {
+    const session = (await app.inject({ method: "POST", url: `/v1/companies/${companyId}/sessions`, payload: { agentId: philip } })).json() as { id: string; systemPrompt: string };
+    expect(session.systemPrompt).toContain("company_status");
+    const delegated = await app.inject({ method: "POST", url: `/v1/sessions/${session.id}/messages`, payload: { text: "delegate: Compare three CRMs" } });
+    expect(delegated.statusCode).toBe(202);
+    await new Promise((r) => setTimeout(r, 150));
+    for (let i = 0; i < 50 && app.opifer.runtime!.isRunning(session.id); i++) await new Promise((r) => setTimeout(r, 100));
+    expect(seenChatTools).toContain("task_create");
+    expect(seenChatTools).toContain("company_status");
+    expect(seenChatTools).toContain("task_list");
+    expect(seenChatTools).not.toContain("task_status");
+    expect(seenChatTools).not.toContain("task_deliver");
+    const tasks = (await app.inject({ method: "GET", url: `/v1/companies/${companyId}/tasks` })).json() as Array<{
+      title: string;
+      parentId: string | null;
+      assigneeAgentId: string;
+      reviewerAgentId: string | null;
+    }>;
+    const created = tasks.find((task) => task.title === "Compare three CRMs");
+    expect(created).toMatchObject({ parentId: null, assigneeAgentId: nora, reviewerAgentId: philip });
+    // The company status reads in plain words.
+    const asked = await app.inject({ method: "POST", url: `/v1/sessions/${session.id}/messages`, payload: { text: "status?" } });
+    expect(asked.statusCode).toBe(202);
+    await new Promise((r) => setTimeout(r, 150));
+    for (let i = 0; i < 50 && app.opifer.runtime!.isRunning(session.id); i++) await new Promise((r) => setTimeout(r, 100));
+    const messages = (await app.inject({ method: "GET", url: `/v1/sessions/${session.id}/messages` })).json() as Array<{
+      role: string;
+      content: Array<{ type: string; content?: string }>;
+    }>;
+    const status = messages.filter((m) => m.role === "tool").at(-1)!.content[0]!.content!;
+    expect(status).toContain("Agents:");
+    expect(status).toContain("Nora");
+    expect(status).toContain("Compare three CRMs");
+    expect(status).toContain("Spend this month");
+    await runScheduler();
   });
 
   it("a paused agent is skipped; blocking, unblocking and cancelling are audited; the overview shows the task work", async () => {

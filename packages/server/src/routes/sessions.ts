@@ -87,7 +87,8 @@ export async function registerSessionRoutes(app: FastifyInstance, options: Sessi
     if (!session) return reply.code(404).send({ error: "session not found" });
     const messages = await store.listMessages(session.id);
     const runs = await store.listRuns(session.id);
-    return { ...session, running: runtime.isRunning(session.id), messages, runs };
+    const compressions = await store.listCompressions(session.id);
+    return { ...session, running: runtime.isRunning(session.id), messages, runs, compressions };
   });
 
   app.get<{ Params: { id: string } }>("/sessions/:id/messages", async (request, reply) => {
@@ -108,6 +109,8 @@ export async function registerSessionRoutes(app: FastifyInstance, options: Sessi
     const session = await store.getSession(request.params.id);
     if (!session) return reply.code(404).send({ error: "session not found" });
     if (session.status !== "active") return reply.code(409).send({ error: `the session is ${session.status}` });
+    const [company] = await app.opifer.db.sql<{ status: string }[]>`SELECT status FROM companies WHERE id = ${session.companyId}`;
+    if (company && company.status !== "active") return reply.code(409).send({ error: `the company is ${company.status}: nothing runs until a person resumes it` });
 
     if (runtime.isRunning(session.id)) {
       runtime.inject(session.id, request.body.text);

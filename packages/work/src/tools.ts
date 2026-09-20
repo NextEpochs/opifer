@@ -5,7 +5,7 @@
  */
 
 import type { Sql } from "postgres";
-import type { NativeTool, ToolContext, ToolOutcome } from "@opifer/runtime";
+import type { NativeTool, ToolContext, ToolOutcome, ToolScope } from "@opifer/runtime";
 import type { WorkService } from "./service.js";
 import type { Task, TaskPriority, WhyChain, WorkProductKind } from "./types.js";
 
@@ -40,6 +40,10 @@ export function describeTask(task: Task, why: WhyChain, extra: { comments?: Arra
 
 export const TASK_GUIDE = `You work on tasks. Use the task tools: task_status to re-read the task, task_comment to report progress or ask the people following it, task_create to delegate a subtask to someone who reports to you (or to yourself), task_deliver when the result is ready for review, task_block when you cannot continue. When you delegate, you are the reviewer of that subtask: you will be woken up when it is delivered, and you close it with task_approve or send it back with task_request_changes. A parent task is delivered only after its subtasks are closed; while you wait, end your turn and you will be woken up. A task closes only with a verifiable result: say what you produced and how it can be checked.`;
 
+const onlyInTask = (scope: ToolScope) => Boolean(scope.taskId);
+
+export const CHAT_GUIDE = `In a conversation you are not working on a task: use company_status to see how the company is doing (who is working on what, what waits for a person, routines, spend), task_list to follow tasks, and task_create to hand out work to yourself or to the agents that report to you — the assignee starts at once and you review the result. Do not promise a report you cannot produce: create the tasks that will produce it.`;
+
 export function taskTools(work: WorkService, sql: Sql): NativeTool[] {
   const requireTask = async (context: ToolContext): Promise<Task | ToolOutcome> => {
     if (!context.taskId) return { content: "This conversation is not attached to a task.", isError: true };
@@ -51,6 +55,7 @@ export function taskTools(work: WorkService, sql: Sql): NativeTool[] {
   const actor = (context: ToolContext) => ({ kind: "agent" as const, id: context.agentId });
 
   const status: NativeTool = {
+    when: onlyInTask,
     risk: "low",
     definition: {
       name: "task_status",
@@ -77,6 +82,7 @@ export function taskTools(work: WorkService, sql: Sql): NativeTool[] {
   };
 
   const comment: NativeTool = {
+    when: onlyInTask,
     risk: "low",
     definition: {
       name: "task_comment",
@@ -96,7 +102,7 @@ export function taskTools(work: WorkService, sql: Sql): NativeTool[] {
     definition: {
       name: "task_create",
       description:
-        "Creates a subtask of the current task and assigns it. You can delegate only to agents that report to you, or keep it for yourself. The assignee wakes up and works on it; you will see its result as a subtask.",
+        "Creates a task and assigns it: inside a task it is a subtask of the current one, in a conversation it is a new top-level task. You can delegate only to agents that report to you, or keep it for yourself. The assignee wakes up and works on it; you are its reviewer and will be woken up when it is delivered.",
       inputSchema: {
         type: "object",
         required: ["title"],
@@ -110,8 +116,8 @@ export function taskTools(work: WorkService, sql: Sql): NativeTool[] {
       },
     },
     async execute(args, context) {
-      const task = await requireTask(context);
-      if (isOutcome(task)) return task;
+      const task = context.taskId ? await requireTask(context) : null;
+      if (task && isOutcome(task)) return task;
       const assigneeName = str(args, "assignee", false);
       let assigneeId = context.agentId;
       if (assigneeName) {
@@ -130,7 +136,7 @@ export function taskTools(work: WorkService, sql: Sql): NativeTool[] {
           title: str(args, "title"),
           description: str(args, "description", false),
           acceptance: str(args, "acceptance", false),
-          parentId: task.id,
+          parentId: task?.id ?? null,
           assigneeAgentId: assigneeId,
           // The delegator reviews the work of a report; nobody reviews their own.
           reviewerAgentId: assigneeId === context.agentId ? null : context.agentId,
@@ -139,12 +145,13 @@ export function taskTools(work: WorkService, sql: Sql): NativeTool[] {
         actor(context),
       );
       return {
-        content: `Subtask created: "${created.title}" (${created.id}) assigned to ${assigneeName || "you"}.${assigneeId !== context.agentId ? " They will be woken up; check task_status later for the result." : ""}`,
+        content: `${task ? "Subtask" : "Task"} created: "${created.title}" (${created.id}) assigned to ${assigneeName || "you"}.${assigneeId !== context.agentId ? (task ? " They will be woken up; you will be told when it is delivered." : " They will be woken up; you will review it when it is delivered, and you can follow it with task_list.") : ""}`,
       };
     },
   };
 
   const deliver: NativeTool = {
+    when: onlyInTask,
     risk: "medium",
     definition: {
       name: "task_deliver",
@@ -204,6 +211,7 @@ export function taskTools(work: WorkService, sql: Sql): NativeTool[] {
   };
 
   const block: NativeTool = {
+    when: onlyInTask,
     risk: "low",
     definition: {
       name: "task_block",
@@ -229,6 +237,7 @@ export function taskTools(work: WorkService, sql: Sql): NativeTool[] {
   };
 
   const approve: NativeTool = {
+    when: onlyInTask,
     risk: "medium",
     definition: {
       name: "task_approve",
@@ -246,6 +255,7 @@ export function taskTools(work: WorkService, sql: Sql): NativeTool[] {
   };
 
   const requestChanges: NativeTool = {
+    when: onlyInTask,
     risk: "low",
     definition: {
       name: "task_request_changes",
@@ -260,5 +270,109 @@ export function taskTools(work: WorkService, sql: Sql): NativeTool[] {
     },
   };
 
-  return [status, comment, create, deliver, block, approve, requestChanges];
+  const list: NativeTool = {
+    risk: "low",
+    definition: {
+      name: "task_list",
+      description: "Lists the company's tasks: yours, those of your reports, or all; optionally by status. Each line shows status, title, assignee and the result when delivered.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          scope: {
+            type: "string",
+            enum: ["mine", "reports", "all"],
+            description: "mine = assigned to you; reports = assigned to agents that report to you; all = the whole company (default: mine and reports).",
+          },
+          status: { type: "string", enum: ["todo", "in_progress", "in_review", "blocked", "done", "cancelled"], description: "Only this status (default: open tasks)." },
+          limit: { type: "integer", minimum: 1, maximum: 100 },
+        },
+      },
+    },
+    async execute(args, context) {
+      const agents = await sql<
+        { id: string; name: string; reports_to_agent_id: string | null }[]
+      >`SELECT id, name, reports_to_agent_id FROM agents WHERE company_id = ${context.companyId}`;
+      const scope = typeof args["scope"] === "string" ? args["scope"] : "team";
+      const status = typeof args["status"] === "string" ? [args["status"] as Task["status"]] : (["todo", "in_progress", "in_review", "blocked"] as Task["status"][]);
+      const limit = typeof args["limit"] === "number" ? args["limit"] : 40;
+      const mine = new Set([context.agentId, ...agents.filter((a) => a.reports_to_agent_id === context.agentId).map((a) => a.id)]);
+      const tasks = (await work.listTasks(context.companyId, { status })).filter((t) =>
+        scope === "all"
+          ? true
+          : scope === "mine"
+            ? t.assigneeAgentId === context.agentId
+            : scope === "reports"
+              ? t.assigneeAgentId !== context.agentId && mine.has(t.assigneeAgentId ?? "")
+              : mine.has(t.assigneeAgentId ?? ""),
+      );
+      if (tasks.length === 0) return { content: "No tasks match." };
+      const nameOf = (id: string | null) => (id ? (agents.find((a) => a.id === id)?.name ?? "agent") : "unassigned");
+      return {
+        content: tasks
+          .slice(0, limit)
+          .map(
+            (t) =>
+              `- [${t.status}] ${t.title} (${t.id.slice(0, 8)}) → ${nameOf(t.assigneeAgentId)}${t.result?.summary ? ` — ${t.result.summary.slice(0, 160)}` : ""}${t.blockedReason ? ` — blocked: ${t.blockedReason.slice(0, 120)}` : ""}`,
+          )
+          .join("\n"),
+      };
+    },
+  };
+
+  const companyStatus: NativeTool = {
+    risk: "low",
+    definition: {
+      name: "company_status",
+      description:
+        "How the company is doing right now: agents and what they are working on, tasks by status, what waits for a person (approvals, reviews, blocked tasks), routines and their next run, spend this month.",
+      inputSchema: { type: "object", properties: {} },
+    },
+    async execute(_args, context) {
+      const companyId = context.companyId;
+      const agents = await sql<
+        { id: string; name: string; role: string; status: string; reports_to_agent_id: string | null }[]
+      >`SELECT id, name, role, status, reports_to_agent_id FROM agents WHERE company_id = ${companyId} ORDER BY name`;
+      const open = await work.listTasks(companyId, { status: ["todo", "in_progress", "in_review", "blocked"] });
+      const done = await sql<
+        { n: string }[]
+      >`SELECT count(*)::text AS n FROM tasks WHERE company_id = ${companyId} AND status = 'done' AND finished_at > now() - interval '7 days'`;
+      const approvals = await sql<{ n: string }[]>`SELECT count(*)::text AS n FROM approvals WHERE company_id = ${companyId} AND status = 'pending'`;
+      const routines = await sql<
+        { name: string; enabled: boolean; next_due_at: Date | null; last_run_at: Date | null }[]
+      >`SELECT name, enabled, next_due_at, last_run_at FROM routines WHERE company_id = ${companyId} ORDER BY name`;
+      const spend = await sql<
+        { eur: string }[]
+      >`SELECT coalesce(sum(amount_eur), 0)::text AS eur FROM cost_events WHERE company_id = ${companyId} AND occurred_at >= date_trunc('month', now())`;
+      const nameOf = (id: string | null) => (id ? (agents.find((a) => a.id === id)?.name ?? "agent") : "a person");
+      const lines: string[] = [];
+      lines.push("Agents:");
+      for (const a of agents) {
+        const theirs = open.filter((t) => t.assigneeAgentId === a.id);
+        const working = theirs.filter((t) => t.status === "in_progress").map((t) => t.title);
+        lines.push(
+          `- ${a.name} (${a.role.split(".")[0]}${a.status !== "active" ? `, ${a.status}` : ""})${a.reports_to_agent_id ? ` reports to ${nameOf(a.reports_to_agent_id)}` : ""}: ${theirs.length} open task${theirs.length === 1 ? "" : "s"}${working.length > 0 ? `, working on ${working.map((w) => `"${w}"`).join(", ")}` : ""}`,
+        );
+      }
+      const by = (status: Task["status"]) => open.filter((t) => t.status === status);
+      lines.push(
+        `\nTasks: ${by("todo").length} to do, ${by("in_progress").length} in progress, ${by("in_review").length} in review, ${by("blocked").length} blocked; ${done[0]?.n ?? 0} done in the last 7 days.`,
+      );
+      for (const t of [...by("blocked"), ...by("in_review"), ...by("in_progress"), ...by("todo")].slice(0, 20))
+        lines.push(
+          `- [${t.status}] ${t.title} → ${nameOf(t.assigneeAgentId)}${t.blockedReason ? ` — ${t.blockedReason.slice(0, 120)}` : t.result?.summary ? ` — ${t.result.summary.slice(0, 120)}` : ""}`,
+        );
+      lines.push(
+        `\nWaiting for a person: ${approvals[0]?.n ?? 0} approval${approvals[0]?.n === "1" ? "" : "s"}, ${by("in_review").length} deliveries to verify, ${by("blocked").length} blocked task${by("blocked").length === 1 ? "" : "s"}.`,
+      );
+      lines.push(`\nRoutines: ${routines.length === 0 ? "none" : ""}`);
+      for (const r of routines)
+        lines.push(
+          `- ${r.name}${r.enabled ? "" : " (disabled)"}: next ${r.next_due_at ? r.next_due_at.toISOString().slice(0, 16).replace("T", " ") : "—"}, last ${r.last_run_at ? r.last_run_at.toISOString().slice(0, 16).replace("T", " ") : "never"}`,
+        );
+      lines.push(`\nSpend this month: ${Number(spend[0]?.eur ?? 0).toFixed(2)} EUR.`);
+      return { content: lines.join("\n") };
+    },
+  };
+
+  return [status, comment, create, deliver, block, approve, requestChanges, list, companyStatus];
 }

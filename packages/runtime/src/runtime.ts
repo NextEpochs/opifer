@@ -5,6 +5,7 @@
  * history without re-running tools.
  */
 
+import { DEFAULT_CONTEXT_OPTIONS, type ContextOptions } from "./context.js";
 import type { Sql } from "postgres";
 import { DEFAULT_TURN_LIMITS, type StopReason, type TurnLimits } from "./limits.js";
 import { assembleSystemPrompt, hashPrompt, loadContextFiles, type PromptInput } from "./prompt.js";
@@ -27,10 +28,14 @@ export interface RuntimeOptions {
   limits?: Partial<TurnLimits>;
   recovery?: Partial<RecoveryOptions>;
   maxOutputTokens?: number;
+  /** Context management thresholds (spec 5.4); the window comes from the provider's model list. */
+  context?: Partial<ContextOptions>;
   /** Budget, approvals and the budget-stop hook; absent in the ungoverned local runtime. */
   governance?: GovernanceGates;
   /** Learning (M4): the snapshot that enters the prompt, and the hook that queues the background review. */
   learning?: LearningHooks;
+  /** Guides written by other packages (for example what task tools do in a conversation). */
+  guides?: RuntimeGuides;
 }
 
 export interface LearningHooks {
@@ -40,6 +45,11 @@ export interface LearningHooks {
   onTurnDone?(session: SessionRecord, run: RunRecord, stopReason: string): Promise<void>;
   /** One paragraph on how to use memory and skills, appended to the governance rules. */
   guide?: string;
+}
+
+export interface RuntimeGuides {
+  /** What an agent can do in a plain conversation (no task): shown as the work context of chat sessions. */
+  conversation?: string;
 }
 
 export interface StartSessionInput {
@@ -71,6 +81,7 @@ export interface TurnResult {
 }
 
 interface ActiveTurn {
+  companyId: string;
   controller: AbortController;
   injections: string[];
 }
@@ -115,7 +126,11 @@ export class AgentRuntime {
       contextFiles: await loadContextFiles(workdir),
       ...(learned ? { memorySnapshot: learned.memory, skillsIndex: learned.skills } : {}),
       ...(this.options.learning?.guide ? { governanceRules: [this.options.learning.guide] } : {}),
-      ...(input.taskContext ? { taskContext: input.taskContext } : {}),
+      ...(input.taskContext
+        ? { taskContext: input.taskContext }
+        : this.options.guides?.conversation
+          ? { taskContext: `Direct conversation with a person of the company.\n${this.options.guides.conversation}` }
+          : {}),
       ...(input.locale ? { locale: input.locale } : {}),
     };
     const systemPrompt = assembleSystemPrompt(promptInput);
@@ -151,6 +166,17 @@ export class AgentRuntime {
     return true;
   }
 
+  /** Emergency stop: every running turn of the company is interrupted at its next phase. Returns the session ids stopped. */
+  interruptCompany(companyId: string): string[] {
+    const stopped: string[] = [];
+    for (const [sessionId, turn] of this.active) {
+      if (turn.companyId !== companyId) continue;
+      turn.controller.abort();
+      stopped.push(sessionId);
+    }
+    return stopped;
+  }
+
   /** Operator message during a turn: it enters the next tool result, never the system prompt. */
   inject(sessionId: string, text: string): boolean {
     const turn = this.active.get(sessionId);
@@ -178,11 +204,13 @@ export class AgentRuntime {
     const [agent] = await this.options.sql<{ role: string; status: string }[]>`SELECT role, status FROM agents WHERE id = ${session.agentId}`;
     if (!agent) throw new Error("agent not found");
     if (agent.status !== "active") throw new Error(`the agent is ${agent.status}`);
+    const [company] = await this.options.sql<{ status: string }[]>`SELECT status FROM companies WHERE id = ${session.companyId}`;
+    if (company && company.status !== "active") throw new Error(`the company is ${company.status}: nothing runs until a person resumes it`);
 
     const run = await this.store.createRun(session);
     const controller = new AbortController();
     input.signal?.addEventListener("abort", () => controller.abort(), { once: true });
-    const turn: ActiveTurn = { controller, injections: [] };
+    const turn: ActiveTurn = { companyId: session.companyId, controller, injections: [] };
     this.active.set(session.id, turn);
     await this.store.appendRunEvent(run, "phase", { phase: "preflight" });
 
@@ -197,6 +225,7 @@ export class AgentRuntime {
           recovery: this.recovery,
           maxOutputTokens: this.options.maxOutputTokens ?? 8192,
           workRoot: this.options.workRoot,
+          context: { ...DEFAULT_CONTEXT_OPTIONS, ...(this.options.context ?? {}), window: await this.options.providers.contextWindow(primary.id) },
         },
         { session, agentRole: agent.role, run, primary, fallback, emit, controller, injections: turn.injections, text: input.text },
       ).run();

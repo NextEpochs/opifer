@@ -305,7 +305,7 @@ export class RoutineService {
     let skipped = 0;
     const due = await this.sql<
       RoutineRow[]
-    >`SELECT * FROM routines WHERE enabled AND next_due_at IS NOT NULL AND next_due_at <= ${now} ORDER BY next_due_at FOR UPDATE SKIP LOCKED`;
+    >`SELECT r.* FROM routines r JOIN companies c ON c.id = r.company_id WHERE r.enabled AND c.status = 'active' AND r.next_due_at IS NOT NULL AND r.next_due_at <= ${now} ORDER BY r.next_due_at FOR UPDATE OF r SKIP LOCKED`;
     for (const row of due) {
       const routine = toRoutine(row);
       // Walk the due times up to now: late ones inside the window run, older ones are skipped.

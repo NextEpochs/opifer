@@ -6,6 +6,7 @@
 
 import type { Sql } from "postgres";
 import type { ContentPart, Usage } from "@opifer/sdk";
+import { audit } from "@opifer/db";
 import type { RunRecord, RunStatus, SessionKind, SessionRecord, StoredMessage, StoredRole } from "./types.js";
 
 interface SessionRow {
@@ -21,6 +22,8 @@ interface SessionRow {
   status: SessionRecord["status"];
   workdir: string | null;
   task_id: string | null;
+  context_from_seq: number;
+  context_summary: string | null;
   project_id?: string | null;
   last_seq: number;
   created_at: Date;
@@ -71,6 +74,8 @@ function toSession(r: SessionRow): SessionRecord {
     taskId: r.task_id ?? null,
     projectId: r.project_id ?? null,
     lastSeq: r.last_seq,
+    contextFromSeq: r.context_from_seq ?? 0,
+    contextSummary: r.context_summary ?? null,
     createdAt: r.created_at.toISOString(),
     updatedAt: r.updated_at.toISOString(),
   };
@@ -157,9 +162,56 @@ export class SessionStore {
     await this.sql`UPDATE sessions SET title = ${title} WHERE id = ${id} AND title IS NULL`;
   }
 
-  async listMessages(sessionId: string): Promise<StoredMessage[]> {
-    const rows = await this.sql<MessageRow[]>`SELECT * FROM messages WHERE session_id = ${sessionId} ORDER BY seq`;
+  async listMessages(sessionId: string, options: { afterSeq?: number } = {}): Promise<StoredMessage[]> {
+    const rows =
+      options.afterSeq !== undefined
+        ? await this.sql<MessageRow[]>`SELECT * FROM messages WHERE session_id = ${sessionId} AND seq > ${options.afterSeq} ORDER BY seq`
+        : await this.sql<MessageRow[]>`SELECT * FROM messages WHERE session_id = ${sessionId} ORDER BY seq`;
     return rows.map(toMessage);
+  }
+
+  /** Records a compression: the session now shows the model a summary instead of the messages up to `toSeq`. Messages stay. */
+  async recordCompression(input: {
+    session: { id: string; companyId: string };
+    runId: string | null;
+    fromSeq: number;
+    toSeq: number;
+    method: "model" | "deterministic";
+    charsBefore: number;
+    charsAfter: number;
+    summary: string;
+  }): Promise<void> {
+    await this.sql.begin(async (tx) => {
+      await tx`INSERT INTO session_compressions (company_id, session_id, run_id, from_seq, to_seq, method, chars_before, chars_after, summary)
+        VALUES (${input.session.companyId}, ${input.session.id}, ${input.runId}, ${input.fromSeq}, ${input.toSeq}, ${input.method}, ${input.charsBefore}, ${input.charsAfter}, ${input.summary})`;
+      await tx`UPDATE sessions SET context_from_seq = ${input.toSeq}, context_summary = ${input.summary} WHERE id = ${input.session.id}`;
+      await audit(tx, {
+        companyId: input.session.companyId,
+        actorKind: "system",
+        action: "session.compressed",
+        subjectKind: "session",
+        subjectId: input.session.id,
+        after: { fromSeq: input.fromSeq, toSeq: input.toSeq, method: input.method, charsBefore: input.charsBefore, charsAfter: input.charsAfter },
+      });
+    });
+  }
+
+  async listCompressions(
+    sessionId: string,
+  ): Promise<Array<{ id: string; fromSeq: number; toSeq: number; method: string; charsBefore: number; charsAfter: number; summary: string; createdAt: string }>> {
+    const rows = await this.sql<
+      { id: string; from_seq: number; to_seq: number; method: string; chars_before: number; chars_after: number; summary: string; created_at: Date }[]
+    >`SELECT * FROM session_compressions WHERE session_id = ${sessionId} ORDER BY created_at`;
+    return rows.map((r) => ({
+      id: r.id,
+      fromSeq: r.from_seq,
+      toSeq: r.to_seq,
+      method: r.method,
+      charsBefore: r.chars_before,
+      charsAfter: r.chars_after,
+      summary: r.summary,
+      createdAt: r.created_at.toISOString(),
+    }));
   }
 
   async lastMessage(sessionId: string): Promise<StoredMessage | null> {

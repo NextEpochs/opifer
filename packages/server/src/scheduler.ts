@@ -107,6 +107,8 @@ export class Scheduler {
 
   private async handle(wakeup: Wakeup): Promise<void> {
     const { work, runtime, sql } = this.o;
+    const [company] = await sql<{ status: string }[]>`SELECT status FROM companies WHERE id = ${wakeup.companyId}`;
+    if (company && company.status !== "active") return work.deferWakeup(wakeup.id, 30_000, `the company is ${company.status}`);
     if (wakeup.reason === "routine") return this.handleRoutine(wakeup);
     if (!wakeup.taskId) {
       await work.finishWakeup(wakeup.id, "skipped", "no task");

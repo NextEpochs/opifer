@@ -21,6 +21,21 @@ async function connect(options: Common) {
 
 const when = (iso: string | null) => (iso ? iso.slice(0, 16).replace("T", " ") : "—");
 
+/** Emergency stop: every agent of the company stops, routines pause, no model is called until `resume`. */
+export async function runStopAll(options: Common & { reason?: string; resume?: boolean }): Promise<void> {
+  const { base, company } = await connect(options);
+  if (options.resume) {
+    await api(base, `/v1/companies/${company.id}/resume`, { method: "POST" });
+    say.ok(`${company.name} resumed: agents, routines and budget are back.`);
+    return;
+  }
+  const result = await api<{ interruptedSessions: number; routinesSuspended: number }>(base, `/v1/companies/${company.id}/stop`, {
+    method: "POST",
+    body: JSON.stringify({ reason: options.reason ?? "" }),
+  });
+  say.ok(`${company.name} stopped: ${result.interruptedSessions} turns interrupted, ${result.routinesSuspended} routines paused, no model call until ${c.bold("o4r resume")}.`);
+}
+
 // --- Routines -----------------------------------------------------------------
 
 interface Routine {

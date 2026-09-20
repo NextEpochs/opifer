@@ -6,7 +6,7 @@
  */
 
 import type { ToolDefinition } from "@opifer/sdk";
-import type { ToolContext, ToolExecutor, ToolOutcome } from "@opifer/runtime";
+import type { ToolContext, ToolExecutor, ToolOutcome, ToolScope } from "@opifer/runtime";
 import { TOOL_SEPARATOR, type ConnectionService } from "./connections.js";
 import type { Risk } from "./types.js";
 
@@ -25,7 +25,7 @@ export class ConnectionToolExecutor implements ToolExecutor {
   }
 
   /** Native tools plus the company's connection tools; cached briefly, a connection change clears it. */
-  async definitionsFor(scope: { companyId: string; agentId: string }): Promise<ToolDefinition[]> {
+  async definitionsFor(scope: ToolScope): Promise<ToolDefinition[]> {
     const cached = this.cache.get(scope.companyId);
     let defs = cached && Date.now() - cached.at < this.cacheMs ? cached.defs : null;
     if (!defs) {

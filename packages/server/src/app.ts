@@ -14,8 +14,8 @@ import { registerModelRoutes } from "./routes/models.js";
 import { registerGovernanceRoutes } from "./routes/governance.js";
 import { registerOverviewRoutes } from "./routes/overview.js";
 import { registerWorkRoutes } from "./routes/work.js";
-import { AgentRuntime, NATIVE_TOOLS, NativeToolExecutor, SessionStore, type GovernanceGates, type LearningHooks, type ProviderRegistry } from "@opifer/runtime";
-import { RoutineService, WorkService, taskTools } from "@opifer/work";
+import { AgentRuntime, NATIVE_TOOLS, NativeToolExecutor, SessionStore, type GovernanceGates, type LearningHooks, type RuntimeGuides, type ProviderRegistry } from "@opifer/runtime";
+import { CHAT_GUIDE, RoutineService, WorkService, taskTools } from "@opifer/work";
 import { LEARNING_GUIDE, LearningService, learningTools, renderSkillMarkdown } from "@opifer/learning";
 import type { ProviderSetup } from "./providers.js";
 import { buildGovernance, type Governance } from "./governance.js";
@@ -86,7 +86,15 @@ export interface AppContext {
 export function buildRuntime(
   db: DatabaseHandle,
   providers: ProviderRegistry,
-  options: { workRoot: string; defaultModel: string; fallbackModel?: string | null; tools?: AppOptions["tools"]; gates?: GovernanceGates; learning?: LearningHooks },
+  options: {
+    workRoot: string;
+    defaultModel: string;
+    fallbackModel?: string | null;
+    tools?: AppOptions["tools"];
+    gates?: GovernanceGates;
+    learning?: LearningHooks;
+    guides?: RuntimeGuides;
+  },
 ): AgentRuntime {
   return new AgentRuntime({
     sql: db.sql,
@@ -97,6 +105,7 @@ export function buildRuntime(
     defaultFallbackModel: options.fallbackModel ?? null,
     ...(options.gates ? { governance: options.gates } : {}),
     ...(options.learning ? { learning: options.learning } : {}),
+    ...(options.guides ? { guides: options.guides } : {}),
   });
 }
 
@@ -204,6 +213,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
         tools: governance ? governance.tools : inner,
         ...(governance ? { gates: governance.gates } : {}),
         ...(learningHooks ? { learning: learningHooks } : {}),
+        guides: { conversation: CHAT_GUIDE },
       })
     : null;
   const scheduler = runtime

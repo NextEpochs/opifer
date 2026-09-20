@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Coins, GraduationCap, Home as HomeIcon, Plug, Inbox as InboxIcon, KanbanSquare, MessageSquare, Settings as SettingsIcon, Users } from "lucide-react";
+import { Coins, GraduationCap, Home as HomeIcon, OctagonX, Plug, Inbox as InboxIcon, KanbanSquare, MessageSquare, Settings as SettingsIcon, Users } from "lucide-react";
 import { api, eventsSocket, type Approval, type Company, type Overview, type Task } from "./api";
 import { detectLocale, fill, saveLocale, stringsFor, type Locale, type Strings } from "./i18n";
 import { useDocumentAttributes, usePref, type Theme, type ViewMode } from "./prefs";
@@ -106,7 +106,7 @@ export function App() {
   // Any event of this company refreshes the overview, coalesced so a busy turn does not hammer the API.
   useEffect(() => {
     return eventsSocket((event) => {
-      if (event.type === "company.created") void loadCompanies();
+      if (event.type === "company.created" || event.type === "company.stopped" || event.type === "company.resumed") void loadCompanies();
       if (!company || event.companyId !== company.id) return;
       if (refreshTimer.current) return;
       refreshTimer.current = window.setTimeout(() => {
@@ -122,6 +122,28 @@ export function App() {
   };
 
   const agentName = useCallback((id: string | null) => overview?.agents.find((a) => a.id === id)?.name ?? "—", [overview]);
+  const [stopNotice, setStopNotice] = useState<string | null>(null);
+  const stopAll = async () => {
+    if (!company || !window.confirm(fill(t.stopAllConfirm, { company: company.name }))) return;
+    try {
+      const result = await api.stopCompany(company.id);
+      setStopNotice(fill(t.stoppedNotice, { sessions: String(result.interruptedSessions), routines: String(result.routinesSuspended) }));
+      await loadCompanies();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  };
+  const resumeAll = async () => {
+    if (!company) return;
+    try {
+      await api.resumeCompany(company.id);
+      setStopNotice(null);
+      await loadCompanies();
+      await refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  };
 
   const nav: Array<{ page: Page; label: string; icon: typeof HomeIcon; badge?: number; disabled?: boolean }> = [
     { page: "home", label: t.nav.home, icon: HomeIcon },
@@ -166,6 +188,16 @@ export function App() {
           <SettingsIcon size={20} strokeWidth={1.8} aria-hidden="true" />
           <span>{t.nav.settings}</span>
         </a>
+        {company && company.status === "active" && (
+          <button
+            type="button"
+            onClick={() => void stopAll()}
+            className="mt-1 flex items-center gap-3 rounded-control px-3 py-[9px] text-[14px] font-semibold text-danger hover:bg-danger-soft"
+          >
+            <OctagonX size={20} strokeWidth={1.8} aria-hidden="true" />
+            <span>{t.stopAll}</span>
+          </button>
+        )}
         <Segmented
           value={mode}
           onChange={setMode}
@@ -190,6 +222,17 @@ export function App() {
       </nav>
 
       <main className="min-w-0 flex-1 overflow-auto">
+        {company && company.status === "suspended" && (
+          <div role="alert" className="m-4 flex flex-wrap items-center gap-3 rounded-control border border-danger/40 bg-danger-soft px-3 py-2 text-sm text-danger">
+            <OctagonX size={18} aria-hidden="true" />
+            <span>
+              {fill(t.stoppedBanner, { company: company.name })} {stopNotice}
+            </span>
+            <button type="button" onClick={() => void resumeAll()} className="ml-auto rounded-control bg-danger px-3 py-1 text-[13px] font-bold text-white">
+              {t.resumeAll}
+            </button>
+          </div>
+        )}
         {error && (
           <div role="alert" className="m-4 rounded-control border border-danger/40 bg-danger-soft px-3 py-2 text-sm text-danger">
             {error}

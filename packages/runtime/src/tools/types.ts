@@ -34,17 +34,27 @@ export interface ToolOutcome {
   approvalNeeded?: ApprovalNeeded;
 }
 
+/** Where a tool is offered: the company, the agent, the task (null in a conversation) and the kind of session. */
+export interface ToolScope {
+  companyId: string;
+  agentId: string;
+  taskId?: string | null;
+  sessionKind?: string;
+}
+
 export interface NativeTool {
   definition: ToolDefinition;
   /** Risk level, used by governance (M2) for the default permission. */
   risk: "low" | "medium" | "high";
+  /** When given, the tool is offered only where this returns true (for example, only inside a task). */
+  when?(scope: ToolScope): boolean;
   execute(args: Record<string, unknown>, context: ToolContext): Promise<ToolOutcome>;
 }
 
 export interface ToolExecutor {
   definitions(): ToolDefinition[];
   /** Definitions for one company and agent, when tools differ per company (connections); falls back to `definitions()`. */
-  definitionsFor?(scope: { companyId: string; agentId: string }): Promise<ToolDefinition[]>;
+  definitionsFor?(scope: ToolScope): Promise<ToolDefinition[]>;
   execute(name: string, args: Record<string, unknown>, context: ToolContext): Promise<ToolOutcome>;
   /** Governance check without executing: what a person must approve first, if anything. */
   preflight?(name: string, args: Record<string, unknown>, context: ToolContext): Promise<ApprovalNeeded | null>;
@@ -68,6 +78,10 @@ export class NativeToolExecutor implements ToolExecutor {
 
   definitions(): ToolDefinition[] {
     return [...this.tools.values()].map((t) => t.definition);
+  }
+
+  async definitionsFor(scope: ToolScope): Promise<ToolDefinition[]> {
+    return [...this.tools.values()].filter((t) => !t.when || t.when(scope)).map((t) => t.definition);
   }
 
   riskOf(name: string): NativeTool["risk"] | undefined {

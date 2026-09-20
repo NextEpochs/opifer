@@ -161,6 +161,39 @@ describe("Governance API", () => {
     expect((await app.inject({ method: "GET", url: "/v1/companies/00000000-0000-0000-0000-000000000000/overview" })).statusCode).toBe(404);
   });
 
+  it("emergency stop: one command stops the company — no new turn, no budget reservation, routines suspended — until a person resumes", async () => {
+    const routine = await app.inject({
+      method: "POST",
+      url: `/v1/companies/${companyId}/routines`,
+      payload: { agentId, name: "Tick", prompt: "say hi", scheduleKind: "interval", schedule: "60" },
+    });
+    expect(routine.statusCode).toBe(201);
+    const stopped = await app.inject({ method: "POST", url: `/v1/companies/${companyId}/stop`, payload: { reason: "drill" } });
+    expect(stopped.statusCode).toBe(200);
+    expect(stopped.json()).toMatchObject({ status: "suspended", routinesSuspended: 1 });
+    // A new turn is refused before any model call.
+    const session = (await app.inject({ method: "POST", url: `/v1/companies/${companyId}/sessions`, payload: { agentId } })).json() as { id: string };
+    const refused = await app.inject({ method: "POST", url: `/v1/sessions/${session.id}/messages`, payload: { text: "hello?" } });
+    expect([409, 500]).toContain(refused.statusCode);
+    expect(JSON.stringify(refused.json())).toContain("suspended");
+    // No budget reservation either.
+    const decision = await app.opifer.governance!.gates.budget!.reserve(
+      { companyId, agentId, sessionId: session.id, runId: session.id, projectId: null, taskId: null },
+      { modelId: "fake/echo", inputTokens: 10, maxOutputTokens: 10 },
+    );
+    expect(decision.allowed).toBe(false);
+    // Due routines of a stopped company are not claimed.
+    await db.sql`UPDATE routines SET next_due_at = now() - interval '1 second' WHERE company_id = ${companyId}`;
+    expect((await app.opifer.routines.claimDue()).claimed).toHaveLength(0);
+    expect(events.some((e) => e.type === "company.stopped")).toBe(true);
+    // Resume: the routine is claimed and the agent answers again.
+    expect((await app.inject({ method: "POST", url: `/v1/companies/${companyId}/resume` })).statusCode).toBe(200);
+    expect((await app.opifer.routines.claimDue()).claimed).toHaveLength(1);
+    const ok = await app.inject({ method: "POST", url: `/v1/sessions/${session.id}/messages`, payload: { text: "hello again" } });
+    expect(ok.statusCode).toBe(202);
+    await app.inject({ method: "DELETE", url: `/v1/companies/${companyId}/routines/${(routine.json() as { id: string }).id}` });
+  });
+
   it("stores secrets without ever returning their values, and versions agent changes", async () => {
     const put = await app.inject({ method: "PUT", url: `/v1/companies/${companyId}/secrets`, payload: { name: "API_KEY", value: "very-secret-value" } });
     expect(put.statusCode).toBe(201);

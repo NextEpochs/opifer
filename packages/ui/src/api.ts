@@ -18,6 +18,11 @@ export interface Company {
   createdAt: string;
 }
 
+export interface StopResult extends Company {
+  interruptedSessions: number;
+  routinesSuspended: number;
+}
+
 export interface Agent {
   id: string;
   companyId: string;
@@ -66,6 +71,7 @@ export interface StoredMessage {
 export interface SessionDetail extends Session {
   running: boolean;
   messages: StoredMessage[];
+  compressions: Array<{ id: string; fromSeq: number; toSeq: number; method: string; charsBefore: number; charsAfter: number; summary: string; createdAt: string }>;
   runs: Array<{
     id: string;
     status: string;
@@ -105,6 +111,8 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
 export const api = {
   health: () => request<Health>("/v1/health"),
   companies: () => request<Company[]>("/v1/companies"),
+  stopCompany: (companyId: string, reason?: string) => request<StopResult>(`/v1/companies/${companyId}/stop`, { method: "POST", body: JSON.stringify({ reason: reason ?? "" }) }),
+  resumeCompany: (companyId: string) => request<Company>(`/v1/companies/${companyId}/resume`, { method: "POST" }),
   createCompany: (name: string, mission?: string) =>
     request<Company>("/v1/companies", {
       method: "POST",

@@ -6,6 +6,7 @@
 
 import type { ContentPart, ContentToolCall, ContentToolResult, Message } from "@opifer/sdk";
 import type { GovernanceGates, BudgetDecision } from "./governance.js";
+import { cutPoint, foldSummary, pruneToolResults, summariseDeterministically, summariseWithModel, type ContextOptions } from "./context.js";
 import type { TurnLimits } from "./limits.js";
 import type { ResolvedModel } from "./providers.js";
 import { completeWithRecovery, type CompletionOutcome, type RecoveryOptions } from "./recovery.js";
@@ -21,6 +22,8 @@ export interface TurnDeps {
   recovery: RecoveryOptions;
   maxOutputTokens: number;
   workRoot: string;
+  /** Context management: the model's window and the thresholds of the two lines. */
+  context: ContextOptions & { window: number };
 }
 
 export interface TurnContext {
@@ -53,6 +56,9 @@ export function estimateInputTokens(system: string, messages: Message[]): number
 
 export class Turn {
   private history: StoredMessage[] = [];
+  private summary: string | null = null;
+  private contextFromSeq = 0;
+  private prunedLogged = false;
   private iterations = 0;
   private assistantText = "";
   private readonly started = Date.now();
@@ -73,7 +79,10 @@ export class Turn {
   async run(): Promise<TurnOutcome> {
     const { emit } = this.ctx;
     try {
-      this.history = await this.deps.store.listMessages(this.ctx.session.id);
+      // Only the messages after the last compression: the summary stands in for the rest.
+      this.contextFromSeq = this.ctx.session.contextFromSeq;
+      this.summary = this.ctx.session.contextSummary;
+      this.history = await this.deps.store.listMessages(this.ctx.session.id, { afterSeq: this.contextFromSeq });
       const settled = await this.settlePendingToolCalls();
       if (settled === "approval_pending") return this.outcome("approval_pending", "waiting");
       await this.acceptUserInput();
@@ -101,6 +110,7 @@ export class Turn {
       if (this.aborted) return this.outcome("interrupted", "interrupted");
 
       emit({ type: "phase", phase: "assemble" });
+      await this.compressIfNeeded();
       const request = await this.assembleRequest();
 
       const reservation = await this.reserveBudget(request);
@@ -148,16 +158,73 @@ export class Turn {
 
   private async assembleRequest() {
     const tools = this.deps.tools.definitionsFor
-      ? await this.deps.tools.definitionsFor({ companyId: this.ctx.session.companyId, agentId: this.ctx.session.agentId })
+      ? await this.deps.tools.definitionsFor({
+          companyId: this.ctx.session.companyId,
+          agentId: this.ctx.session.agentId,
+          taskId: this.ctx.session.taskId,
+          sessionKind: this.ctx.session.kind,
+        })
       : this.deps.tools.definitions();
+    // First line: old tool results are shortened in the view; the stored messages never change.
+    const pruned = pruneToolResults(this.history, this.deps.context);
+    if (pruned.prunedChars > 0 && !this.prunedLogged) {
+      this.prunedLogged = true;
+      await this.log("pruned", { chars: pruned.prunedChars });
+    }
     return {
       system: this.ctx.session.systemPrompt,
-      messages: this.history.map((m): Message => ({ role: m.role, content: m.content })),
+      messages: foldSummary(pruned.messages, this.summary),
       tools,
       maxOutputTokens: this.deps.maxOutputTokens,
       cachePrefix: true,
       signal: this.ctx.controller.signal,
     };
+  }
+
+  /**
+   * Second line: past the threshold, the older messages become a summary
+   * written by the auxiliary model (deterministic outline if it fails), the
+   * session records the boundary, and the turn goes on with the same id.
+   */
+  private async compressIfNeeded(): Promise<void> {
+    const { window, compressAt, keepRecent } = this.deps.context;
+    const view = foldSummary(pruneToolResults(this.history, this.deps.context).messages, this.summary);
+    const tokens = estimateInputTokens(this.ctx.session.systemPrompt, view);
+    if (tokens < window * compressAt) return;
+    const cut = cutPoint(this.history, keepRecent);
+    if (cut <= 0) return;
+    const older = this.history.slice(0, cut);
+    const charsBefore = older.reduce((n, m) => n + JSON.stringify(m.content).length, 0) + (this.summary?.length ?? 0);
+    const { emit, session, run } = this.ctx;
+    emit({ type: "phase", phase: "compress" });
+    await this.log("phase", { phase: "compress", tokens, window, messages: older.length });
+    let summary: string;
+    let method: "model" | "deterministic" = "model";
+    try {
+      const auxiliary = this.ctx.fallback ?? this.ctx.primary;
+      const result = await summariseWithModel(auxiliary.provider, auxiliary.model, this.summary, older, this.ctx.controller.signal);
+      summary = result.summary;
+      if (result.usage && this.deps.governance.budget) {
+        const context = { companyId: session.companyId, agentId: session.agentId, sessionId: session.id, runId: run.id, projectId: session.projectId, taskId: session.taskId };
+        const decision = await this.deps.governance.budget.reserve(context, {
+          modelId: auxiliary.id,
+          inputTokens: result.usage.inputTokens,
+          maxOutputTokens: result.usage.outputTokens,
+        });
+        if (decision.allowed) await this.deps.governance.budget.settle(decision.reservationId, auxiliary.id, result.usage, "auxiliary_model");
+      }
+    } catch (error) {
+      method = "deterministic";
+      summary = summariseDeterministically(this.summary, older);
+      emit({ type: "notice", message: `context summary without the model: ${error instanceof Error ? error.message : String(error)}` });
+    }
+    const toSeq = older.at(-1)!.seq;
+    await this.deps.store.recordCompression({ session, runId: run.id, fromSeq: this.contextFromSeq, toSeq, method, charsBefore, charsAfter: summary.length, summary });
+    this.contextFromSeq = toSeq;
+    this.summary = summary;
+    this.history = this.history.slice(cut);
+    emit({ type: "notice", message: `context compressed: ${older.length} messages (${charsBefore} chars) became a ${summary.length}-char summary (${method})` });
+    await this.log("compressed", { fromSeq: this.contextFromSeq, toSeq, method, messages: older.length, charsBefore, charsAfter: summary.length });
   }
 
   /** Budget before the call: the reservation is refused when a cap is reached, and the call never starts. */

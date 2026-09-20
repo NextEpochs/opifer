@@ -39,6 +39,7 @@ const DRIZZLE_TABLES = [
   schema.learningBackups,
   schema.routines,
   schema.routineRuns,
+  schema.sessionCompressions,
   schema.toolConnections,
   schema.webhooks,
   schema.eventSubscriptions,

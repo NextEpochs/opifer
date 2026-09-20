@@ -7,7 +7,7 @@
 import type { ToolDefinition } from "@opifer/sdk";
 import { audit } from "@opifer/db";
 import { classifyCommand } from "@opifer/runtime";
-import type { ApprovalNeeded, ToolContext, ToolExecutor, ToolOutcome } from "@opifer/runtime";
+import type { ApprovalNeeded, ToolContext, ToolExecutor, ToolOutcome, ToolScope } from "@opifer/runtime";
 import type { Sql } from "postgres";
 import type { PermissionService, ResolvedPermission, RiskLevel } from "./permissions.js";
 import { redactSecrets } from "./redaction.js";
@@ -41,7 +41,7 @@ export class GovernedToolExecutor implements ToolExecutor {
     return this.inner.definitions();
   }
 
-  async definitionsFor(scope: { companyId: string; agentId: string }): Promise<ToolDefinition[]> {
+  async definitionsFor(scope: ToolScope): Promise<ToolDefinition[]> {
     return this.inner.definitionsFor ? this.inner.definitionsFor(scope) : this.inner.definitions();
   }
 

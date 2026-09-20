@@ -155,9 +155,37 @@ export const sessions = pgTable(
     lastSeq: integer("last_seq").notNull().default(0),
     // 0004: a session can belong to a task
     taskId: uuid("task_id"),
+    // 0008: the model sees a summary instead of the messages up to this seq
+    contextFromSeq: integer("context_from_seq").notNull().default(0),
+    contextSummary: text("context_summary"),
     ...timestamps,
   },
   (t) => [index("sessions_company_agent_idx").on(t.companyId, t.agentId, t.createdAt), index("sessions_task_idx").on(t.taskId)],
+);
+
+/** 0008: every compression of a session's context, traced. */
+export const sessionCompressions = pgTable(
+  "session_compressions",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+    sessionId: uuid("session_id")
+      .notNull()
+      .references(() => sessions.id, { onDelete: "cascade" }),
+    runId: uuid("run_id").references(() => runs.id, { onDelete: "set null" }),
+    fromSeq: integer("from_seq").notNull(),
+    toSeq: integer("to_seq").notNull(),
+    method: text("method", { enum: ["model", "deterministic"] }).notNull(),
+    charsBefore: integer("chars_before").notNull(),
+    charsAfter: integer("chars_after").notNull(),
+    summary: text("summary").notNull(),
+    ...timestamps,
+  },
+  (t) => [index("session_compressions_session_idx").on(t.sessionId, t.createdAt)],
 );
 
 export const runs = pgTable(

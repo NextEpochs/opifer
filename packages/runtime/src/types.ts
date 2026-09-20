@@ -21,6 +21,9 @@ export interface SessionRecord {
   /** The task's project, for the budget context. */
   projectId: string | null;
   lastSeq: number;
+  /** Messages up to this seq are represented to the model by `contextSummary` (0 = none). */
+  contextFromSeq: number;
+  contextSummary: string | null;
   createdAt: string;
   updatedAt: string;
 }

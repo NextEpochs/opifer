@@ -25,6 +25,6 @@ export type {
   WorkProduct,
   WorkProductKind,
 } from "./types.js";
-export { taskTools, describeTask, TASK_GUIDE } from "./tools.js";
+export { taskTools, describeTask, TASK_GUIDE, CHAT_GUIDE } from "./tools.js";
 export { RoutineService, nextDue, normaliseSchedule, parseEveryPhrase } from "./routines.js";
 export type { Routine, RoutineRun, RoutineRunStatus, RoutineMode, ScheduleKind, CreateRoutineInput } from "./routines.js";

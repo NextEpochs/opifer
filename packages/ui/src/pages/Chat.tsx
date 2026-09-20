@@ -10,9 +10,11 @@ interface LiveState {
   streaming: string;
   tools: Array<{ id: string; name: string; status: "running" | "ok" | "error"; detail: string }>;
   notices: string[];
+  /** A turn is in progress: the agent is thinking, writing or using tools. */
+  busy: boolean;
 }
 
-const emptyLive: LiveState = { streaming: "", tools: [], notices: [] };
+const emptyLive: LiveState = { streaming: "", tools: [], notices: [], busy: false };
 
 /** Chat with an agent: the primary door. Approvals show up in the thread; the workbench shows what the agent is doing. */
 export function ChatPage({ ws, param }: { ws: Workspace; param: string | null }) {
@@ -69,6 +71,7 @@ export function ChatPage({ ws, param }: { ws: Workspace; param: string | null })
         if (event.type === "session.created") void loadSessions();
         if (event.type !== "session.event" || payload?.sessionId !== selected || !payload.event) return;
         const e = payload.event;
+        if (e["type"] !== "done") setLive((l) => (l.busy ? l : { ...l, busy: true }));
         switch (e["type"]) {
           case "text":
             setLive((l) => ({ ...l, streaming: l.streaming + String(e["text"] ?? "") }));
@@ -135,9 +138,11 @@ export function ChatPage({ ws, param }: { ws: Workspace; param: string | null })
     setError(null);
     const message = text.trim();
     setText("");
+    setLive((l) => ({ ...l, busy: true }));
     try {
       await api.sendMessage(selected, message);
     } catch (err) {
+      setLive((l) => ({ ...l, busy: false }));
       setError(err instanceof Error ? err.message : String(err));
     }
   };
@@ -148,9 +153,12 @@ export function ChatPage({ ws, param }: { ws: Workspace; param: string | null })
 
   const agentOf = (id: string) => agents.find((a) => a.id === id);
   const name = detail ? ws.agentName(detail.agentId) : "";
-  const running = detail?.running || live.streaming !== "" || live.tools.some((tool) => tool.status === "running");
+  const running = detail?.running || live.busy || live.streaming !== "" || live.tools.some((tool) => tool.status === "running");
   const lastRun = detail?.runs.at(-1);
   const inThread = detail ? pending.filter((a) => a.sessionId === detail.id) : [];
+  // Tool call id → tool name, so a result can say which tool answered.
+  const toolNames = new Map<string, string>();
+  for (const m of detail?.messages ?? []) for (const p of m.content) if (p.type === "tool_call") toolNames.set(p.id, p.name);
   const totalIn = detail?.runs.reduce((n, r) => n + r.inputTokens, 0) ?? 0;
   const totalOut = detail?.runs.reduce((n, r) => n + r.outputTokens, 0) ?? 0;
   const today = new Date().toDateString();
@@ -236,7 +244,7 @@ export function ChatPage({ ws, param }: { ws: Workspace; param: string | null })
 
             <div className="flex-1 space-y-4 overflow-y-auto px-7 py-5" role="log" aria-live="polite">
               {detail.messages.map((m) => (
-                <MessageView key={m.id} message={m} agent={name} t={t} advanced={mode === "advanced"} />
+                <MessageView key={m.id} message={m} agent={name} t={t} advanced={mode === "advanced"} toolNames={toolNames} />
               ))}
               {live.tools.length > 0 && (
                 <ul className="m-0 list-none space-y-1 p-0 pl-11 text-[13px]">
@@ -253,6 +261,22 @@ export function ChatPage({ ws, param }: { ws: Workspace; param: string | null })
                 <div className="flex max-w-[78%] gap-3">
                   <Avatar name={name} size={32} />
                   <p className="m-0 whitespace-pre-wrap rounded-[4px_18px_18px_18px] border border-line bg-card px-4 py-3 text-[15px] leading-relaxed">{live.streaming}</p>
+                </div>
+              )}
+              {running && !live.streaming && inThread.length === 0 && (
+                <div className="flex items-center gap-3" aria-live="polite">
+                  <Avatar name={name} size={32} />
+                  <p className="m-0 flex items-center gap-2 rounded-[4px_18px_18px_18px] border border-line bg-card px-4 py-3 text-[14px] text-mute">
+                    {fill(live.tools.some((tool) => tool.status === "running") ? t.usingTool : t.isWriting, {
+                      agent: name,
+                      tool: live.tools.find((tool) => tool.status === "running")?.name ?? "",
+                    })}
+                    <span className="typing" aria-hidden="true">
+                      <i />
+                      <i />
+                      <i />
+                    </span>
+                  </p>
                 </div>
               )}
               {inThread.map((a) => (
@@ -335,6 +359,11 @@ export function ChatPage({ ws, param }: { ws: Workspace; param: string | null })
                 {lastRun.inputTokens} / {lastRun.outputTokens} {t.tokens}
               </div>
               <div className="font-mono">{detail.model}</div>
+              {detail.compressions.length > 0 && (
+                <div className="mt-1" title={detail.compressions.at(-1)?.summary}>
+                  {fill(t.compressedTimes, { n: String(detail.compressions.length), chars: String(detail.compressions.reduce((n, c) => n + c.charsBefore - c.charsAfter, 0)) })}
+                </div>
+              )}
             </div>
           )}
         </aside>
@@ -343,7 +372,7 @@ export function ChatPage({ ws, param }: { ws: Workspace; param: string | null })
   );
 }
 
-function MessageView({ message, agent, t, advanced }: { message: StoredMessage; agent: string; t: Strings; advanced: boolean }) {
+function MessageView({ message, agent, t, advanced, toolNames }: { message: StoredMessage; agent: string; t: Strings; advanced: boolean; toolNames: Map<string, string> }) {
   if (message.role === "user") {
     return (
       <div className="flex justify-end">
@@ -359,8 +388,9 @@ function MessageView({ message, agent, t, advanced }: { message: StoredMessage; 
         {message.content.map((part, i) =>
           part.type === "tool_result" ? (
             <details key={i} className="text-[13px]">
-              <summary className={`cursor-pointer ${part.isError ? "text-danger" : "text-mute"}`}>
-                {part.isError ? "✗" : "✓"} {t.toolResults}
+              <summary className={`cursor-pointer truncate ${part.isError ? "text-danger" : "text-mute"}`}>
+                {part.isError ? "✗" : "✓"} <span className="font-mono text-[12px]">{toolNames.get(part.toolCallId) ?? t.toolResults}</span>
+                <span className="ml-2 text-[12px] text-faint">{part.content.split("\n")[0]?.slice(0, 120)}</span>
               </summary>
               <pre className="mt-1 max-h-48 overflow-auto rounded-[10px] border border-line bg-bg p-2.5 font-mono text-[12px] text-ink-2">{part.content.slice(0, 4000)}</pre>
             </details>

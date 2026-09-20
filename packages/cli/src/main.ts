@@ -48,6 +48,7 @@ import {
   runRoutineAction,
   runRoutineCreate,
   runRoutineList,
+  runStopAll,
   runWebhookCreate,
   runWebhookList,
   runWebhookRemove,
@@ -529,6 +530,18 @@ channel
   .description("remove a channel")
   .option("--company <name>", "company (default: the first one)")
   .action(async (name: string, opts: { company?: string }) => runChannelRemove({ name, ...opts, ...homeOf(program) }));
+
+program
+  .command("stop")
+  .description("emergency stop: every agent of the company stops, routines pause, no model is called until resume")
+  .option("--reason <text>", "why (recorded in the audit)")
+  .option("--company <name>", "company (default: the first one)")
+  .action(async (opts: { reason?: string; company?: string }) => runStopAll({ ...opts, ...homeOf(program) }));
+program
+  .command("resume")
+  .description("lift the emergency stop")
+  .option("--company <name>", "company (default: the first one)")
+  .action(async (opts: { company?: string }) => runStopAll({ ...opts, resume: true, ...homeOf(program) }));
 
 function homeOf(cmd: Command): { home?: string } {
   const home = (cmd.opts() as { home?: string }).home;

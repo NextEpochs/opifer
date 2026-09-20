@@ -17,8 +17,27 @@ function canEmbed(provider: ModelProvider): provider is ModelProvider & Embeddin
   return typeof (provider as Partial<EmbeddingProvider>).embedder === "function";
 }
 
+export const DEFAULT_CONTEXT_WINDOW = 128_000;
+
 export class ProviderRegistry {
   private readonly providers = new Map<string, ModelProvider>();
+  private readonly windows = new Map<string, number>();
+
+  /** The model's context window in tokens, from the provider's model list; a safe default when unknown. */
+  async contextWindow(modelId: string): Promise<number> {
+    const cached = this.windows.get(modelId);
+    if (cached) return cached;
+    let window = DEFAULT_CONTEXT_WINDOW;
+    try {
+      const { provider, model } = this.resolve(modelId);
+      const info = (await provider.listModels()).find((m) => m.id === model || m.id === modelId);
+      if (info?.capabilities.contextWindow) window = info.capabilities.contextWindow;
+    } catch {
+      // unknown model or provider without a list: the default stands
+    }
+    this.windows.set(modelId, window);
+    return window;
+  }
 
   register(provider: ModelProvider): this {
     if (this.providers.has(provider.id)) throw new Error(`Provider already registered: ${provider.id}`);
