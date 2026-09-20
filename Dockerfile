@@ -14,8 +14,9 @@ COPY plugins ./plugins
 COPY scripts ./scripts
 RUN pnpm install --frozen-lockfile
 RUN pnpm build
-# Removes the development dependencies while keeping the compiled dist folders (CI=true: pnpm refuses to prune without a TTY otherwise).
-RUN CI=true pnpm prune --prod
+# Keeps only the production dependencies (the compiled dist folders are untouched). `pnpm prune --prod` is not
+# reliable in a workspace: it dropped commander from the CLI. CI=true: pnpm refuses to remove node_modules without a TTY.
+RUN CI=true pnpm install --prod --frozen-lockfile --offline
 
 FROM node:22-bookworm-slim
 ENV NODE_ENV=production \
