@@ -21,6 +21,16 @@ pnpm o4r up                                # avvia server e interfaccia su http:
 
 Altri comandi: `pnpm o4r down`, `pnpm o4r doctor`, `pnpm o4r migrate status|up|down`.
 
+### In container (opzionale)
+
+Docker non serve per l'installazione locale. È un'opzione di distribuzione per server e cloud:
+
+```bash
+docker compose up -d      # costruisce l'immagine, crea database e prima azienda nel volume opifer-data
+```
+
+Docker servirà invece come sandbox di default per i comandi eseguiti dagli agenti (dalla milestone M5).
+
 ## Struttura del monorepo
 
 | Pacchetto | Contenuto |

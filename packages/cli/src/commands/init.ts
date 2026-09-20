@@ -6,6 +6,7 @@ import { c, say } from "../output.js";
 export interface InitOptions {
   home?: string;
   company?: string;
+  host?: string;
   port?: string;
   dbPort?: string;
 }
@@ -14,6 +15,7 @@ export async function runInit(options: InitOptions): Promise<void> {
   const home = resolveHome(options.home);
   const existing = await readConfig(home);
   const config: OpiferConfig = existing ?? structuredClone(DEFAULT_CONFIG);
+  if (options.host) config.server.host = options.host;
   if (options.port) config.server.port = Number(options.port);
   if (options.dbPort) config.database.port = Number(options.dbPort);
 

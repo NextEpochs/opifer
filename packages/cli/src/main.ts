@@ -24,9 +24,10 @@ program
   .command("init")
   .description("installazione guidata: database incorporato, migrazioni, prima azienda")
   .option("--company <nome>", "nome della prima azienda")
+  .option("--host <indirizzo>", "indirizzo del server (default 127.0.0.1)")
   .option("--port <n>", "porta del server (default 4700)")
   .option("--db-port <n>", "porta del database incorporato (default 4701)")
-  .action(async (opts: { company?: string; port?: string; dbPort?: string }) => {
+  .action(async (opts: { company?: string; host?: string; port?: string; dbPort?: string }) => {
     await runInit({ ...opts, ...homeOf(program) });
   });
 
