@@ -186,8 +186,18 @@ describe("Governance API", () => {
     await db.sql`UPDATE routines SET next_due_at = now() - interval '1 second' WHERE company_id = ${companyId}`;
     expect((await app.opifer.routines.claimDue()).claimed).toHaveLength(0);
     expect(events.some((e) => e.type === "company.stopped")).toBe(true);
-    // Resume: the routine is claimed and the agent answers again.
-    expect((await app.inject({ method: "POST", url: `/v1/companies/${companyId}/resume` })).statusCode).toBe(200);
+    // Resume: the routine is claimed, open tasks are woken again, and the agent answers again.
+    const task = (
+      await app.inject({ method: "POST", url: `/v1/companies/${companyId}/tasks`, payload: { title: "Interrupted by the drill", assigneeAgentId: agentId } })
+    ).json() as { id: string };
+    await db.sql`UPDATE wakeups SET status = 'done' WHERE task_id = ${task.id}`;
+    const resumed = await app.inject({ method: "POST", url: `/v1/companies/${companyId}/resume` });
+    expect(resumed.statusCode).toBe(200);
+    expect((resumed.json() as { rewoken: number }).rewoken).toBe(1);
+    expect(
+      ((await app.inject({ method: "GET", url: `/v1/companies/${companyId}/wakeups?status=pending` })).json() as Array<{ taskId: string }>).some((w) => w.taskId === task.id),
+    ).toBe(true);
+    await app.inject({ method: "POST", url: `/v1/tasks/${task.id}/cancel`, payload: { note: "drill over" } });
     expect((await app.opifer.routines.claimDue()).claimed).toHaveLength(1);
     const ok = await app.inject({ method: "POST", url: `/v1/sessions/${session.id}/messages`, payload: { text: "hello again" } });
     expect(ok.statusCode).toBe(202);

@@ -128,8 +128,16 @@ export async function registerCompanyRoutes(app: FastifyInstance): Promise<void>
   app.post<{ Params: { id: string } }>("/companies/:id/resume", async (request, reply) => {
     const [row] = await sql<CompanyRow[]>`UPDATE companies SET status = 'active' WHERE id = ${request.params.id} AND status = 'suspended' RETURNING *`;
     if (!row) return reply.code(409).send({ error: "the company is not stopped" });
-    await audit(sql, { companyId: row.id, actorKind: "person", action: "company.resumed", subjectKind: "company", subjectId: row.id });
-    app.opifer.bus.publish("company.resumed", row.id, {});
-    return toCompany(row);
+    // Work interrupted by the stop goes on: every open task with an agent is woken again (deduplicated while pending).
+    const open = await app.opifer.work.listTasks(row.id, { status: ["todo"] });
+    let rewoken = 0;
+    for (const t of open) {
+      if (!t.assigneeAgentId) continue;
+      await app.opifer.work.wake(row.id, t.assigneeAgentId, "assignment", { taskId: t.id, dedupeKey: `assignment:${t.id}` });
+      rewoken++;
+    }
+    await audit(sql, { companyId: row.id, actorKind: "person", action: "company.resumed", subjectKind: "company", subjectId: row.id, after: { rewoken } });
+    app.opifer.bus.publish("company.resumed", row.id, { rewoken });
+    return { ...toCompany(row), rewoken };
   });
 }
