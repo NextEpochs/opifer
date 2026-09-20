@@ -1,5 +1,5 @@
-# Opifer in container: opzione di distribuzione per server e cloud.
-# L'installazione locale non richiede Docker (vedi README).
+# Opifer in a container: deployment option for servers and cloud.
+# The local installation does not require Docker (see README).
 #
 #   docker build -t opifer .
 #   docker run -p 4700:4700 -v opifer-data:/data opifer
@@ -14,7 +14,7 @@ COPY plugins ./plugins
 COPY scripts ./scripts
 RUN pnpm install --frozen-lockfile
 RUN pnpm build
-# Toglie le dipendenze di sviluppo mantenendo i dist compilati.
+# Removes the development dependencies while keeping the compiled dist folders.
 RUN pnpm prune --prod
 
 FROM node:22-bookworm-slim
@@ -22,7 +22,7 @@ ENV NODE_ENV=production \
     OPIFER_HOME=/data \
     OPIFER_HOST=0.0.0.0 \
     OPIFER_PORT=4700
-# Postgres non gira come root: l'immagine usa l'utente "node" già presente.
+# Postgres does not run as root: the image uses the existing "node" user.
 RUN mkdir -p /data && chown node:node /data
 WORKDIR /app
 COPY --from=build --chown=node:node /app /app
@@ -31,5 +31,5 @@ VOLUME ["/data"]
 EXPOSE 4700
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s \
   CMD node -e "fetch('http://127.0.0.1:'+process.env.OPIFER_PORT+'/v1/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
-# init è idempotente: alla prima partenza crea database e azienda, poi solo aggiorna le migrazioni.
-CMD ["sh", "-c", "node packages/cli/dist/main.js init --host \"$OPIFER_HOST\" --port \"$OPIFER_PORT\" --company \"${OPIFER_COMPANY:-La mia azienda}\" --no-color && exec node packages/cli/dist/main.js up --no-color"]
+# init is idempotent: on first start it creates database and company, afterwards it only updates the migrations.
+CMD ["sh", "-c", "node packages/cli/dist/main.js init --host \"$OPIFER_HOST\" --port \"$OPIFER_PORT\" --company \"${OPIFER_COMPANY:-My company}\" --no-color && exec node packages/cli/dist/main.js up --no-color"]

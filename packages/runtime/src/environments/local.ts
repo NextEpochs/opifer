@@ -1,7 +1,7 @@
 /**
- * Ambiente di esecuzione locale: i comandi girano sulla macchina di Opifer,
- * nella cartella di lavoro della sessione. È il backend della modalità locale
- * fidata; Docker (M5) diventa il default con rete limitata.
+ * Local execution environment: commands run on the Opifer machine, in the
+ * session's working directory. It is the backend of the trusted local mode;
+ * Docker (M5) becomes the default, with restricted network.
  */
 
 import { spawn } from "node:child_process";
@@ -12,11 +12,11 @@ import type { CommandResult, ExecutionEnvironment } from "@opifer/sdk";
 const OUTPUT_CAP = 64 * 1024;
 
 function capped(text: string): string {
-  return text.length > OUTPUT_CAP ? `${text.slice(0, OUTPUT_CAP)}\n[... output troncato a ${OUTPUT_CAP} caratteri ...]` : text;
+  return text.length > OUTPUT_CAP ? `${text.slice(0, OUTPUT_CAP)}\n[... output truncated at ${OUTPUT_CAP} characters ...]` : text;
 }
 
 export class LocalEnvironment implements ExecutionEnvironment {
-  readonly id = "locale";
+  readonly id = "local";
   private workdir = process.cwd();
 
   async prepare(workdir: string): Promise<void> {
@@ -27,7 +27,7 @@ export class LocalEnvironment implements ExecutionEnvironment {
   resolve(p: string): string {
     const full = path.resolve(this.workdir, p);
     if (full !== this.workdir && !full.startsWith(this.workdir + path.sep)) {
-      throw new Error(`Percorso fuori dalla cartella di lavoro: ${p}`);
+      throw new Error(`Path outside the working directory: ${p}`);
     }
     return full;
   }
@@ -55,11 +55,11 @@ export class LocalEnvironment implements ExecutionEnvironment {
       };
       const timer = setTimeout(() => {
         child.kill("SIGKILL");
-        finish(124, `[comando interrotto dopo ${timeoutMs} ms]`);
+        finish(124, `[command interrupted after ${timeoutMs} ms]`);
       }, timeoutMs);
       const onAbort = () => {
         child.kill("SIGKILL");
-        finish(130, "[comando interrotto dall'operatore]");
+        finish(130, "[command interrupted by the operator]");
       };
       options.signal?.addEventListener("abort", onAbort, { once: true });
       child.stdout.on("data", (chunk: Buffer) => {
@@ -84,6 +84,6 @@ export class LocalEnvironment implements ExecutionEnvironment {
   }
 
   async dispose(): Promise<void> {
-    // niente da liberare in locale
+    // nothing to release locally
   }
 }

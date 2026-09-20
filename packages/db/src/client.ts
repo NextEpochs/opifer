@@ -13,9 +13,9 @@ export interface DatabaseConfig {
 export type Database = PostgresJsDatabase<typeof schema>;
 
 export interface DatabaseHandle {
-  /** Driver grezzo (postgres.js): per migrazioni e SQL a mano. */
+  /** Raw driver (postgres.js): for migrations and hand-written SQL. */
   sql: Sql;
-  /** Accesso tipizzato (Drizzle). */
+  /** Typed access (Drizzle). */
   db: Database;
   close(): Promise<void>;
 }
@@ -36,8 +36,8 @@ export function connect(config: DatabaseConfig, options: { max?: number } = {}):
     onnotice: () => {},
   };
   const sql = postgres({ ...clientOptions, max: options.max ?? 10 });
-  // Drizzle riconfigura i parser delle date del client che riceve: gli si dà un client proprio,
-  // così le query SQL a mano continuano a restituire Date.
+  // Drizzle reconfigures the date parsers of the client it receives: give it its own client,
+  // so hand-written SQL queries keep returning Date.
   const drizzleClient = postgres({ ...clientOptions, max: Math.max(2, Math.ceil((options.max ?? 10) / 2)) });
   const db = drizzle(drizzleClient, { schema });
   return {
@@ -49,7 +49,7 @@ export function connect(config: DatabaseConfig, options: { max?: number } = {}):
   };
 }
 
-/** Attende che il server risponda, con tentativi a intervalli crescenti. */
+/** Waits for the server to answer, retrying at increasing intervals. */
 export async function waitForDatabase(config: DatabaseConfig, timeoutMs = 15_000): Promise<void> {
   const deadline = Date.now() + timeoutMs;
   let delay = 100;
@@ -76,5 +76,5 @@ export async function waitForDatabase(config: DatabaseConfig, timeoutMs = 15_000
       delay = Math.min(delay * 2, 1000);
     }
   }
-  throw new Error(`Il database non risponde su ${config.host}:${config.port}: ${String(lastError)}`);
+  throw new Error(`The database is not answering on ${config.host}:${config.port}: ${String(lastError)}`);
 }

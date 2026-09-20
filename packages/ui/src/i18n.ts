@@ -1,6 +1,6 @@
-/** Testi dell'interfaccia: italiano e inglese dal primo giorno. */
+/** Interface strings: English (default) and Italian from day one. */
 
-export type Locale = "it" | "en";
+export type Locale = "en" | "it";
 
 export interface Strings {
   tagline: string; dashboard: string; companies: string; status: string; server: string; database: string;
@@ -13,49 +13,6 @@ export interface Strings {
 }
 
 const strings: Record<Locale, Strings> = {
-  it: {
-    tagline: "Agenti AI che lavorano, imparano e vengono governati come un'organizzazione",
-    dashboard: "Cruscotto",
-    companies: "Aziende",
-    status: "Stato del sistema",
-    server: "Server",
-    database: "Database",
-    version: "Versione",
-    mode: "Modalità",
-    ok: "in ordine",
-    degraded: "degradato",
-    unreachable: "non raggiungibile",
-    live: "eventi in tempo reale",
-    offline: "eventi non collegati",
-    newCompany: "Nuova azienda",
-    companyName: "Nome dell'azienda",
-    mission: "Missione (facoltativa)",
-    create: "Crea",
-    noCompanies: "Nessuna azienda: creane una per iniziare.",
-    agents: "Agenti",
-    noAgents: "Nessun agente in organigramma.",
-    newAgent: "Nuovo agente",
-    agentName: "Nome dell'agente",
-    agentRole: "Ruolo",
-    reportsTo: "Risponde a",
-    nobody: "nessuno (radice)",
-    audit: "Audit",
-    milestone: "Milestone M1 — runtime",
-    modes: { locale: "locale fidata", autenticata: "autenticata", gestita: "gestita" },
-    chat: "Chat",
-    newSession: "Nuova conversazione",
-    noSessions: "Nessuna conversazione.",
-    untitled: "(senza titolo)",
-    pickSession: "Scegli una conversazione o avviane una nuova.",
-    working: "l'agente sta lavorando…",
-    message: "Messaggio",
-    messageHint: "Scrivi all'agente…",
-    injectHint: "Turno in corso: il messaggio arriva all'agente nel prossimo risultato di tool",
-    send: "Invia",
-    stop: "Ferma",
-    you: "Tu",
-    toolResults: "Risultati dei tool",
-  },
   en: {
     tagline: "AI agents that work, learn and are governed like an organisation",
     dashboard: "Dashboard",
@@ -84,7 +41,7 @@ const strings: Record<Locale, Strings> = {
     nobody: "nobody (root)",
     audit: "Audit",
     milestone: "Milestone M1 — runtime",
-    modes: { locale: "trusted local", autenticata: "authenticated", gestita: "managed" },
+    modes: { local: "trusted local", authenticated: "authenticated", managed: "managed" },
     chat: "Chat",
     newSession: "New conversation",
     noSessions: "No conversations yet.",
@@ -98,6 +55,49 @@ const strings: Record<Locale, Strings> = {
     stop: "Stop",
     you: "You",
     toolResults: "Tool results",
+  },
+  it: {
+    tagline: "Agenti AI che lavorano, imparano e vengono governati come un'organizzazione",
+    dashboard: "Cruscotto",
+    companies: "Aziende",
+    status: "Stato del sistema",
+    server: "Server",
+    database: "Database",
+    version: "Versione",
+    mode: "Modalità",
+    ok: "in ordine",
+    degraded: "degradato",
+    unreachable: "non raggiungibile",
+    live: "eventi in tempo reale",
+    offline: "eventi non collegati",
+    newCompany: "Nuova azienda",
+    companyName: "Nome dell'azienda",
+    mission: "Missione (facoltativa)",
+    create: "Crea",
+    noCompanies: "Nessuna azienda: creane una per iniziare.",
+    agents: "Agenti",
+    noAgents: "Nessun agente in organigramma.",
+    newAgent: "Nuovo agente",
+    agentName: "Nome dell'agente",
+    agentRole: "Ruolo",
+    reportsTo: "Risponde a",
+    nobody: "nessuno (radice)",
+    audit: "Audit",
+    milestone: "Milestone M1 — runtime",
+    modes: { local: "locale fidata", authenticated: "autenticata", managed: "gestita" },
+    chat: "Chat",
+    newSession: "Nuova conversazione",
+    noSessions: "Nessuna conversazione.",
+    untitled: "(senza titolo)",
+    pickSession: "Scegli una conversazione o avviane una nuova.",
+    working: "l'agente sta lavorando…",
+    message: "Messaggio",
+    messageHint: "Scrivi all'agente…",
+    injectHint: "Turno in corso: il messaggio arriva all'agente nel prossimo risultato di tool",
+    send: "Invia",
+    stop: "Ferma",
+    you: "Tu",
+    toolResults: "Risultati dei tool",
   },
 };
 
@@ -115,7 +115,7 @@ export function saveLocale(locale: Locale): void {
   try {
     localStorage.setItem("opifer.locale", locale);
   } catch {
-    // preferenza non salvata: nessun problema
+    // preference not saved: no problem
   }
 }
 

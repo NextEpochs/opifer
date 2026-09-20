@@ -1,7 +1,7 @@
 /**
- * Avvio in sviluppo: usa la cartella di Opifer (OPIFER_HOME o ~/.opifer)
- * già inizializzata con `o4r init`, avvia il Postgres incorporato e il server
- * con log attivi.
+ * Development start-up: uses the Opifer folder (OPIFER_HOME or ~/.opifer)
+ * already initialised with `o4r init`, starts the embedded Postgres and the
+ * server with logging enabled.
  */
 
 import { startEmbeddedPostgres, connect, migrateUp } from "@opifer/db";
@@ -20,7 +20,7 @@ const cluster = await startEmbeddedPostgres({ dataDir: path.join(home, "postgres
 const db = connect(cluster.config);
 await migrateUp(db.sql, { log: console.log });
 
-const app = await buildApp({ db, mode: "locale", logger: true });
+const app = await buildApp({ db, mode: "local", logger: true });
 await app.listen({ host: config.server.host, port: config.server.port });
 
 const shutdown = async () => {

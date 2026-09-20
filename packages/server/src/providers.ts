@@ -1,7 +1,7 @@
 /**
- * Assemblaggio dei provider di modelli dalla configurazione e dalle
- * variabili d'ambiente. In M1 le chiavi arrivano dall'ambiente
- * (ANTHROPIC_API_KEY, OPENAI_API_KEY); dalla M2 vivono nel vault cifrato.
+ * Assembles the model providers from the configuration and the environment
+ * variables. In M1 the keys come from the environment
+ * (ANTHROPIC_API_KEY, OPENAI_API_KEY); from M2 they live in the encrypted vault.
  */
 
 import { ProviderRegistry } from "@opifer/runtime";
@@ -10,12 +10,12 @@ import { OpenAIProvider } from "@opifer/provider-openai";
 import { createCompatibleProvider } from "@opifer/provider-openai-compatible";
 
 export interface ModelsConfig {
-  /** Modello di default per gli agenti senza modello, es. `anthropic/claude-sonnet-5`. */
+  /** Default model for agents without a model, e.g. `anthropic/claude-sonnet-5`. */
   default?: string | null;
   fallback?: string | null;
-  /** Modello ausiliario economico per compressione, titoli e revisione (M4, M6). */
+  /** Cheap auxiliary model for compression, titles and review (M4, M6). */
   auxiliary?: string | null;
-  /** Endpoint compatibile OpenAI per modelli locali. */
+  /** OpenAI-compatible endpoint for local models. */
   local?: { baseURL: string; models?: string[]; tools?: boolean } | null;
 }
 
@@ -23,7 +23,7 @@ export interface ProviderSetup {
   providers: ProviderRegistry;
   defaultModel: string;
   fallbackModel: string | null;
-  /** Descrizione leggibile di cosa è configurato e cosa manca. */
+  /** Human-readable description of what is configured and what is missing. */
   report: Array<{ id: string; enabled: boolean; detail: string }>;
 }
 
@@ -39,16 +39,16 @@ export function setupProviders(config: ModelsConfig = {}, env: NodeJS.ProcessEnv
 
   if (env["ANTHROPIC_API_KEY"]) {
     providers.register(new AnthropicProvider({ apiKey: env["ANTHROPIC_API_KEY"] }));
-    report.push({ id: "anthropic", enabled: true, detail: "chiave da ANTHROPIC_API_KEY" });
+    report.push({ id: "anthropic", enabled: true, detail: "key from ANTHROPIC_API_KEY" });
   } else {
-    report.push({ id: "anthropic", enabled: false, detail: "manca ANTHROPIC_API_KEY" });
+    report.push({ id: "anthropic", enabled: false, detail: "ANTHROPIC_API_KEY is missing" });
   }
 
   if (env["OPENAI_API_KEY"]) {
     providers.register(new OpenAIProvider({ apiKey: env["OPENAI_API_KEY"] }));
-    report.push({ id: "openai", enabled: true, detail: "chiave da OPENAI_API_KEY" });
+    report.push({ id: "openai", enabled: true, detail: "key from OPENAI_API_KEY" });
   } else {
-    report.push({ id: "openai", enabled: false, detail: "manca OPENAI_API_KEY" });
+    report.push({ id: "openai", enabled: false, detail: "OPENAI_API_KEY is missing" });
   }
 
   const localURL = config.local?.baseURL ?? env["OPIFER_LOCAL_BASE_URL"];
@@ -63,7 +63,7 @@ export function setupProviders(config: ModelsConfig = {}, env: NodeJS.ProcessEnv
     );
     report.push({ id: "local", enabled: true, detail: `endpoint ${localURL}` });
   } else {
-    report.push({ id: "local", enabled: false, detail: "nessun endpoint locale (OPIFER_LOCAL_BASE_URL o config)" });
+    report.push({ id: "local", enabled: false, detail: "no local endpoint (OPIFER_LOCAL_BASE_URL or config)" });
   }
 
   const enabled = report.filter((r) => r.enabled).map((r) => r.id);

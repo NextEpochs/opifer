@@ -15,7 +15,7 @@ export interface UpOptions {
   detach?: boolean;
 }
 
-/** Cartella della UI compilata, accanto ai pacchetti del monorepo. */
+/** Folder of the compiled UI, next to the monorepo packages. */
 export function uiDistDir(): string {
   return path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "ui", "dist");
 }
@@ -44,11 +44,11 @@ export async function runUp(options: UpOptions): Promise<void> {
 
   const runningPid = await readPid(home);
   if (runningPid && isProcessAlive(runningPid)) {
-    say.warn(`Opifer è già avviato (pid ${runningPid}) su http://${config.server.host}:${config.server.port}`);
+    say.warn(`Opifer is already running (pid ${runningPid}) on http://${config.server.host}:${config.server.port}`);
     return;
   }
   if (await isPortOpen(config.server.port)) {
-    throw new Error(`La porta ${config.server.port} è occupata da un altro programma`);
+    throw new Error(`Port ${config.server.port} is in use by another program`);
   }
 
   if (options.detach) {
@@ -59,37 +59,37 @@ export async function runUp(options: UpOptions): Promise<void> {
       env: { ...process.env, NO_COLOR: "1" },
     });
     child.unref();
-    say.ok(`Opifer avviato in background (pid ${child.pid}); log in ${home.logFile}`);
-    say.info(`Ferma con ${c.cyan("o4r down")}`);
+    say.ok(`Opifer started in the background (pid ${child.pid}); log in ${home.logFile}`);
+    say.info(`Stop with ${c.cyan("o4r down")}`);
     return;
   }
 
-  say.step("Database incorporato");
+  say.step("Embedded database");
   const db = await openDatabase(home, config);
   await migrateUp(db.handle.sql, { log: (m) => say.info(`  ${m}`) });
 
   const uiDir = uiDistDir();
   const providers = setupProviders(config.models);
   for (const r of providers.report) (r.enabled ? say.ok : say.warn)(`provider ${r.id}: ${r.detail}`);
-  say.ok(`Modello di default: ${providers.defaultModel}`);
-  const app = await buildApp({ db: db.handle, mode: "locale", bus: new EventBus(), uiDir, logger: false, providers, workRoot: home.workDir });
+  say.ok(`Default model: ${providers.defaultModel}`);
+  const app = await buildApp({ db: db.handle, mode: "local", bus: new EventBus(), uiDir, logger: false, providers, workRoot: home.workDir });
   await app.listen({ host: config.server.host, port: config.server.port });
   await writeFile(home.pidFile, `${process.pid}\n`, "utf8");
 
-  say.ok(`Server in ascolto su ${c.bold(`http://${config.server.host}:${config.server.port}`)}`);
-  if (!existsSync(uiDir)) say.warn("Interfaccia non compilata: esegui `pnpm build` per servirla da questo indirizzo");
-  say.info(c.dim("Ctrl-C per fermare"));
+  say.ok(`Server listening on ${c.bold(`http://${config.server.host}:${config.server.port}`)}`);
+  if (!existsSync(uiDir)) say.warn("Interface not compiled: run `pnpm build` to serve it from this address");
+  say.info(c.dim("Ctrl-C to stop"));
 
   let stopping = false;
   const shutdown = async (signal: string) => {
     if (stopping) return;
     stopping = true;
     say.info("");
-    say.step(`Arresto (${signal})`);
+    say.step(`Shutting down (${signal})`);
     await app.close().catch(() => {});
     await db.close().catch(() => {});
     await rm(home.pidFile, { force: true });
-    say.ok("Fermato");
+    say.ok("Stopped");
     process.exit(0);
   };
   process.on("SIGINT", () => void shutdown("SIGINT"));
@@ -101,7 +101,7 @@ export async function runDown(options: { home?: string }): Promise<void> {
   const pid = await readPid(home);
   if (!pid || !isProcessAlive(pid)) {
     await rm(home.pidFile, { force: true });
-    say.warn("Opifer non risulta avviato in background");
+    say.warn("Opifer does not appear to be running in the background");
     return;
   }
   process.kill(pid, "SIGTERM");
@@ -111,9 +111,9 @@ export async function runDown(options: { home?: string }): Promise<void> {
   }
   if (isProcessAlive(pid)) {
     process.kill(pid, "SIGKILL");
-    say.warn(`Processo ${pid} terminato forzatamente`);
+    say.warn(`Process ${pid} killed forcibly`);
   } else {
-    say.ok(`Opifer fermato (pid ${pid})`);
+    say.ok(`Opifer stopped (pid ${pid})`);
   }
   await rm(home.pidFile, { force: true });
 }

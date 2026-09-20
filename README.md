@@ -1,67 +1,67 @@
 # Opifer
 
-**Un unico sistema in cui agenti AI lavorano, imparano e vengono governati come una vera organizzazione.**
+**A single system where AI agents work, learn and are governed like a real organisation.**
 
-Un'installazione, un database, un'interfaccia. Gli agenti imparano dal lavoro svolto, l'organizzazione li governa, l'operatore vede costi e risultati in tempo reale.
+One installation, one database, one interface. Agents learn from the work they do, the organisation governs them, the operator sees costs and results in real time.
 
-Opifer è un prodotto [NextEpochs](https://nextepochs.com). Sito e documentazione: [opifer.dev](https://opifer.dev).
+Opifer is a [NextEpochs](https://nextepochs.com) product. Website and documentation: [opifer.dev](https://opifer.dev).
 
-> Stato: **in costruzione** (milestone M0, fondamenta). Il repository è privato fino alla fine dell'MVP.
+> Status: **under construction** (milestone M0, foundations). The repository is private until the end of the MVP.
 
-## Avvio rapido
+## Quick start
 
-Requisiti: Node.js 22 o superiore e pnpm 10. Nessun altro prerequisito: il database PostgreSQL è incorporato.
+Requirements: Node.js 22 or later and pnpm 10. No other prerequisites: the PostgreSQL database is embedded.
 
 ```bash
 pnpm install
 pnpm build
-pnpm o4r init --company "La mia azienda"   # installa il database locale, applica le migrazioni, crea la prima azienda
-pnpm o4r up                                # avvia server e interfaccia su http://127.0.0.1:4700
+pnpm o4r init --company "My company"   # installs the local database, applies the migrations, creates the first company
+pnpm o4r up                            # starts server and interface on http://127.0.0.1:4700
 ```
 
-Altri comandi: `pnpm o4r down`, `pnpm o4r doctor`, `pnpm o4r migrate status|up|down`.
+Other commands: `pnpm o4r down`, `pnpm o4r doctor`, `pnpm o4r migrate status|up|down`.
 
-### In container (opzionale)
+### In a container (optional)
 
-Docker non serve per l'installazione locale. È un'opzione di distribuzione per server e cloud:
+Docker is not needed for the local installation. It is a deployment option for servers and cloud:
 
 ```bash
-docker compose up -d      # costruisce l'immagine, crea database e prima azienda nel volume opifer-data
+docker compose up -d      # builds the image, creates database and first company in the opifer-data volume
 ```
 
-Docker servirà invece come sandbox di default per i comandi eseguiti dagli agenti (dalla milestone M5).
+Docker will instead serve as the default sandbox for the commands executed by the agents (from milestone M5).
 
-## Struttura del monorepo
+## Monorepo structure
 
-| Pacchetto | Contenuto |
+| Package | Contents |
 | --- | --- |
-| `packages/core` | Modello di dominio, invarianti, eventi |
-| `packages/db` | Schema, migrazioni avanti e indietro, Postgres incorporato |
-| `packages/runtime` | Loop dell'agente, provider di modelli, contesto |
-| `packages/gateway` | Registro tool, client MCP, permessi, prenotazione budget |
-| `packages/server` | API HTTP `/v1`, eventi WebSocket |
-| `packages/ui` | Interfaccia web (React, Vite, Tailwind) |
-| `packages/cli` | Comando `o4r` |
-| `packages/sdk` | Contratti per plugin, canali, provider (MIT) |
-| `plugins/*` | Plugin mantenuti da NextEpochs (MIT) |
+| `packages/core` | Domain model, invariants, events |
+| `packages/db` | Schema, forward and backward migrations, embedded Postgres |
+| `packages/runtime` | Agent loop, model providers, context |
+| `packages/gateway` | Tool registry, MCP client, permissions, budget reservation |
+| `packages/server` | HTTP API `/v1`, WebSocket events |
+| `packages/ui` | Web interface (React, Vite, Tailwind) |
+| `packages/cli` | The `o4r` command |
+| `packages/sdk` | Contracts for plugins, channels, providers (MIT) |
+| `plugins/*` | Plugins maintained by NextEpochs (MIT) |
 
-## Le venti invarianti
+## The twenty invariants
 
-Venti regole sono il contratto del sistema e valgono più di qualsiasi funzionalità. Sono elencate in `packages/core/src/invariants.ts` e ognuna è un test di contratto in `packages/core/test/invariants.test.ts`, che diventa verde milestone dopo milestone.
+Twenty rules are the contract of the system and outweigh any feature. They are listed in `packages/core/src/invariants.ts` and each one is a contract test in `packages/core/test/invariants.test.ts`, which turns green milestone after milestone.
 
-## Sviluppo
+## Development
 
 ```bash
-pnpm typecheck   # controllo dei tipi su tutti i pacchetti
-pnpm test        # test unitari e di contratto (avvia un Postgres incorporato temporaneo)
-pnpm dev         # server in modalità sviluppo
-pnpm --filter @opifer/ui dev   # interfaccia in modalità sviluppo
+pnpm typecheck   # type check on all packages
+pnpm test        # unit and contract tests (starts a temporary embedded Postgres)
+pnpm dev         # server in development mode
+pnpm --filter @opifer/ui dev   # interface in development mode
 ```
 
-Le regole di lavoro per persone e agenti sono in [AGENTS.md](./AGENTS.md).
+The working rules for people and agents are in [AGENTS.md](./AGENTS.md).
 
-## Licenze
+## Licences
 
-Il core di Opifer è distribuito con licenza **AGPL-3.0-only** (vedi [LICENSE](./LICENSE)). L'SDK (`packages/sdk`) e i plugin (`plugins/*`) sono distribuiti con licenza **MIT**, così chi estende Opifer non è vincolato dall'AGPL. I pacchetti verticali NextEpochs sono proprietari e vivono in repository separati.
+The Opifer core is distributed under the **AGPL-3.0-only** licence (see [LICENSE](./LICENSE)). The SDK (`packages/sdk`) and the plugins (`plugins/*`) are distributed under the **MIT** licence, so whoever extends Opifer is not bound by the AGPL. The NextEpochs vertical packages are proprietary and live in separate repositories.
 
-Le licenze delle dipendenze sono raccolte in `THIRD-PARTY-NOTICES`, rigenerato a ogni rilascio con `pnpm third-party-notices`.
+The licences of the dependencies are collected in `THIRD-PARTY-NOTICES`, regenerated at every release with `pnpm third-party-notices`.

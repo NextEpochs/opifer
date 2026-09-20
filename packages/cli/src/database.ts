@@ -1,7 +1,7 @@
 /**
- * Accesso al Postgres incorporato dalla CLI: se il cluster è già in ascolto
- * (server avviato) ci si collega; altrimenti si avvia per la durata del
- * comando e si ferma alla fine.
+ * Access to the embedded Postgres from the CLI: if the cluster is already
+ * listening (server running) we connect to it; otherwise it is started for the
+ * duration of the command and stopped at the end.
  */
 
 import { connect as netConnect } from "node:net";

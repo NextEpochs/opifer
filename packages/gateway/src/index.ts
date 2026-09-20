@@ -1,27 +1,27 @@
 /**
- * Gateway dei tool (M2, M5).
+ * Tool gateway (M2, M5).
  *
- * Registro unico: ogni tool, nativo, MCP o plugin, ha nome, schema, costo
- * stimato e livello di rischio. Ogni chiamata attraversa permesso del ruolo,
- * eventuale approvazione, prenotazione di budget, iniezione dei segreti,
- * esecuzione e audit. In M0 sono fissate le forme.
+ * Single registry: every tool, native, MCP or plugin, has a name, schema,
+ * estimated cost and risk level. Every call goes through role permission,
+ * optional approval, budget reservation, secret injection, execution and
+ * audit. In M0 the shapes are fixed.
  */
 
 import type { ToolDefinition } from "@opifer/sdk";
 
-/** Permesso per ruolo su ogni tool: il default è prudente. */
-export type ToolPermission = "automatico" | "con_approvazione" | "bloccato";
+/** Permission per role on every tool: the default is cautious. */
+export type ToolPermission = "automatic" | "approval" | "blocked";
 
-export const DEFAULT_TOOL_PERMISSION: ToolPermission = "con_approvazione";
+export const DEFAULT_TOOL_PERMISSION: ToolPermission = "approval";
 
-export type RiskLevel = "basso" | "medio" | "alto";
+export type RiskLevel = "low" | "medium" | "high";
 
-export type ToolOrigin = "nativo" | "mcp" | "plugin" | "workflow";
+export type ToolOrigin = "native" | "mcp" | "plugin" | "workflow";
 
 export interface RegisteredTool extends ToolDefinition {
   origin: ToolOrigin;
   risk: RiskLevel;
-  /** Costo stimato per chiamata, se il tool è a pagamento. */
+  /** Estimated cost per call, if the tool is paid. */
   estimatedCost: number | null;
 }
 
@@ -29,7 +29,7 @@ export class ToolRegistry {
   private readonly tools = new Map<string, RegisteredTool>();
 
   register(tool: RegisteredTool): void {
-    if (this.tools.has(tool.name)) throw new Error(`Tool già registrato: ${tool.name}`);
+    if (this.tools.has(tool.name)) throw new Error(`Tool already registered: ${tool.name}`);
     this.tools.set(tool.name, tool);
   }
 

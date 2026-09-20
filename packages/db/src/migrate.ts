@@ -1,9 +1,9 @@
 /**
- * Migratore a coppie di file SQL: `NNNN_nome.up.sql` e `NNNN_nome.down.sql`.
+ * Migrator based on pairs of SQL files: `NNNN_name.up.sql` and `NNNN_name.down.sql`.
  *
- * Ogni migrazione viene applicata (o ritirata) in una singola transazione e
- * registrata nella tabella `schema_migrations`. Una migrazione senza il suo
- * `down` non è ammessa: le migrazioni sono reversibili per contratto.
+ * Every migration is applied (or reverted) in a single transaction and
+ * recorded in the `schema_migrations` table. A migration without its `down`
+ * is not allowed: migrations are reversible by contract.
  */
 
 import { readdir, readFile } from "node:fs/promises";
@@ -31,7 +31,7 @@ export interface MigrationStatus {
 
 const FILE_PATTERN = /^(\d{4})_([a-z0-9_]+)\.(up|down)\.sql$/;
 
-/** Cartella delle migrazioni del pacchetto, valida sia da `src` che da `dist`. */
+/** Migrations folder of the package, valid both from `src` and from `dist`. */
 export const DEFAULT_MIGRATIONS_DIR = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "..",
@@ -50,7 +50,7 @@ export async function loadMigrations(dir: string = DEFAULT_MIGRATIONS_DIR): Prom
     const direction = match[3] as "up" | "down";
     const current = byVersion.get(version) ?? { name };
     if (current.name !== name) {
-      throw new Error(`Migrazione ${version}: nomi diversi per up e down ("${current.name}" e "${name}")`);
+      throw new Error(`Migration ${version}: different names for up and down ("${current.name}" and "${name}")`);
     }
     current[direction] = await readFile(path.join(dir, entry), "utf8");
     byVersion.set(version, current);
@@ -58,15 +58,15 @@ export async function loadMigrations(dir: string = DEFAULT_MIGRATIONS_DIR): Prom
 
   const migrations: Migration[] = [];
   for (const [version, m] of [...byVersion.entries()].sort((a, b) => a[0] - b[0])) {
-    if (!m.up) throw new Error(`Migrazione ${version}_${m.name}: manca il file .up.sql`);
-    if (!m.down) throw new Error(`Migrazione ${version}_${m.name}: manca il file .down.sql`);
+    if (!m.up) throw new Error(`Migration ${version}_${m.name}: missing .up.sql file`);
+    if (!m.down) throw new Error(`Migration ${version}_${m.name}: missing .down.sql file`);
     migrations.push({ version, name: m.name, upSql: m.up, downSql: m.down });
   }
 
   for (let i = 0; i < migrations.length; i++) {
     const expected = i + 1;
     if (migrations[i]!.version !== expected) {
-      throw new Error(`Le migrazioni devono essere consecutive: attesa ${expected}, trovata ${migrations[i]!.version}`);
+      throw new Error(`Migrations must be consecutive: expected ${expected}, found ${migrations[i]!.version}`);
     }
   }
   return migrations;
@@ -96,12 +96,12 @@ export async function migrationStatus(sql: Sql, dir?: string): Promise<Migration
 
 export interface MigrateOptions {
   dir?: string;
-  /** Applica (o ritira) fino a questa versione inclusa. */
+  /** Apply (or revert) up to and including this version. */
   to?: number;
   log?: (message: string) => void;
 }
 
-/** Applica le migrazioni in attesa, in ordine, una transazione ciascuna. */
+/** Applies the pending migrations, in order, one transaction each. */
 export async function migrateUp(sql: Sql, options: MigrateOptions = {}): Promise<Migration[]> {
   const { pending } = await migrationStatus(sql, options.dir);
   const toApply = options.to === undefined ? pending : pending.filter((m) => m.version <= options.to!);
@@ -116,11 +116,11 @@ export async function migrateUp(sql: Sql, options: MigrateOptions = {}): Promise
 }
 
 export interface MigrateDownOptions extends MigrateOptions {
-  /** Numero di migrazioni da ritirare partendo dall'ultima (default 1). */
+  /** Number of migrations to revert starting from the last one (default 1). */
   steps?: number;
 }
 
-/** Ritira le ultime migrazioni applicate, dall'ultima alla prima. */
+/** Reverts the most recently applied migrations, from the last to the first. */
 export async function migrateDown(sql: Sql, options: MigrateDownOptions = {}): Promise<Migration[]> {
   const all = await loadMigrations(options.dir);
   const { applied } = await migrationStatus(sql, options.dir);
@@ -136,7 +136,7 @@ export async function migrateDown(sql: Sql, options: MigrateDownOptions = {}): P
   const reverted: Migration[] = [];
   for (const a of targets) {
     const m = byVersion.get(a.version);
-    if (!m) throw new Error(`Migrazione ${a.version} applicata ma file mancante: impossibile ritirarla`);
+    if (!m) throw new Error(`Migration ${a.version} is applied but its file is missing: cannot revert it`);
     await sql.begin(async (tx) => {
       await tx.unsafe(m.downSql);
       await tx`DELETE FROM schema_migrations WHERE version = ${m.version}`;

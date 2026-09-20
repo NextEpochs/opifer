@@ -1,7 +1,7 @@
 /**
- * Recupero dagli errori del provider: ritentativi a intervalli crescenti per
- * gli errori transitori, passaggio al modello di riserva quando i tentativi
- * sono esauriti, un solo nuovo tentativo per una risposta vuota.
+ * Recovery from provider errors: retries with increasing delays for
+ * transient errors, switch to the fallback model when the attempts are
+ * exhausted, a single retry for an empty response.
  */
 
 import { ProviderError, type CompletionRequest, type ContentToolCall, type ModelProvider, type Usage } from "@opifer/sdk";
@@ -69,12 +69,12 @@ async function attemptModel(
   let emptyRetried = false;
   let lastError: unknown;
   for (let attempt = 1; attempt <= options.maxAttempts; attempt++) {
-    if (request.signal?.aborted) throw new Error("interrotto");
+    if (request.signal?.aborted) throw new Error("interrupted");
     try {
       const outcome = await consume(resolved.provider, { ...request, model: resolved.model }, onText);
       if (!outcome.text && outcome.toolCalls.length === 0 && outcome.stopReason !== "aborted" && !emptyRetried) {
         emptyRetried = true;
-        options.onRetry?.(attempt, 0, "risposta vuota");
+        options.onRetry?.(attempt, 0, "empty response");
         continue;
       }
       return { ...outcome, modelId: resolved.id };
@@ -87,10 +87,10 @@ async function attemptModel(
       await sleep(delay);
     }
   }
-  throw lastError ?? new Error("chiamata al modello fallita");
+  throw lastError ?? new Error("model call failed");
 }
 
-/** Chiama il modello principale con ritentativi; se fallisce e c'è una riserva, passa alla riserva. */
+/** Calls the primary model with retries; if it fails and there is a fallback, switches to the fallback. */
 export async function completeWithRecovery(
   primary: ResolvedModel,
   fallback: ResolvedModel | null,

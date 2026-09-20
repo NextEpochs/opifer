@@ -66,14 +66,14 @@ export async function registerAgentRoutes(app: FastifyInstance): Promise<void> {
     async (request, reply) => {
       const companyId = request.params.id;
       const [company] = await sql<{ id: string }[]>`SELECT id FROM companies WHERE id = ${companyId}`;
-      if (!company) return reply.code(404).send({ error: "azienda non trovata" });
+      if (!company) return reply.code(404).send({ error: "company not found" });
 
       const body = request.body;
       if (body.reportsToAgentId) {
         const [manager] = await sql<{ id: string }[]>`
           SELECT id FROM agents WHERE id = ${body.reportsToAgentId} AND company_id = ${companyId}
         `;
-        if (!manager) return reply.code(400).send({ error: "il responsabile indicato non esiste in questa azienda" });
+        if (!manager) return reply.code(400).send({ error: "the given manager does not exist in this company" });
       }
 
       const config = { role: body.role ?? "", model: body.model ?? null };
@@ -85,13 +85,13 @@ export async function registerAgentRoutes(app: FastifyInstance): Promise<void> {
         `;
         await tx`
           INSERT INTO agent_revisions (company_id, agent_id, revision, config, author_kind, note)
-          VALUES (${companyId}, ${row!.id}, 1, ${config as never}::jsonb, 'persona', 'creazione')
+          VALUES (${companyId}, ${row!.id}, 1, ${config as never}::jsonb, 'person', 'creation')
         `;
         await audit(tx, {
           companyId,
-          actorKind: "persona",
-          action: "agente.creato",
-          subjectKind: "agente",
+          actorKind: "person",
+          action: "agent.created",
+          subjectKind: "agent",
           subjectId: row!.id,
           after: { name: row!.name, ...config },
         });
@@ -99,7 +99,7 @@ export async function registerAgentRoutes(app: FastifyInstance): Promise<void> {
       });
 
       const agent = toAgent(created);
-      app.opifer.bus.publish("agente.creato", companyId, agent);
+      app.opifer.bus.publish("agent.created", companyId, agent);
       return reply.code(201).send(agent);
     },
   );

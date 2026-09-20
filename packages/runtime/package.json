@@ -2,7 +2,7 @@
   "name": "@opifer/runtime",
   "version": "0.0.1",
   "private": true,
-  "description": "Loop dell'agente a fasi, provider di modelli, gestione del contesto.",
+  "description": "Phased agent loop, model providers, context management.",
   "license": "AGPL-3.0-only",
   "type": "module",
   "main": "./dist/index.js",

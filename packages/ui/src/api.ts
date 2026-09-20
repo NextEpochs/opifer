@@ -1,10 +1,10 @@
-/** Client minimo dell'API /v1: stesse regole e stessi dati della CLI. */
+/** Minimal client of the /v1 API: same rules and same data as the CLI. */
 
 export interface Health {
-  status: "ok" | "degradato";
+  status: "ok" | "degraded";
   version: string;
   mode: string;
-  database: "ok" | "errore";
+  database: "ok" | "error";
 }
 
 export interface Company {
@@ -106,7 +106,7 @@ export function eventsSocket(onEvent: (event: BusEvent) => void, onState: (open:
     try {
       onEvent(JSON.parse(String(message.data)) as BusEvent);
     } catch {
-      // messaggio non valido: ignorato
+      // invalid message: ignored
     }
   };
   return () => socket.close();

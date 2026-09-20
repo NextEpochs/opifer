@@ -4,7 +4,7 @@ import type { Strings } from "./i18n";
 
 interface LiveState {
   streaming: string;
-  tools: Array<{ id: string; name: string; status: "in_corso" | "ok" | "errore"; detail: string }>;
+  tools: Array<{ id: string; name: string; status: "running" | "ok" | "error"; detail: string }>;
   notices: string[];
 }
 
@@ -42,33 +42,33 @@ export function Chat({ company, t }: { company: Company; t: Strings }) {
     void loadDetail(selected);
     return eventsSocket((event) => {
       const payload = event.payload as { sessionId?: string; event?: Record<string, unknown> } | undefined;
-      if (event.type === "sessione.creata") void loadLists();
-      if (event.type !== "sessione.evento" || payload?.sessionId !== selected || !payload.event) return;
+      if (event.type === "session.created") void loadLists();
+      if (event.type !== "session.event" || payload?.sessionId !== selected || !payload.event) return;
       const e = payload.event;
       switch (e["type"]) {
-        case "testo":
+        case "text":
           setLive((l) => ({ ...l, streaming: l.streaming + String(e["text"] ?? "") }));
           break;
-        case "tool_chiamata":
-          setLive((l) => ({ ...l, tools: [...l.tools, { id: String(e["callId"]), name: String(e["name"]), status: "in_corso", detail: JSON.stringify(e["arguments"] ?? {}).slice(0, 160) }] }));
+        case "tool_call":
+          setLive((l) => ({ ...l, tools: [...l.tools, { id: String(e["callId"]), name: String(e["name"]), status: "running", detail: JSON.stringify(e["arguments"] ?? {}).slice(0, 160) }] }));
           break;
-        case "tool_risultato":
+        case "tool_result":
           setLive((l) => ({
             ...l,
-            tools: l.tools.map((tool) => (tool.id === e["callId"] ? { ...tool, status: e["isError"] ? "errore" : "ok", detail: String(e["content"] ?? "").split("\n")[0]!.slice(0, 160) } : tool)),
+            tools: l.tools.map((tool) => (tool.id === e["callId"] ? { ...tool, status: e["isError"] ? "error" : "ok", detail: String(e["content"] ?? "").split("\n")[0]!.slice(0, 160) } : tool)),
           }));
           break;
-        case "messaggio":
-          // il messaggio assistente è persistito: il testo in streaming diventa parte della cronologia
+        case "message":
+          // the assistant message is persisted: the streamed text becomes part of the history
           setLive((l) => ({ ...l, streaming: "" }));
           void loadDetail(selected);
           break;
-        case "avviso":
-        case "ritentativo":
-        case "riserva":
+        case "notice":
+        case "retry":
+        case "fallback":
           setLive((l) => ({ ...l, notices: [...l.notices, String(e["message"] ?? e["reason"] ?? e["type"])] }));
           break;
-        case "fine":
+        case "done":
           setLive(emptyLive);
           void loadDetail(selected);
           void loadLists();
@@ -113,7 +113,7 @@ export function Chat({ company, t }: { company: Company; t: Strings }) {
   };
 
   const agentName = (id: string) => agents.find((a) => a.id === id)?.name ?? "?";
-  const running = detail?.running || live.streaming !== "" || live.tools.some((tool) => tool.status === "in_corso");
+  const running = detail?.running || live.streaming !== "" || live.tools.some((tool) => tool.status === "running");
 
   return (
     <section className="grid gap-4 md:grid-cols-[16rem_1fr]" aria-label={t.chat}>
@@ -173,7 +173,7 @@ export function Chat({ company, t }: { company: Company; t: Strings }) {
                 <ul className="space-y-1 font-mono text-xs text-zinc-500">
                   {live.tools.map((tool) => (
                     <li key={tool.id}>
-                      {tool.status === "in_corso" ? "…" : tool.status === "ok" ? "✓" : "✗"} {tool.name} <span className="text-zinc-400">{tool.detail}</span>
+                      {tool.status === "running" ? "…" : tool.status === "ok" ? "✓" : "✗"} {tool.name} <span className="text-zinc-400">{tool.detail}</span>
                     </li>
                   ))}
                 </ul>
@@ -197,13 +197,13 @@ export function Chat({ company, t }: { company: Company; t: Strings }) {
               </p>
             )}
             <form onSubmit={send} className="flex gap-2 border-t border-zinc-200 p-3 dark:border-zinc-800">
-              <input value={text} onChange={(e) => setText(e.target.value)} placeholder={running ? t.injectHint : t.messageHint} aria-label={t.message} className={inputCls} disabled={detail.status !== "attiva"} />
+              <input value={text} onChange={(e) => setText(e.target.value)} placeholder={running ? t.injectHint : t.messageHint} aria-label={t.message} className={inputCls} disabled={detail.status !== "active"} />
               {running ? (
                 <button type="button" onClick={stop} className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm dark:border-zinc-700">
                   {t.stop}
                 </button>
               ) : null}
-              <button type="submit" disabled={detail.status !== "attiva" || !text.trim()} className={buttonCls}>
+              <button type="submit" disabled={detail.status !== "active" || !text.trim()} className={buttonCls}>
                 {t.send}
               </button>
             </form>

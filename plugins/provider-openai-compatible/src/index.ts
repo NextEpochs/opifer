@@ -1,20 +1,20 @@
 /**
- * Endpoint compatibili OpenAI per modelli locali: Ollama, vLLM, LM Studio,
- * llama.cpp e simili. È il provider OpenAI puntato a un altro indirizzo,
- * con gli adattamenti che i server locali richiedono.
+ * OpenAI-compatible endpoints for local models: Ollama, vLLM, LM Studio,
+ * llama.cpp and the like. It is the OpenAI provider pointed at another
+ * address, with the adaptations local servers require.
  */
 
 import { OpenAIProvider, type OpenAIProviderOptions } from "@opifer/provider-openai";
 
 export interface CompatibleProviderOptions {
-  /** Identificativo del provider, prefisso dei modelli (default `local`). */
+  /** Provider id, prefix of the models (default `local`). */
   id?: string;
-  /** Indirizzo dell'API, per esempio `http://127.0.0.1:11434/v1` (Ollama) o `http://127.0.0.1:1234/v1` (LM Studio). */
+  /** API address, for example `http://127.0.0.1:11434/v1` (Ollama) or `http://127.0.0.1:1234/v1` (LM Studio). */
   baseURL: string;
   apiKey?: string;
   models?: string[];
   contextWindow?: number;
-  /** Alcuni server non supportano i tool o l'usage nello streaming. */
+  /** Some servers support neither tools nor usage in streaming. */
   tools?: boolean;
   streamUsage?: boolean;
 }
@@ -30,8 +30,8 @@ export function createCompatibleProvider(options: CompatibleProviderOptions): Op
   const base: OpenAIProviderOptions = {
     id: options.id ?? "local",
     baseURL: options.baseURL,
-    apiKey: options.apiKey ?? "locale",
-    // I modelli locali non hanno un listino: costo zero salvo configurazione.
+    apiKey: options.apiKey ?? "local",
+    // Local models have no price list: zero cost unless configured.
     prices: {},
     compat: { systemRole: "system", tools: options.tools ?? true, streamUsage: options.streamUsage ?? true },
     ...(options.models ? { models: options.models } : {}),

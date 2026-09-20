@@ -1,6 +1,6 @@
 /**
- * La cartella di Opifer: configurazione, dati del Postgres incorporato, pid e log.
- * Default `~/.opifer`, sovrascrivibile con `OPIFER_HOME` o `--home`.
+ * The Opifer folder: configuration, embedded Postgres data, pid and log.
+ * Defaults to `~/.opifer`, overridable with `OPIFER_HOME` or `--home`.
  */
 
 import { mkdir, readFile, writeFile } from "node:fs/promises";
@@ -11,7 +11,7 @@ export interface OpiferConfig {
   version: 1;
   server: { host: string; port: number };
   database: { port: number };
-  /** Modelli: default, riserva, ausiliario ed endpoint locale (le chiavi restano nell'ambiente fino alla M2). */
+  /** Models: default, fallback, auxiliary and local endpoint (the keys stay in the environment until M2). */
   models?: {
     default?: string | null;
     fallback?: string | null;
@@ -33,7 +33,7 @@ export interface OpiferHome {
   postgresDir: string;
   pidFile: string;
   logFile: string;
-  /** Cartelle di lavoro delle sessioni. */
+  /** Working directories of the sessions. */
   workDir: string;
 }
 
@@ -66,7 +66,7 @@ export async function writeConfig(home: OpiferHome, config: OpiferConfig): Promi
 export async function requireConfig(home: OpiferHome): Promise<OpiferConfig> {
   const config = await readConfig(home);
   if (!config) {
-    throw new Error(`Opifer non è inizializzato in ${home.dir}. Esegui prima: o4r init`);
+    throw new Error(`Opifer is not initialised in ${home.dir}. Run first: o4r init`);
   }
   return config;
 }

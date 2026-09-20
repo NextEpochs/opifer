@@ -1,8 +1,8 @@
 /**
- * Il runtime dell'agente: crea sessioni con prefisso stabile ed esegue un
- * turno alla volta come sequenza di fasi separate. Ogni messaggio ed evento
- * è persistito appena esiste; un turno interrotto riprende dalla cronologia
- * senza rieseguire i tool.
+ * The agent runtime: creates sessions with a stable prefix and runs one turn
+ * at a time as a sequence of separate phases. Every message and event is
+ * persisted as soon as it exists; an interrupted turn resumes from the
+ * history without re-running tools.
  */
 
 import type { Sql } from "postgres";
@@ -19,7 +19,7 @@ export interface RuntimeOptions {
   sql: Sql;
   providers: ProviderRegistry;
   tools: ToolExecutor;
-  /** Cartella radice delle cartelle di lavoro per sessione. */
+  /** Root folder of the per-session working directories. */
   workRoot: string;
   defaultModel: string;
   defaultFallbackModel?: string | null;
@@ -42,7 +42,7 @@ export interface StartSessionInput {
 
 export interface TurnInput {
   sessionId: string;
-  /** Messaggio della persona; assente quando si riprende un turno interrotto. */
+  /** The person's message; absent when resuming an interrupted turn. */
   text?: string;
   onEvent?: RuntimeEventListener;
   signal?: AbortSignal;
@@ -71,23 +71,23 @@ export class AgentRuntime {
     this.recovery = { ...DEFAULT_RECOVERY, ...options.recovery };
   }
 
-  /** Crea una sessione: assembla il prompt di sistema una volta per tutte. */
+  /** Creates a session: assembles the system prompt once and for all. */
   async startSession(input: StartSessionInput): Promise<SessionRecord> {
     const sql = this.options.sql;
     const [agent] = await sql<{ id: string; name: string; role: string; model: string | null; reports_to_agent_id: string | null; reports_to_user_id: string | null }[]>`
       SELECT id, name, role, model, reports_to_agent_id, reports_to_user_id FROM agents WHERE id = ${input.agentId} AND company_id = ${input.companyId}
     `;
-    if (!agent) throw new Error("agente non trovato in questa azienda");
+    if (!agent) throw new Error("agent not found in this company");
     const [company] = await sql<{ name: string; mission: string | null }[]>`SELECT name, mission FROM companies WHERE id = ${input.companyId}`;
-    if (!company) throw new Error("azienda non trovata");
+    if (!company) throw new Error("company not found");
 
     let reportsTo: string | null = null;
     if (agent.reports_to_agent_id) {
       const [m] = await sql<{ name: string }[]>`SELECT name FROM agents WHERE id = ${agent.reports_to_agent_id}`;
-      reportsTo = m ? `${m.name} (agente)` : null;
+      reportsTo = m ? `${m.name} (agent)` : null;
     } else if (agent.reports_to_user_id) {
       const [u] = await sql<{ display_name: string }[]>`SELECT display_name FROM users WHERE id = ${agent.reports_to_user_id}`;
-      reportsTo = u ? `${u.display_name} (persona)` : null;
+      reportsTo = u ? `${u.display_name} (person)` : null;
     }
     const reports = (await sql<{ name: string }[]>`SELECT name FROM agents WHERE reports_to_agent_id = ${agent.id} ORDER BY name`).map((r) => r.name);
 
@@ -118,12 +118,12 @@ export class AgentRuntime {
     });
   }
 
-  /** Dopo un riavvio: chiude le esecuzioni rimaste appese. La cronologia resta com'è. */
+  /** After a restart: closes the runs left hanging. The history stays as it is. */
   async recoverSession(sessionId: string): Promise<RunRecord[]> {
     return this.store.markStaleRunsInterrupted(sessionId);
   }
 
-  /** Ferma il turno in corso di una sessione; lo stop è verificato a ogni fase. */
+  /** Stops the session's current turn; the stop is checked at every phase. */
   interrupt(sessionId: string): boolean {
     const turn = this.active.get(sessionId);
     if (!turn) return false;
@@ -131,7 +131,7 @@ export class AgentRuntime {
     return true;
   }
 
-  /** Messaggio dell'operatore durante un turno: entra nel prossimo risultato di tool, mai nel prompt di sistema. */
+  /** Operator message during a turn: it enters the next tool result, never the system prompt. */
   inject(sessionId: string, text: string): boolean {
     const turn = this.active.get(sessionId);
     if (!turn) return false;
@@ -146,13 +146,13 @@ export class AgentRuntime {
   async runTurn(input: TurnInput): Promise<TurnResult> {
     const emit: RuntimeEventListener = input.onEvent ?? (() => {});
     const session = await this.store.getSession(input.sessionId);
-    if (!session) throw new Error("sessione non trovata");
-    if (session.status !== "attiva") throw new Error(`la sessione è ${session.status}`);
-    if (this.active.has(session.id)) throw new Error("un turno è già in corso per questa sessione");
+    if (!session) throw new Error("session not found");
+    if (session.status !== "active") throw new Error(`the session is ${session.status}`);
+    if (this.active.has(session.id)) throw new Error("a turn is already running for this session");
     const activeRun = await this.store.activeRun(session.id);
-    if (activeRun) throw new Error("un'esecuzione risulta in corso: usa recoverSession dopo un riavvio");
+    if (activeRun) throw new Error("a run appears to be in progress: use recoverSession after a restart");
 
-    emit({ type: "fase", phase: "preflight" });
+    emit({ type: "phase", phase: "preflight" });
     const primary = this.options.providers.resolve(session.model);
     const fallback = session.fallbackModel ? this.options.providers.resolve(session.fallbackModel) : null;
 
@@ -162,39 +162,39 @@ export class AgentRuntime {
     const turn: ActiveTurn = { controller, injections: [] };
     this.active.set(session.id, turn);
     const log = (type: string, payload: Record<string, unknown> = {}) => this.store.appendRunEvent(run, type, payload);
-    await log("fase", { phase: "preflight" });
+    await log("phase", { phase: "preflight" });
 
     const started = Date.now();
     let iterations = 0;
     let assistantText = "";
-    let stopReason: string = "risposta_finale";
-    let status: RunRecord["status"] = "conclusa";
+    let stopReason: string = "final_answer";
+    let status: RunRecord["status"] = "completed";
     let error: string | null = null;
 
     try {
       const history = await this.store.listMessages(session.id);
       await this.settlePendingToolCalls(session, run, history, emit, log);
       await this.acceptUserInput(session, run, history, input.text, emit);
-      if (history.length === 0) throw new Error("nessun messaggio a cui rispondere");
+      if (history.length === 0) throw new Error("no message to answer");
       if (!session.title && input.text) await this.store.setSessionTitle(session.id, input.text.slice(0, 80));
 
       while (true) {
         iterations++;
         if (iterations > this.limits.maxIterations) {
-          stopReason = "limite_iterazioni";
+          stopReason = "iteration_limit";
           break;
         }
         if (Date.now() - started > this.limits.maxDurationMs) {
-          stopReason = "limite_tempo";
+          stopReason = "time_limit";
           break;
         }
         if (controller.signal.aborted) {
-          stopReason = "interruzione";
-          status = "interrotta";
+          stopReason = "interrupted";
+          status = "interrupted";
           break;
         }
 
-        emit({ type: "fase", phase: "assemblaggio" });
+        emit({ type: "phase", phase: "assemble" });
         const request = {
           system: session.systemPrompt,
           messages: history.map((m): Message => ({ role: m.role, content: m.content })),
@@ -204,39 +204,39 @@ export class AgentRuntime {
           signal: controller.signal,
         };
 
-        emit({ type: "fase", phase: "chiamata" });
-        await log("fase", { phase: "chiamata", iteration: iterations, model: primary.id });
+        emit({ type: "phase", phase: "call" });
+        await log("phase", { phase: "call", iteration: iterations, model: primary.id });
         let outcome;
         try {
-          outcome = await completeWithRecovery(primary, fallback, request, (t) => emit({ type: "testo", text: t }), {
+          outcome = await completeWithRecovery(primary, fallback, request, (t) => emit({ type: "text", text: t }), {
             ...this.recovery,
             onRetry: (attempt, delayMs, reason) => {
-              emit({ type: "ritentativo", attempt, delayMs, reason });
-              void log("ritentativo", { attempt, delayMs, reason });
+              emit({ type: "retry", attempt, delayMs, reason });
+              void log("retry", { attempt, delayMs, reason });
             },
             onFallback: (from, to, reason) => {
-              emit({ type: "riserva", from, to, reason });
-              void log("riserva", { from, to, reason });
+              emit({ type: "fallback", from, to, reason });
+              void log("fallback", { from, to, reason });
             },
           });
         } catch (callError) {
           if (controller.signal.aborted) {
-            stopReason = "interruzione";
-            status = "interrotta";
+            stopReason = "interrupted";
+            status = "interrupted";
             break;
           }
           throw callError;
         }
 
-        emit({ type: "fase", phase: "lettura" });
+        emit({ type: "phase", phase: "read" });
         if (outcome.stopReason === "aborted" || controller.signal.aborted) {
           if (outcome.text) {
             const partial = await this.store.appendMessage(session, "assistant", [{ type: "text", text: outcome.text }], { runId: run.id, usage: outcome.usage });
             history.push(partial);
-            emit({ type: "messaggio", message: partial });
+            emit({ type: "message", message: partial });
           }
-          stopReason = "interruzione";
-          status = "interrotta";
+          stopReason = "interrupted";
+          status = "interrupted";
           break;
         }
 
@@ -244,63 +244,63 @@ export class AgentRuntime {
         if (outcome.text) content.push({ type: "text", text: outcome.text });
         content.push(...outcome.toolCalls);
         if (content.length === 0) {
-          stopReason = "risposta_vuota";
-          emit({ type: "avviso", message: "il modello ha risposto vuoto due volte" });
+          stopReason = "empty_response";
+          emit({ type: "notice", message: "the model answered empty twice" });
           break;
         }
         const assistant = await this.store.appendMessage(session, "assistant", content, { runId: run.id, usage: outcome.usage });
         history.push(assistant);
-        emit({ type: "messaggio", message: assistant });
+        emit({ type: "message", message: assistant });
         assistantText = outcome.text;
         await this.store.updateRunProgress(run.id, { iterations, usage: outcome.usage });
-        await log("modello", { model: outcome.modelId, usage: outcome.usage, stopReason: outcome.stopReason, toolCalls: outcome.toolCalls.length });
+        await log("model", { model: outcome.modelId, usage: outcome.usage, stopReason: outcome.stopReason, toolCalls: outcome.toolCalls.length });
 
         if (outcome.toolCalls.length === 0) {
-          stopReason = outcome.stopReason === "max_tokens" ? "limite_uscita" : "risposta_finale";
+          stopReason = outcome.stopReason === "max_tokens" ? "output_limit" : "final_answer";
           break;
         }
 
-        emit({ type: "fase", phase: "tool" });
+        emit({ type: "phase", phase: "tools" });
         const { results, endTurn } = await this.executeToolCalls(session, outcome.toolCalls, controller.signal, emit, log);
         const toolContent: ContentPart[] = [...results];
         const injected = turn.injections.splice(0);
         if (injected.length > 0) {
-          toolContent.push({ type: "text", text: injected.map((t) => `[messaggio dell'operatore] ${t}`).join("\n") });
-          await log("iniezione", { count: injected.length });
+          toolContent.push({ type: "text", text: injected.map((t) => `[operator message] ${t}`).join("\n") });
+          await log("injection", { count: injected.length });
         }
         const toolMessage = await this.store.appendMessage(session, "tool", toolContent, { runId: run.id });
         history.push(toolMessage);
-        emit({ type: "messaggio", message: toolMessage });
+        emit({ type: "message", message: toolMessage });
 
         if (endTurn) {
           stopReason = endTurn;
-          status = endTurn === "chiarimento_richiesto" ? "in_attesa" : "conclusa";
+          status = endTurn === "clarification_requested" ? "waiting" : "completed";
           break;
         }
         if (controller.signal.aborted) {
-          stopReason = "interruzione";
-          status = "interrotta";
+          stopReason = "interrupted";
+          status = "interrupted";
           break;
         }
       }
     } catch (turnError) {
-      status = "fallita";
-      stopReason = "errore";
+      status = "failed";
+      stopReason = "error";
       error = turnError instanceof Error ? turnError.message : String(turnError);
-      emit({ type: "avviso", message: `errore: ${error}` });
-      await log("errore", { message: error });
+      emit({ type: "notice", message: `error: ${error}` });
+      await log("error", { message: error });
     } finally {
       this.active.delete(session.id);
     }
 
-    emit({ type: "fase", phase: "chiusura" });
-    await log("fase", { phase: "chiusura", stopReason, iterations });
+    emit({ type: "phase", phase: "close" });
+    await log("phase", { phase: "close", stopReason, iterations });
     const finished = await this.store.finishRun(run.id, { status, stopReason, error });
-    emit({ type: "fine", run: finished });
+    emit({ type: "done", run: finished });
     return { run: finished, stopReason, assistantText };
   }
 
-  /** Niente replay: le chiamate a tool rimaste senza risultato ricevono un risultato di interruzione. */
+  /** No replay: tool calls left without a result receive an interruption result. */
   private async settlePendingToolCalls(
     session: SessionRecord,
     run: RunRecord,
@@ -315,32 +315,32 @@ export class AgentRuntime {
     const results: ContentToolResult[] = calls.map((call) => ({
       type: "tool_result",
       toolCallId: call.id,
-      content: "Esecuzione interrotta da un riavvio prima di completare questo tool: non è stato rieseguito. Verifica lo stato e ripeti solo se serve.",
+      content: "Execution was interrupted by a restart before this tool completed: it was NOT re-run. Check the state and repeat only if needed.",
       isError: true,
     }));
     const message = await this.store.appendMessage(session, "tool", results, { runId: run.id });
     history.push(message);
-    emit({ type: "avviso", message: `${calls.length} chiamate a tool interrotte da un riavvio, non rieseguite` });
-    await log("niente_replay", { toolCalls: calls.map((c) => c.name) });
+    emit({ type: "notice", message: `${calls.length} tool calls interrupted by a restart, not re-run` });
+    await log("no_replay", { toolCalls: calls.map((c) => c.name) });
   }
 
-  /** Il messaggio della persona entra come messaggio utente; se l'ultimo è già utente, vi si accoda (alternanza). */
+  /** The person's message enters as a user message; if the last one is already a user message, it is appended to it (alternation). */
   private async acceptUserInput(session: SessionRecord, run: RunRecord, history: StoredMessage[], text: string | undefined, emit: RuntimeEventListener): Promise<void> {
     const last = history.at(-1);
     if (text === undefined || text === "") {
-      if (last && last.role === "assistant") throw new Error("nessun nuovo messaggio: l'agente ha già risposto");
+      if (last && last.role === "assistant") throw new Error("no new message: the agent has already answered");
       return;
     }
     const part: ContentPart = { type: "text", text };
     if (last && last.role === "user") {
       const merged = await this.store.appendToMessage(last.id, [part]);
       history[history.length - 1] = merged;
-      emit({ type: "messaggio", message: merged });
+      emit({ type: "message", message: merged });
       return;
     }
     const message = await this.store.appendMessage(session, "user", [part], { runId: run.id });
     history.push(message);
-    emit({ type: "messaggio", message });
+    emit({ type: "message", message });
   }
 
   private async executeToolCalls(
@@ -355,11 +355,11 @@ export class AgentRuntime {
     const workdir = session.workdir ?? `${this.options.workRoot}/${session.id}`;
     for (const call of calls) {
       if (signal.aborted || endTurn) {
-        results.push({ type: "tool_result", toolCallId: call.id, content: "Non eseguito: turno interrotto.", isError: true });
+        results.push({ type: "tool_result", toolCallId: call.id, content: "Not executed: turn interrupted.", isError: true });
         continue;
       }
-      emit({ type: "tool_chiamata", callId: call.id, name: call.name, arguments: call.arguments });
-      await log("tool_chiamata", { callId: call.id, name: call.name, arguments: call.arguments });
+      emit({ type: "tool_call", callId: call.id, name: call.name, arguments: call.arguments });
+      await log("tool_call", { callId: call.id, name: call.name, arguments: call.arguments });
       const started = Date.now();
       const outcome = await this.options.tools.execute(call.name, call.arguments, {
         sessionId: session.id,
@@ -371,8 +371,8 @@ export class AgentRuntime {
       const durationMs = Date.now() - started;
       const result: ContentToolResult = { type: "tool_result", toolCallId: call.id, content: outcome.content, isError: outcome.isError ?? false };
       results.push(result);
-      emit({ type: "tool_risultato", callId: call.id, name: call.name, content: outcome.content, isError: result.isError ?? false, durationMs });
-      await log("tool_risultato", { callId: call.id, name: call.name, isError: result.isError, durationMs, chars: outcome.content.length });
+      emit({ type: "tool_result", callId: call.id, name: call.name, content: outcome.content, isError: result.isError ?? false, durationMs });
+      await log("tool_result", { callId: call.id, name: call.name, isError: result.isError, durationMs, chars: outcome.content.length });
       if (outcome.endTurn) endTurn = outcome.endTurn.stopReason;
     }
     return { results, endTurn };

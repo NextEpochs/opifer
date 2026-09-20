@@ -1,7 +1,7 @@
 {
   "name": "@opifer/provider-anthropic",
   "version": "0.0.1",
-  "description": "Provider di modelli Anthropic (Claude) per Opifer.",
+  "description": "Anthropic (Claude) model provider for Opifer.",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",
@@ -9,6 +9,6 @@
   "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } },
   "files": ["dist", "LICENSE"],
   "scripts": { "build": "tsc -b", "typecheck": "tsc -b" },
-  "opifer": { "kind": "provider", "permissions": ["rete:api.anthropic.com"] },
+  "opifer": { "kind": "provider", "permissions": ["network:api.anthropic.com"] },
   "dependencies": { "@anthropic-ai/sdk": "^0.127.0", "@opifer/sdk": "workspace:*" }
 }

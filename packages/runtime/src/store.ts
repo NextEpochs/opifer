@@ -1,7 +1,7 @@
 /**
- * Persistenza delle sessioni: ogni messaggio ed evento è scritto appena
- * esiste, così una conversazione sopravvive a un riavvio e riprende dalla
- * cronologia salvata, senza rieseguire azioni già compiute.
+ * Session persistence: every message and event is written as soon as it
+ * exists, so a conversation survives a restart and resumes from the saved
+ * history without re-running actions already performed.
  */
 
 import type { Sql } from "postgres";
@@ -160,13 +160,13 @@ export class SessionStore {
     return row ? toMessage(row) : null;
   }
 
-  /** Aggiunge un messaggio con il prossimo numero di sequenza, in una sola transazione. */
+  /** Appends a message with the next sequence number, in a single transaction. */
   async appendMessage(session: { id: string; companyId: string }, role: StoredRole, content: ContentPart[], options: { runId?: string | null; usage?: Usage | null } = {}): Promise<StoredMessage> {
     return this.sql.begin(async (tx) => {
       const [next] = await tx<{ last_seq: number }[]>`
         UPDATE sessions SET last_seq = last_seq + 1 WHERE id = ${session.id} RETURNING last_seq
       `;
-      if (!next) throw new Error(`Sessione ${session.id} non trovata`);
+      if (!next) throw new Error(`Session ${session.id} not found`);
       const [row] = await tx<MessageRow[]>`
         INSERT INTO messages (company_id, session_id, run_id, seq, role, content, usage)
         VALUES (
@@ -179,12 +179,12 @@ export class SessionStore {
     });
   }
 
-  /** Aggiunge testo a un messaggio utente esistente (al confine del turno, per rispettare l'alternanza). */
+  /** Appends text to an existing user message (at the turn boundary, to respect role alternation). */
   async appendToMessage(messageId: string, parts: ContentPart[]): Promise<StoredMessage> {
     const [row] = await this.sql<MessageRow[]>`
       UPDATE messages SET content = content || ${parts as never}::jsonb WHERE id = ${messageId} RETURNING *
     `;
-    if (!row) throw new Error(`Messaggio ${messageId} non trovato`);
+    if (!row) throw new Error(`Message ${messageId} not found`);
     return toMessage(row);
   }
 
@@ -202,7 +202,7 @@ export class SessionStore {
 
   async activeRun(sessionId: string): Promise<RunRecord | null> {
     const [row] = await this.sql<RunRow[]>`
-      SELECT * FROM runs WHERE session_id = ${sessionId} AND status = 'in_corso' ORDER BY started_at DESC LIMIT 1
+      SELECT * FROM runs WHERE session_id = ${sessionId} AND status = 'running' ORDER BY started_at DESC LIMIT 1
     `;
     return row ? toRun(row) : null;
   }
@@ -231,29 +231,29 @@ export class SessionStore {
     return toRun(row!);
   }
 
-  /** Segna come interrotte le esecuzioni rimaste "in corso" (per esempio dopo un crash). */
+  /** Marks runs still "running" as interrupted (for example after a crash). */
   async markStaleRunsInterrupted(sessionId: string): Promise<RunRecord[]> {
     const rows = await this.sql<RunRow[]>`
-      UPDATE runs SET status = 'interrotta', stop_reason = 'riavvio', finished_at = now()
-      WHERE session_id = ${sessionId} AND status = 'in_corso' RETURNING *
+      UPDATE runs SET status = 'interrupted', stop_reason = 'restart', finished_at = now()
+      WHERE session_id = ${sessionId} AND status = 'running' RETURNING *
     `;
     return rows.map(toRun);
   }
 
-  /** All'avvio del server: tutte le esecuzioni "in corso" di ogni sessione sono interrotte. */
+  /** At server startup: every "running" run of every session is interrupted. */
   async markAllStaleRunsInterrupted(): Promise<number> {
     const rows = await this.sql<{ id: string }[]>`
-      UPDATE runs SET status = 'interrotta', stop_reason = 'riavvio', finished_at = now() WHERE status = 'in_corso' RETURNING id
+      UPDATE runs SET status = 'interrupted', stop_reason = 'restart', finished_at = now() WHERE status = 'running' RETURNING id
     `;
     return rows.length;
   }
 
   async appendRunEvent(run: { id: string; companyId: string }, type: string, payload: Record<string, unknown>): Promise<void> {
-    // Il numero di sequenza viene da un contatore atomico sulla riga dell'esecuzione:
-    // scrittori concorrenti (ritentativi, riserva, fasi) non collidono mai.
+    // The sequence number comes from an atomic counter on the run row:
+    // concurrent writers (retries, fallback, phases) never collide.
     await this.sql.begin(async (tx) => {
       const [next] = await tx<{ event_seq: number }[]>`UPDATE runs SET event_seq = event_seq + 1 WHERE id = ${run.id} RETURNING event_seq`;
-      if (!next) throw new Error(`Esecuzione ${run.id} non trovata`);
+      if (!next) throw new Error(`Run ${run.id} not found`);
       await tx`
         INSERT INTO run_events (company_id, run_id, seq, type, payload)
         VALUES (${run.companyId}, ${run.id}, ${next.event_seq}, ${type}, ${payload as never}::jsonb)

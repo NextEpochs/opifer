@@ -6,12 +6,12 @@ import { Chat } from "./Chat";
 export function App() {
   const [locale, setLocale] = useState<Locale>(detectLocale);
   const t = stringsFor(locale);
-  const [health, setHealth] = useState<Health | null | "errore">(null);
+  const [health, setHealth] = useState<Health | null | "error">(null);
   const [live, setLive] = useState(false);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [page, setPage] = useState<"cruscotto" | "chat">("cruscotto");
+  const [page, setPage] = useState<"dashboard" | "chat">("dashboard");
 
   const refresh = useCallback(async () => {
     try {
@@ -21,7 +21,7 @@ export function App() {
       setSelected((current) => current ?? list[0]?.id ?? null);
       setError(null);
     } catch (e) {
-      setHealth("errore");
+      setHealth("error");
       setError(e instanceof Error ? e.message : String(e));
     }
   }, []);
@@ -53,8 +53,8 @@ export function App() {
             <span className={`h-2 w-2 rounded-full ${live ? "bg-emerald-500" : "bg-zinc-400"}`} aria-hidden />
             {live ? t.live : t.offline}
           </span>
-          <div className="flex overflow-hidden rounded-md border border-zinc-300 dark:border-zinc-700" role="group" aria-label="Lingua / Language">
-            {(["it", "en"] as const).map((l) => (
+          <div className="flex overflow-hidden rounded-md border border-zinc-300 dark:border-zinc-700" role="group" aria-label="Language">
+            {(["en", "it"] as const).map((l) => (
               <button
                 key={l}
                 type="button"
@@ -69,8 +69,8 @@ export function App() {
         </div>
       </header>
 
-      <nav className="flex gap-1 border-b border-zinc-200 text-sm dark:border-zinc-800" aria-label="Sezioni">
-        {(["cruscotto", "chat"] as const).map((p) => (
+      <nav className="flex gap-1 border-b border-zinc-200 text-sm dark:border-zinc-800" aria-label="Sections">
+        {(["dashboard", "chat"] as const).map((p) => (
           <button
             key={p}
             type="button"
@@ -78,7 +78,7 @@ export function App() {
             aria-current={page === p ? "page" : undefined}
             className={`-mb-px border-b-2 px-3 py-2 ${page === p ? "border-brand-600 font-medium text-brand-700 dark:text-brand-500" : "border-transparent text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"}`}
           >
-            {p === "cruscotto" ? t.dashboard : t.chat}
+            {p === "dashboard" ? t.dashboard : t.chat}
           </button>
         ))}
       </nav>
@@ -92,12 +92,12 @@ export function App() {
       {page === "chat" && selectedCompany && <Chat key={selectedCompany.id} company={selectedCompany} t={t} />}
       {page === "chat" && !selectedCompany && <p className="text-sm text-zinc-500">{t.noCompanies}</p>}
 
-      {page === "cruscotto" && (
+      {page === "dashboard" && (
       <section aria-labelledby="status" className="grid gap-4 sm:grid-cols-2">
         <Card title={t.status} id="status">
           <dl className="grid grid-cols-2 gap-y-1 text-sm">
             <dt className="text-zinc-500">{t.server}</dt>
-            <dd>{health === null ? "…" : health === "errore" ? <Badge tone="red">{t.unreachable}</Badge> : <Badge tone="green">{t.ok}</Badge>}</dd>
+            <dd>{health === null ? "…" : health === "error" ? <Badge tone="red">{t.unreachable}</Badge> : <Badge tone="green">{t.ok}</Badge>}</dd>
             <dt className="text-zinc-500">{t.database}</dt>
             <dd>{typeof health === "object" && health ? <Badge tone={health.database === "ok" ? "green" : "red"}>{health.database === "ok" ? t.ok : t.degraded}</Badge> : "—"}</dd>
             <dt className="text-zinc-500">{t.version}</dt>
@@ -134,7 +134,7 @@ export function App() {
 
       )}
 
-      {page === "cruscotto" && selectedCompany && <CompanyPanel key={selectedCompany.id} company={selectedCompany} t={t} />}
+      {page === "dashboard" && selectedCompany && <CompanyPanel key={selectedCompany.id} company={selectedCompany} t={t} />}
     </div>
   );
 }

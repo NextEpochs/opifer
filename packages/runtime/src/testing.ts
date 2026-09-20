@@ -1,6 +1,6 @@
 /**
- * Supporto ai test: un provider finto e deterministico. Risponde secondo un
- * copione, così i test del loop non chiamano modelli veri.
+ * Test support: a fake, deterministic provider. It answers according to a
+ * script, so the loop tests never call real models.
  */
 
 import { ProviderError, type CompletionRequest, type ContentToolCall, type ModelInfo, type ModelProvider, type StreamEvent } from "@opifer/sdk";
@@ -19,14 +19,14 @@ export class FakeProvider implements ModelProvider {
   readonly requests: CompletionRequest[] = [];
   private calls = 0;
 
-  constructor(private readonly script: Script, id = "finto") {
+  constructor(private readonly script: Script, id = "fake") {
     this.id = id;
   }
 
   async listModels(): Promise<ModelInfo[]> {
     return [
       {
-        id: "eco",
+        id: "echo",
         capabilities: { contextWindow: 200_000, maxOutputTokens: 8192, vision: false, reasoning: false, toolCalling: true },
         price: { inputPerMillion: 1, outputPerMillion: 5, currency: "EUR" },
       },
@@ -48,8 +48,8 @@ export class FakeProvider implements ModelProvider {
         throw reply.error;
       case "hang":
         await new Promise<void>((resolve, reject) => {
-          request.signal?.addEventListener("abort", () => reject(new Error("interrotto")), { once: true });
-          if (request.signal?.aborted) reject(new Error("interrotto"));
+          request.signal?.addEventListener("abort", () => reject(new Error("interrupted")), { once: true });
+          if (request.signal?.aborted) reject(new Error("interrupted"));
           setTimeout(resolve, 60_000).unref();
         });
         yield { type: "done", stopReason: "aborted" };
@@ -77,7 +77,7 @@ export class FakeProvider implements ModelProvider {
   }
 }
 
-/** Copione semplice: risponde "eco: <ultimo testo utente o risultato di tool>". */
+/** Simple script: answers "echo: <last user text or tool result>". */
 export function echoScript(): Script {
   return (request) => {
     const last = request.messages.at(-1);
@@ -85,6 +85,6 @@ export function echoScript(): Script {
       .map((p) => (p.type === "text" ? p.text : p.type === "tool_result" ? p.content : ""))
       .join(" ")
       .trim();
-    return { kind: "text", text: `eco: ${text}` };
+    return { kind: "text", text: `echo: ${text}` };
   };
 }

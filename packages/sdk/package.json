@@ -1,7 +1,7 @@
 {
   "name": "@opifer/sdk",
   "version": "0.0.1",
-  "description": "Contratti per plugin, canali, provider e ambienti di esecuzione di Opifer.",
+  "description": "Contracts for Opifer plugins, channels, providers and execution environments.",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",

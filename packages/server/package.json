@@ -2,7 +2,7 @@
   "name": "@opifer/server",
   "version": "0.0.1",
   "private": true,
-  "description": "API HTTP /v1 ed eventi WebSocket di Opifer.",
+  "description": "Opifer HTTP API /v1 and WebSocket events.",
   "license": "AGPL-3.0-only",
   "type": "module",
   "main": "./dist/index.js",

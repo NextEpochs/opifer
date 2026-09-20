@@ -1,7 +1,7 @@
 /**
- * Schema Drizzle: rispecchia le migrazioni SQL in `migrations/` e serve per
- * le query tipizzate. La verità sullo schema resta nelle migrazioni; il test
- * `schema.test.ts` verifica che le due descrizioni coincidano.
+ * Drizzle schema: mirrors the SQL migrations in `migrations/` and serves the
+ * typed queries. The source of truth for the schema stays in the migrations;
+ * the `schema.test.ts` test checks that the two descriptions match.
  */
 
 import { sql } from "drizzle-orm";
@@ -26,7 +26,7 @@ export const companies = pgTable("companies", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
   mission: text("mission"),
-  status: text("status", { enum: ["attiva", "sospesa", "archiviata"] }).notNull().default("attiva"),
+  status: text("status", { enum: ["active", "suspended", "archived"] }).notNull().default("active"),
   settings: jsonb("settings").$type<Record<string, unknown>>().notNull().default({}),
   ...timestamps,
 });
@@ -47,7 +47,7 @@ export const memberships = pgTable(
     userId: uuid("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    role: text("role", { enum: ["proprietario", "amministratore", "operatore", "osservatore"] }).notNull(),
+    role: text("role", { enum: ["owner", "admin", "operator", "observer"] }).notNull(),
     ...timestamps,
   },
   (t) => [primaryKey({ columns: [t.companyId, t.userId] })],
@@ -65,9 +65,9 @@ export const agents = pgTable(
     reportsToAgentId: uuid("reports_to_agent_id"),
     reportsToUserId: uuid("reports_to_user_id").references(() => users.id, { onDelete: "set null" }),
     model: text("model"),
-    status: text("status", { enum: ["attivo", "in_pausa", "fermato_per_budget", "archiviato"] })
+    status: text("status", { enum: ["active", "paused", "budget_stopped", "archived"] })
       .notNull()
-      .default("attivo"),
+      .default("active"),
     currentRevision: integer("current_revision").notNull().default(1),
     ...timestamps,
   },
@@ -86,7 +86,7 @@ export const agentRevisions = pgTable(
       .references(() => agents.id, { onDelete: "cascade" }),
     revision: integer("revision").notNull(),
     config: jsonb("config").$type<Record<string, unknown>>().notNull(),
-    authorKind: text("author_kind", { enum: ["persona", "agente", "sistema"] }).notNull(),
+    authorKind: text("author_kind", { enum: ["person", "agent", "system"] }).notNull(),
     authorId: uuid("author_id"),
     note: text("note"),
     ...timestamps,
@@ -101,7 +101,7 @@ export const auditLog = pgTable(
     companyId: uuid("company_id")
       .notNull()
       .references(() => companies.id, { onDelete: "restrict" }),
-    actorKind: text("actor_kind", { enum: ["persona", "agente", "sistema"] }).notNull(),
+    actorKind: text("actor_kind", { enum: ["person", "agent", "system"] }).notNull(),
     actorId: uuid("actor_id"),
     action: text("action").notNull(),
     subjectKind: text("subject_kind").notNull(),
@@ -115,10 +115,10 @@ export const auditLog = pgTable(
   (t) => [index("audit_log_company_time_idx").on(t.companyId, t.occurredAt)],
 );
 
-/** Tabelle di dominio: tutte devono portare company_id (le aziende sono la radice, le persone sono globali). */
+/** Domain tables: all of them must carry company_id (companies are the root, people are global). */
 export const DOMAIN_TABLES_WITHOUT_COMPANY_ID: readonly string[] = ["companies", "users", "schema_migrations"];
 
-// --- Sessioni (0002) -------------------------------------------------------
+// --- Sessions (0002) --------------------------------------------------------
 
 export const sessions = pgTable(
   "sessions",
@@ -136,7 +136,7 @@ export const sessions = pgTable(
     systemPromptHash: text("system_prompt_hash").notNull(),
     model: text("model").notNull(),
     fallbackModel: text("fallback_model"),
-    status: text("status", { enum: ["attiva", "sospesa", "chiusa"] }).notNull().default("attiva"),
+    status: text("status", { enum: ["active", "suspended", "closed"] }).notNull().default("active"),
     workdir: text("workdir"),
     lastSeq: integer("last_seq").notNull().default(0),
     ...timestamps,
@@ -157,9 +157,9 @@ export const runs = pgTable(
     agentId: uuid("agent_id")
       .notNull()
       .references(() => agents.id, { onDelete: "cascade" }),
-    status: text("status", { enum: ["in_corso", "conclusa", "interrotta", "fallita", "in_attesa"] })
+    status: text("status", { enum: ["running", "completed", "interrupted", "failed", "waiting"] })
       .notNull()
-      .default("in_corso"),
+      .default("running"),
     stopReason: text("stop_reason"),
     iterations: integer("iterations").notNull().default(0),
     inputTokens: integer("input_tokens").notNull().default(0),

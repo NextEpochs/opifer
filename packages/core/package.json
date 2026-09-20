@@ -2,7 +2,7 @@
   "name": "@opifer/core",
   "version": "0.0.1",
   "private": true,
-  "description": "Modello di dominio, invarianti ed eventi di Opifer.",
+  "description": "Opifer domain model, invariants and events.",
   "license": "AGPL-3.0-only",
   "type": "module",
   "main": "./dist/index.js",

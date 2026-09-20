@@ -1,7 +1,7 @@
-# Plugin di Opifer
+# Opifer plugins
 
-Qui vivono i plugin mantenuti da NextEpochs (licenza MIT): provider di modelli, canali, ambienti di esecuzione, connettori. Ogni plugin è un pacchetto del workspace che implementa un contratto di `@opifer/sdk` e dichiara permessi, configurazione e migrazioni proprie.
+This is where the plugins maintained by NextEpochs live (MIT license): model providers, channels, execution environments, connectors. Each plugin is a workspace package that implements a contract from `@opifer/sdk` and declares its own permissions, configuration and migrations.
 
-I plugin di terze parti vivono in repository propri.
+Third-party plugins live in their own repositories.
 
-Primi plugin previsti dalla roadmap: `provider-anthropic`, `provider-openai`, `provider-openai-compatible` (M1), `sandbox-docker`, `channel-telegram` (M5).
+First plugins planned by the roadmap: `provider-anthropic`, `provider-openai`, `provider-openai-compatible` (M1), `sandbox-docker`, `channel-telegram` (M5).

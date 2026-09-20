@@ -1,6 +1,6 @@
 /**
- * Supporto ai test: un Postgres incorporato temporaneo, su una porta libera,
- * con le migrazioni applicate. Viene distrutto alla fine.
+ * Test support: a temporary embedded Postgres, on a free port, with the
+ * migrations applied. It is destroyed at the end.
  */
 
 import { chmod, mkdtemp, rm } from "node:fs/promises";
@@ -32,7 +32,7 @@ export async function freePort(): Promise<number> {
 
 export async function createTestDatabase(options: { migrate?: boolean } = {}): Promise<TestDatabase> {
   const dataDir = await mkdtemp(path.join(tmpdir(), "opifer-test-"));
-  // Come root il cluster gira con l'utente "postgres": la cartella deve essere attraversabile.
+  // As root the cluster runs with the "postgres" user: the folder must be traversable.
   await chmod(dataDir, 0o755);
   const port = await freePort();
   const cluster = await startEmbeddedPostgres({ dataDir: path.join(dataDir, "postgres"), port });

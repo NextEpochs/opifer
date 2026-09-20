@@ -1,6 +1,6 @@
 /**
- * Bus di eventi in processo. Nella v1 gli eventi vengono anche persistiti e
- * consegnati via WebSocket e webhook; qui c'è solo la forma comune.
+ * In-process event bus. In v1 the events are also persisted and delivered
+ * via WebSocket and webhooks; here there is only the common shape.
  */
 
 export interface DomainEvent<T = unknown> {
@@ -26,7 +26,7 @@ export class EventBus {
       try {
         listener(event);
       } catch {
-        // un ascoltatore difettoso non deve fermare gli altri
+        // a faulty listener must not stop the others
       }
     }
     return event;

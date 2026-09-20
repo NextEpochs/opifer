@@ -1,7 +1,7 @@
 {
   "name": "@opifer/provider-openai-compatible",
   "version": "0.0.1",
-  "description": "Provider per endpoint compatibili OpenAI: modelli locali con Ollama, vLLM, LM Studio e simili.",
+  "description": "Provider for OpenAI-compatible endpoints: local models with Ollama, vLLM, LM Studio and the like.",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",
@@ -9,6 +9,6 @@
   "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } },
   "files": ["dist", "LICENSE"],
   "scripts": { "build": "tsc -b", "typecheck": "tsc -b" },
-  "opifer": { "kind": "provider", "permissions": ["rete:endpoint-configurato"] },
+  "opifer": { "kind": "provider", "permissions": ["network:configured-endpoint"] },
   "dependencies": { "@opifer/provider-openai": "workspace:*", "@opifer/sdk": "workspace:*" }
 }

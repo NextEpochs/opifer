@@ -1,7 +1,7 @@
 /**
- * Provider OpenAI per Opifer (API Chat Completions con streaming e tool
- * calling). La stessa classe, con `baseURL` diverso, serve gli endpoint
- * compatibili OpenAI (vedi @opifer/provider-openai-compatible).
+ * OpenAI provider for Opifer (Chat Completions API with streaming and tool
+ * calling). The same class, with a different `baseURL`, serves the
+ * OpenAI-compatible endpoints (see @opifer/provider-openai-compatible).
  */
 
 import OpenAI from "openai";
@@ -25,17 +25,17 @@ export interface OpenAIProviderOptions {
   apiKey?: string;
   baseURL?: string;
   id?: string;
-  /** Listino aggiornabile: prezzi in USD per milione di token, per prefisso di modello. */
+  /** Updatable price list: USD per million tokens, by model prefix. */
   prices?: Record<string, { input: number; output: number; cachedInput?: number }>;
-  /** Modelli da elencare quando l'endpoint non li espone (o per limitarli). */
+  /** Models to list when the endpoint does not expose them (or to restrict them). */
   models?: string[];
-  /** Finestra di contesto di default per i modelli sconosciuti. */
+  /** Default context window for unknown models. */
   defaultContextWindow?: number;
-  /** Alcuni endpoint locali non accettano il ruolo "developer" né i tool: si adattano da qui. */
+  /** Some local endpoints accept neither the "developer" role nor tools: adapt them here. */
   compat?: { systemRole?: "system" | "developer"; tools?: boolean; streamUsage?: boolean };
 }
 
-/** Listino di partenza (USD per milione di token); aggiornabile da configurazione. */
+/** Starting price list (USD per million tokens); updatable from configuration. */
 export const DEFAULT_PRICES: Record<string, { input: number; output: number; cachedInput?: number }> = {
   "gpt-6": { input: 10, output: 50, cachedInput: 1 },
   "gpt-5.6-sol": { input: 4, output: 20, cachedInput: 0.4 },
@@ -73,7 +73,7 @@ function toOpenAIMessages(request: CompletionRequest, systemRole: "system" | "de
         if (part.type === "tool_result") out.push({ role: "tool", tool_call_id: part.toolCallId, content: part.content });
         else if (part.type === "text") texts.push(part.text);
       }
-      // testo iniettato a metà turno: dopo i risultati, come messaggio utente
+      // text injected mid-turn: after the results, as a user message
       if (texts.length > 0) out.push({ role: "user", content: texts.join("\n") });
       continue;
     }
@@ -93,9 +93,9 @@ function mapError(error: unknown, label: string): ProviderError {
     const status = typeof error.status === "number" ? error.status : 0;
     return ProviderError.fromStatus(status, `${label}: ${error.message}`);
   }
-  if (error instanceof OpenAI.APIConnectionError) return new ProviderError(`${label} non raggiungibile: ${error.message}`, "transitorio");
-  if (error instanceof Error && error.name === "AbortError") return new ProviderError("interrotto", "richiesta");
-  return new ProviderError(error instanceof Error ? error.message : String(error), "sconosciuto");
+  if (error instanceof OpenAI.APIConnectionError) return new ProviderError(`${label} unreachable: ${error.message}`, "transient");
+  if (error instanceof Error && error.name === "AbortError") return new ProviderError("interrupted", "request");
+  return new ProviderError(error instanceof Error ? error.message : String(error), "unknown");
 }
 
 export class OpenAIProvider implements ModelProvider {
@@ -107,8 +107,8 @@ export class OpenAIProvider implements ModelProvider {
     this.id = options.id ?? "openai";
     this.options = options;
     const apiKey = options.apiKey ?? process.env["OPENAI_API_KEY"];
-    if (!apiKey && !options.baseURL) throw new ProviderError("chiave OpenAI mancante (OPENAI_API_KEY)", "autenticazione");
-    this.client = new OpenAI({ apiKey: apiKey ?? "non-richiesta", ...(options.baseURL ? { baseURL: options.baseURL } : {}), maxRetries: 0 });
+    if (!apiKey && !options.baseURL) throw new ProviderError("missing OpenAI key (OPENAI_API_KEY)", "auth");
+    this.client = new OpenAI({ apiKey: apiKey ?? "not-required", ...(options.baseURL ? { baseURL: options.baseURL } : {}), maxRetries: 0 });
   }
 
   async listModels(): Promise<ModelInfo[]> {
@@ -131,7 +131,7 @@ export class OpenAIProvider implements ModelProvider {
   }
 
   async countTokens(request: CompletionRequest): Promise<number> {
-    // Nessun contatore remoto per le chat completions: approssimazione a 4 caratteri per token.
+    // No remote counter for chat completions: approximation at 4 characters per token.
     const chars = request.system.length + request.messages.reduce((n, m) => n + JSON.stringify(m.content).length, 0);
     return Math.ceil(chars / 4);
   }

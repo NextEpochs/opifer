@@ -1,7 +1,7 @@
 /**
- * Test del provider Anthropic contro un server finto che parla il protocollo
- * Messages in streaming (SSE): mappatura dei messaggi e dei blocchi tool,
- * cache del prefisso, lettura dello stream, usage ed errori.
+ * Anthropic provider tests against a fake server speaking the streaming
+ * Messages protocol (SSE): message and tool block mapping, prefix cache,
+ * stream reading, usage and errors.
  */
 
 import { createServer, type Server } from "node:http";
@@ -45,8 +45,8 @@ beforeAll(async () => {
           sse([
             start,
             { type: "content_block_start", index: 0, content_block: { type: "text", text: "" } },
-            { type: "content_block_delta", index: 0, delta: { type: "text_delta", text: "Ciao" } },
-            { type: "content_block_delta", index: 0, delta: { type: "text_delta", text: " mondo" } },
+            { type: "content_block_delta", index: 0, delta: { type: "text_delta", text: "Hello" } },
+            { type: "content_block_delta", index: 0, delta: { type: "text_delta", text: " world" } },
             { type: "content_block_stop", index: 0 },
             { type: "message_delta", delta: { stop_reason: "end_turn", stop_sequence: null }, usage: { output_tokens: 3 } },
             { type: "message_stop" },
@@ -57,7 +57,7 @@ beforeAll(async () => {
           sse([
             start,
             { type: "content_block_start", index: 0, content_block: { type: "text", text: "" } },
-            { type: "content_block_delta", index: 0, delta: { type: "text_delta", text: "Eseguo." } },
+            { type: "content_block_delta", index: 0, delta: { type: "text_delta", text: "Running." } },
             { type: "content_block_stop", index: 0 },
             { type: "content_block_start", index: 1, content_block: { type: "tool_use", id: "toolu_1", name: "terminal", input: {} } },
             { type: "content_block_delta", index: 1, delta: { type: "input_json_delta", partial_json: '{"command":' } },
@@ -81,15 +81,15 @@ afterAll(async () => {
 
 const request: CompletionRequest = {
   model: "claude-sonnet-5",
-  system: "Sei un agente.",
+  system: "You are an agent.",
   messages: [
-    { role: "user", content: [{ type: "text", text: "elenca" }] },
+    { role: "user", content: [{ type: "text", text: "list" }] },
     { role: "assistant", content: [{ type: "tool_call", id: "toolu_0", name: "terminal", arguments: { command: "ls" } }] },
-    { role: "tool", content: [{ type: "tool_result", toolCallId: "toolu_0", content: "a.txt", isError: false }, { type: "text", text: "[messaggio dell'operatore] veloce" }] },
-    { role: "assistant", content: [{ type: "text", text: "c'è a.txt" }] },
-    { role: "user", content: [{ type: "text", text: "grazie" }] },
+    { role: "tool", content: [{ type: "tool_result", toolCallId: "toolu_0", content: "a.txt", isError: false }, { type: "text", text: "[operator message] quick" }] },
+    { role: "assistant", content: [{ type: "text", text: "there is a.txt" }] },
+    { role: "user", content: [{ type: "text", text: "thanks" }] },
   ],
-  tools: [{ name: "terminal", description: "esegue", inputSchema: { type: "object", properties: { command: { type: "string" } } } }],
+  tools: [{ name: "terminal", description: "runs", inputSchema: { type: "object", properties: { command: { type: "string" } } } }],
   cachePrefix: true,
 };
 
@@ -99,43 +99,43 @@ async function collect(provider: AnthropicProvider, req: CompletionRequest) {
   return events;
 }
 
-describe("provider Anthropic", () => {
-  it("mappa messaggi e tool nel formato Messages, con cache sul prefisso", async () => {
+describe("Anthropic provider", () => {
+  it("maps messages and tools to the Messages format, with cache on the prefix", async () => {
     mode = "text";
-    const provider = new AnthropicProvider({ apiKey: "prova", baseURL });
+    const provider = new AnthropicProvider({ apiKey: "test", baseURL });
     const events = await collect(provider, request);
-    expect(events.filter((e) => e.type === "text_delta").map((e) => (e as { text: string }).text).join("")).toBe("Ciao mondo");
+    expect(events.filter((e) => e.type === "text_delta").map((e) => (e as { text: string }).text).join("")).toBe("Hello world");
     expect(events.find((e) => e.type === "usage")).toEqual({ type: "usage", usage: { inputTokens: 30, outputTokens: 3, cachedInputTokens: 25 } });
     expect(events.at(-1)).toEqual({ type: "done", stopReason: "end_turn" });
 
     const body = captured.at(-1)!;
-    expect(body["system"]).toEqual([{ type: "text", text: "Sei un agente.", cache_control: { type: "ephemeral" } }]);
+    expect(body["system"]).toEqual([{ type: "text", text: "You are an agent.", cache_control: { type: "ephemeral" } }]);
     const messages = body["messages"] as Array<{ role: string; content: Array<Record<string, unknown>> }>;
     expect(messages.map((m) => m.role)).toEqual(["user", "assistant", "user", "assistant", "user"]);
     expect(messages[1]!.content[0]).toMatchObject({ type: "tool_use", id: "toolu_0", name: "terminal", input: { command: "ls" } });
     expect(messages[2]!.content).toEqual([
       { type: "tool_result", tool_use_id: "toolu_0", content: "a.txt" },
-      { type: "text", text: "[messaggio dell'operatore] veloce" },
+      { type: "text", text: "[operator message] quick" },
     ]);
     expect((body["tools"] as Array<Record<string, unknown>>)[0]).toMatchObject({ name: "terminal", input_schema: { type: "object" } });
   });
 
-  it("ricompone le chiamate a tool dai frammenti JSON", async () => {
+  it("reassembles tool calls from the JSON fragments", async () => {
     mode = "tools";
-    const provider = new AnthropicProvider({ apiKey: "prova", baseURL });
+    const provider = new AnthropicProvider({ apiKey: "test", baseURL });
     const events = await collect(provider, request);
     expect(events.find((e) => e.type === "tool_call")).toEqual({ type: "tool_call", call: { type: "tool_call", id: "toolu_1", name: "terminal", arguments: { command: "ls" } } });
     expect(events.at(-1)).toEqual({ type: "done", stopReason: "tool_use" });
   });
 
-  it("classifica il sovraccarico (529) come transitorio", async () => {
+  it("classifies overload (529) as transient", async () => {
     mode = "overloaded";
-    const provider = new AnthropicProvider({ apiKey: "prova", baseURL });
-    await expect(collect(provider, request)).rejects.toSatisfy((e) => e instanceof ProviderError && e.kind === "transitorio" && e.retryable);
+    const provider = new AnthropicProvider({ apiKey: "test", baseURL });
+    await expect(collect(provider, request)).rejects.toSatisfy((e) => e instanceof ProviderError && e.kind === "transient" && e.retryable);
   });
 
-  it("conta i token con l'endpoint dedicato ed elenca i modelli con il listino", async () => {
-    const provider = new AnthropicProvider({ apiKey: "prova", baseURL });
+  it("counts tokens with the dedicated endpoint and lists the models with the price list", async () => {
+    const provider = new AnthropicProvider({ apiKey: "test", baseURL });
     expect(await provider.countTokens(request)).toBe(42);
     const models = await provider.listModels();
     expect(models.map((m) => m.id)).toContain("claude-sonnet-5");

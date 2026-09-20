@@ -1,7 +1,7 @@
 /**
- * Provider Anthropic (Claude) per Opifer: streaming, tool calling, conteggio
- * token e listino prezzi. Il prefisso stabile (prompt di sistema) è marcato
- * per la cache del provider.
+ * Anthropic (Claude) provider for Opifer: streaming, tool calling, token
+ * counting and price list. The stable prefix (system prompt) is marked for
+ * the provider cache.
  */
 
 import Anthropic from "@anthropic-ai/sdk";
@@ -20,11 +20,11 @@ export interface AnthropicProviderOptions {
   apiKey?: string;
   baseURL?: string;
   id?: string;
-  /** Listino aggiornabile: prezzi in USD per milione di token, per prefisso di modello. */
+  /** Updatable price list: USD per million tokens, by model prefix. */
   prices?: Record<string, { input: number; output: number; cachedInput?: number }>;
 }
 
-/** Listino di partenza (USD per milione di token); aggiornabile da configurazione. */
+/** Starting price list (USD per million tokens); updatable from configuration. */
 export const DEFAULT_PRICES: Record<string, { input: number; output: number; cachedInput?: number }> = {
   "claude-fable-5-1": { input: 10, output: 50, cachedInput: 1 },
   "claude-opus-5": { input: 5, output: 25, cachedInput: 0.5 },
@@ -59,7 +59,7 @@ function toAnthropicMessages(messages: Message[]): MessageParam[] {
       if (content.length > 0) out.push({ role: "assistant", content });
       continue;
     }
-    // user e tool viaggiano entrambi come messaggi utente: i risultati come blocchi tool_result
+    // user and tool both travel as user messages: results as tool_result blocks
     const content: Array<TextBlockParam | ToolResultBlockParam> = [];
     for (const part of m.content) {
       if (part.type === "text" && part.text) content.push({ type: "text", text: part.text });
@@ -84,12 +84,12 @@ function toAnthropicTools(request: CompletionRequest): Tool[] | undefined {
 function mapError(error: unknown): ProviderError {
   if (error instanceof Anthropic.APIError) {
     const status = typeof error.status === "number" ? error.status : 0;
-    if (status === 529) return new ProviderError(`Anthropic sovraccarico: ${error.message}`, "transitorio", status);
+    if (status === 529) return new ProviderError(`Anthropic overloaded: ${error.message}`, "transient", status);
     return ProviderError.fromStatus(status, `Anthropic: ${error.message}`);
   }
-  if (error instanceof Anthropic.APIConnectionError) return new ProviderError(`Anthropic non raggiungibile: ${error.message}`, "transitorio");
-  if (error instanceof Error && error.name === "AbortError") return new ProviderError("interrotto", "richiesta");
-  return new ProviderError(error instanceof Error ? error.message : String(error), "sconosciuto");
+  if (error instanceof Anthropic.APIConnectionError) return new ProviderError(`Anthropic unreachable: ${error.message}`, "transient");
+  if (error instanceof Error && error.name === "AbortError") return new ProviderError("interrupted", "request");
+  return new ProviderError(error instanceof Error ? error.message : String(error), "unknown");
 }
 
 export class AnthropicProvider implements ModelProvider {
@@ -100,7 +100,7 @@ export class AnthropicProvider implements ModelProvider {
   constructor(options: AnthropicProviderOptions = {}) {
     this.id = options.id ?? "anthropic";
     const apiKey = options.apiKey ?? process.env["ANTHROPIC_API_KEY"];
-    if (!apiKey) throw new ProviderError("chiave Anthropic mancante (ANTHROPIC_API_KEY)", "autenticazione");
+    if (!apiKey) throw new ProviderError("missing Anthropic key (ANTHROPIC_API_KEY)", "auth");
     this.client = new Anthropic({ apiKey, ...(options.baseURL ? { baseURL: options.baseURL } : {}), maxRetries: 0 });
     this.prices = options.prices;
   }

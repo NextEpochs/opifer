@@ -1,5 +1,5 @@
--- 0001 Fondamenta: organizzazione e audit.
--- Ogni tabella di dominio porta company_id, created_at, updated_at.
+-- 0001 Foundations: organization and audit.
+-- Every domain table carries company_id, created_at, updated_at.
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
@@ -7,8 +7,8 @@ CREATE TABLE companies (
   id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   name        text NOT NULL,
   mission     text,
-  status      text NOT NULL DEFAULT 'attiva'
-              CHECK (status IN ('attiva', 'sospesa', 'archiviata')),
+  status      text NOT NULL DEFAULT 'active'
+              CHECK (status IN ('active', 'suspended', 'archived')),
   settings    jsonb NOT NULL DEFAULT '{}'::jsonb,
   created_at  timestamptz NOT NULL DEFAULT now(),
   updated_at  timestamptz NOT NULL DEFAULT now()
@@ -26,7 +26,7 @@ CREATE TABLE memberships (
   company_id  uuid NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
   user_id     uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   role        text NOT NULL
-              CHECK (role IN ('proprietario', 'amministratore', 'operatore', 'osservatore')),
+              CHECK (role IN ('owner', 'admin', 'operator', 'observer')),
   created_at  timestamptz NOT NULL DEFAULT now(),
   updated_at  timestamptz NOT NULL DEFAULT now(),
   PRIMARY KEY (company_id, user_id)
@@ -40,12 +40,12 @@ CREATE TABLE agents (
   reports_to_agent_id  uuid REFERENCES agents(id) ON DELETE SET NULL,
   reports_to_user_id   uuid REFERENCES users(id) ON DELETE SET NULL,
   model                text,
-  status               text NOT NULL DEFAULT 'attivo'
-                       CHECK (status IN ('attivo', 'in_pausa', 'fermato_per_budget', 'archiviato')),
+  status               text NOT NULL DEFAULT 'active'
+                       CHECK (status IN ('active', 'paused', 'budget_stopped', 'archived')),
   current_revision     integer NOT NULL DEFAULT 1,
   created_at           timestamptz NOT NULL DEFAULT now(),
   updated_at           timestamptz NOT NULL DEFAULT now(),
-  -- organigramma ad albero: al più un responsabile
+  -- tree-shaped org chart: at most one manager
   CHECK (reports_to_agent_id IS NULL OR reports_to_user_id IS NULL),
   UNIQUE (company_id, name)
 );
@@ -58,7 +58,7 @@ CREATE TABLE agent_revisions (
   agent_id    uuid NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
   revision    integer NOT NULL,
   config      jsonb NOT NULL,
-  author_kind text NOT NULL CHECK (author_kind IN ('persona', 'agente', 'sistema')),
+  author_kind text NOT NULL CHECK (author_kind IN ('person', 'agent', 'system')),
   author_id   uuid,
   note        text,
   created_at  timestamptz NOT NULL DEFAULT now(),
@@ -68,12 +68,12 @@ CREATE TABLE agent_revisions (
 
 CREATE INDEX agent_revisions_company_idx ON agent_revisions (company_id);
 
--- Registro immutabile: solo inserimenti. Modifiche e cancellazioni sono
--- bloccate da un trigger; in produzione anche da permessi separati.
+-- Immutable log: inserts only. Updates and deletes are blocked by a
+-- trigger; in production also by separate permissions.
 CREATE TABLE audit_log (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   company_id    uuid NOT NULL REFERENCES companies(id) ON DELETE RESTRICT,
-  actor_kind    text NOT NULL CHECK (actor_kind IN ('persona', 'agente', 'sistema')),
+  actor_kind    text NOT NULL CHECK (actor_kind IN ('person', 'agent', 'system')),
   actor_id      uuid,
   action        text NOT NULL,
   subject_kind  text NOT NULL,
@@ -91,7 +91,7 @@ CREATE INDEX audit_log_company_time_idx ON audit_log (company_id, occurred_at DE
 CREATE FUNCTION audit_log_is_append_only() RETURNS trigger
 LANGUAGE plpgsql AS $$
 BEGIN
-  RAISE EXCEPTION 'audit_log è un registro immutabile: % non è consentito', TG_OP
+  RAISE EXCEPTION 'audit_log is an append-only, immutable log: % is not allowed', TG_OP
     USING ERRCODE = 'insufficient_privilege';
 END;
 $$;
@@ -100,7 +100,7 @@ CREATE TRIGGER audit_log_no_update_no_delete
   BEFORE UPDATE OR DELETE ON audit_log
   FOR EACH ROW EXECUTE FUNCTION audit_log_is_append_only();
 
--- updated_at automatico su tutte le tabelle che lo portano.
+-- automatic updated_at on every table that carries it.
 CREATE FUNCTION set_updated_at() RETURNS trigger
 LANGUAGE plpgsql AS $$
 BEGIN

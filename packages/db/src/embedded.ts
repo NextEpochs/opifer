@@ -1,7 +1,7 @@
 /**
- * Postgres incorporato: l'installazione locale non richiede alcun server
- * esterno. I binari arrivano come pacchetto npm per la piattaforma corrente;
- * i dati vivono nella cartella di Opifer.
+ * Embedded Postgres: the local installation requires no external server.
+ * The binaries come as an npm package for the current platform; the data
+ * lives in the Opifer folder.
  */
 
 import { access, mkdir, stat } from "node:fs/promises";
@@ -12,19 +12,19 @@ import type { DatabaseConfig } from "./client.js";
 import { waitForDatabase } from "./client.js";
 
 export interface EmbeddedOptions {
-  /** Cartella dati del cluster (es. `~/.opifer/postgres`). */
+  /** Data folder of the cluster (e.g. `~/.opifer/postgres`). */
   dataDir: string;
   port: number;
   user?: string;
   password?: string;
-  /** Nome del database applicativo da creare alla prima inizializzazione. */
+  /** Name of the application database to create on first initialisation. */
   database?: string;
   log?: (message: string) => void;
 }
 
 export interface EmbeddedCluster {
   config: DatabaseConfig;
-  /** Vero se il cluster è stato creato adesso (prima installazione). */
+  /** True if the cluster was created just now (first installation). */
   freshlyInitialised: boolean;
   stop(): Promise<void>;
 }
@@ -42,8 +42,8 @@ async function exists(p: string): Promise<boolean> {
 }
 
 /**
- * Come root, Postgres gira con un utente di sistema dedicato: ogni cartella
- * sopra quella dei dati deve essere attraversabile da quell'utente.
+ * As root, Postgres runs with a dedicated system user: every folder above
+ * the data folder must be traversable by that user.
  */
 async function ensureTraversableByOthers(dir: string): Promise<void> {
   let current = path.resolve(dir);
@@ -57,8 +57,8 @@ async function ensureTraversableByOthers(dir: string): Promise<void> {
   }
   if (blocked.length > 0) {
     throw new Error(
-      `Come root il database incorporato gira con l'utente di sistema "postgres", che non può attraversare: ${blocked.join(", ")}. ` +
-        `Usa una cartella accessibile (es. OPIFER_HOME=/var/lib/opifer) oppure concedi il permesso di attraversamento (chmod o+x).`,
+      `As root the embedded database runs with the system user "postgres", which cannot traverse: ${blocked.join(", ")}. ` +
+        `Use an accessible folder (e.g. OPIFER_HOME=/var/lib/opifer) or grant traverse permission (chmod o+x).`,
     );
   }
 }
@@ -69,11 +69,11 @@ export function embeddedConfig(options: EmbeddedOptions): DatabaseConfig {
     port: options.port,
     database: options.database ?? DEFAULT_DATABASE,
     user: options.user ?? DEFAULT_USER,
-    password: options.password ?? "opifer-locale",
+    password: options.password ?? "opifer-local",
   };
 }
 
-/** Inizializza (se serve) e avvia il cluster incorporato; risolve quando risponde. */
+/** Initialises (if needed) and starts the embedded cluster; resolves when it answers. */
 export async function startEmbeddedPostgres(options: EmbeddedOptions): Promise<EmbeddedCluster> {
   const config = embeddedConfig(options);
   const log = options.log ?? (() => {});
@@ -87,7 +87,7 @@ export async function startEmbeddedPostgres(options: EmbeddedOptions): Promise<E
     password: config.password,
     authMethod: "scram-sha-256",
     persistent: true,
-    // Postgres non gira come root: in un container root si crea un utente di sistema dedicato.
+    // Postgres does not run as root: in a root container a dedicated system user is created.
     createPostgresUser: userInfo().uid === 0,
     initdbFlags: ["--encoding=UTF8", "--locale=C"],
     onLog: (message) => log(message.trimEnd()),
@@ -97,7 +97,7 @@ export async function startEmbeddedPostgres(options: EmbeddedOptions): Promise<E
   const freshlyInitialised = !(await exists(path.join(clusterDir, "PG_VERSION")));
   if (freshlyInitialised) {
     if (userInfo().uid === 0) await ensureTraversableByOthers(path.dirname(clusterDir));
-    log(`Inizializzo il database incorporato in ${clusterDir}`);
+    log(`Initialising the embedded database in ${clusterDir}`);
     await pg.initialise();
   }
 

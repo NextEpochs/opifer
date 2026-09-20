@@ -1,43 +1,43 @@
-# AGENTS.md — come si lavora in questo repository
+# AGENTS.md — how we work in this repository
 
-Questo file è letto da persone e da agenti di sviluppo. Vale per tutto il monorepo.
+This file is read by people and by development agents. It applies to the whole monorepo.
 
-## Cos'è Opifer
+## What Opifer is
 
-Opifer è una piattaforma in cui agenti AI lavorano, imparano e vengono governati come un'organizzazione. La specifica completa è il documento "Opifer — Specifica completa e piano MVP" (NextEpochs, settembre 2026). Il codice è una reimplementazione da specifica: si parte dai comportamenti descritti con parole nostre, mai da codice altrui. Nessun file, funzione, prompt o schema viene tradotto o adattato da progetti di terzi; gli standard aperti (MCP, agent skills, OpenAPI, OpenTelemetry) si implementano dalle rispettive specifiche pubbliche.
+Opifer is a platform where AI agents work, learn and are governed like an organisation. The full specification is the document "Opifer — Full specification and MVP plan" (NextEpochs, September 2026). The code is a reimplementation from the specification: we start from the described behaviours in our own words, never from someone else's code. No file, function, prompt or schema is translated or adapted from third-party projects; open standards (MCP, agent skills, OpenAPI, OpenTelemetry) are implemented from their public specifications.
 
-## Le venti invarianti
+## The twenty invariants
 
-Ogni funzione, presente o futura, deve rispettarle. Sono in `packages/core/src/invariants.ts` e hanno un test di contratto ciascuna in `packages/core/test/invariants.test.ts`. Prima di toccare il core, rileggile. Una modifica che viola un'invariante non si fa: si discute la specifica.
+Every feature, present or future, must respect them. They are in `packages/core/src/invariants.ts` and each has a contract test in `packages/core/test/invariants.test.ts`. Before touching the core, read them again. A change that violates an invariant is not made: the specification is discussed instead.
 
-## Regole di codice
+## Code rules
 
-- Un solo linguaggio: TypeScript strict, moduli ESM (`NodeNext`), Node.js 22.
-- Tutto lo stato vive in PostgreSQL. Nessun secondo archivio obbligatorio.
-- Ogni tabella con dati di dominio porta `company_id`, `created_at`, `updated_at`. `audit_log` accetta solo inserimenti.
-- Le migrazioni sono coppie di file SQL `NNNN_nome.up.sql` / `NNNN_nome.down.sql` in `packages/db/migrations`; ogni `up` ha il suo `down` e la coppia viene provata in entrambe le direzioni dal test `migrate.test.ts`. Lo schema Drizzle in `packages/db/src/schema.ts` rispecchia le migrazioni e serve per le query tipizzate.
-- File sotto 1.500 righe, funzioni sotto 200. Nessun test che fotografa valori destinati a cambiare.
-- Nomi, testi dell'interfaccia e documentazione in italiano; identificatori di codice in inglese; l'interfaccia è bilingue (italiano e inglese) dal primo giorno.
-- I segreti non entrano mai nel repository, nei log o nel contesto di un modello.
-- Ogni dipendenza entra con licenza compatibile con la distribuzione commerciale; `THIRD-PARTY-NOTICES` si rigenera con `pnpm third-party-notices`.
+- A single language: TypeScript strict, ESM modules (`NodeNext`), Node.js 22.
+- All state lives in PostgreSQL. No mandatory second store.
+- Every table with domain data carries `company_id`, `created_at`, `updated_at`. `audit_log` accepts inserts only.
+- Migrations are pairs of SQL files `NNNN_name.up.sql` / `NNNN_name.down.sql` in `packages/db/migrations`; every `up` has its `down` and the pair is exercised in both directions by the `migrate.test.ts` test. The Drizzle schema in `packages/db/src/schema.ts` mirrors the migrations and serves the typed queries.
+- Files under 1,500 lines, functions under 200. No test that snapshots values meant to change.
+- Everything in English for now: names, code identifiers, interface texts and documentation. The interface stays bilingual, with English as the default and Italian as the second locale.
+- Secrets never enter the repository, the logs or the context of a model.
+- Every dependency comes in with a licence compatible with commercial distribution; `THIRD-PARTY-NOTICES` is regenerated with `pnpm third-party-notices`.
 
-## Comandi
+## Commands
 
 ```bash
 pnpm install && pnpm build
 pnpm typecheck
 pnpm test
-pnpm o4r init --company "Nome azienda"
+pnpm o4r init --company "Company name"
 pnpm o4r up
 ```
 
-## Metodo di lavoro
+## Way of working
 
-- Il piano è in milestone (M0..M7). Ogni milestone si chiude con una dimostrazione e con i test di contratto delle invarianti toccate.
-- La UI cresce con ogni milestone, una pagina alla volta.
-- Nessuna funzione della colonna "Dopo" della roadmap entra nell'MVP senza toglierne un'altra.
-- I commit descrivono il comportamento cambiato, in italiano, con riferimento alla milestone (es. `M0: migrazioni avanti e indietro`).
+- The plan is in milestones (M0..M7). Every milestone closes with a demonstration and with the contract tests of the invariants it touches.
+- The UI grows with every milestone, one page at a time.
+- No feature from the "Later" column of the roadmap enters the MVP without removing another one.
+- Commits describe the changed behaviour, in English, with a reference to the milestone (e.g. `M0: forward and backward migrations`).
 
-## Licenze
+## Licences
 
-Core AGPL-3.0-only; `packages/sdk` e `plugins/*` MIT. Non spostare codice tra le due aree senza una decisione esplicita.
+Core AGPL-3.0-only; `packages/sdk` and `plugins/*` MIT. Do not move code between the two areas without an explicit decision.

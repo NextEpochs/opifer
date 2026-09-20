@@ -11,14 +11,14 @@ export interface ToolContext {
 export interface ToolOutcome {
   content: string;
   isError?: boolean;
-  /** Il turno si ferma dopo questo tool (per esempio una domanda alla persona). */
+  /** The turn stops after this tool (for example a question to the person). */
   endTurn?: { stopReason: string };
 }
 
 export interface NativeTool {
   definition: ToolDefinition;
-  /** Livello di rischio, usato dal governo (M2) per il permesso di default. */
-  risk: "basso" | "medio" | "alto";
+  /** Risk level, used by governance (M2) for the default permission. */
+  risk: "low" | "medium" | "high";
   execute(args: Record<string, unknown>, context: ToolContext): Promise<ToolOutcome>;
 }
 
@@ -27,7 +27,7 @@ export interface ToolExecutor {
   execute(name: string, args: Record<string, unknown>, context: ToolContext): Promise<ToolOutcome>;
 }
 
-/** Esecutore dei tool nativi: nessun governo (arriva con il gateway in M2). */
+/** Executor of native tools: no governance (it arrives with the gateway in M2). */
 export class NativeToolExecutor implements ToolExecutor {
   private readonly tools = new Map<string, NativeTool>();
 
@@ -36,7 +36,7 @@ export class NativeToolExecutor implements ToolExecutor {
   }
 
   add(tool: NativeTool): this {
-    if (this.tools.has(tool.definition.name)) throw new Error(`Tool già registrato: ${tool.definition.name}`);
+    if (this.tools.has(tool.definition.name)) throw new Error(`Tool already registered: ${tool.definition.name}`);
     this.tools.set(tool.definition.name, tool);
     return this;
   }
@@ -47,11 +47,11 @@ export class NativeToolExecutor implements ToolExecutor {
 
   async execute(name: string, args: Record<string, unknown>, context: ToolContext): Promise<ToolOutcome> {
     const tool = this.tools.get(name);
-    if (!tool) return { content: `Tool sconosciuto: ${name}`, isError: true };
+    if (!tool) return { content: `Unknown tool: ${name}`, isError: true };
     try {
       return await tool.execute(args, context);
     } catch (error) {
-      return { content: `Errore nel tool ${name}: ${error instanceof Error ? error.message : String(error)}`, isError: true };
+      return { content: `Error in tool ${name}: ${error instanceof Error ? error.message : String(error)}`, isError: true };
     }
   }
 }

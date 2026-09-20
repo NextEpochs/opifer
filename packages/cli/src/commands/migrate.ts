@@ -12,21 +12,21 @@ export async function runMigrate(action: "status" | "up" | "down", options: { ho
     if (action === "status") {
       const status = await migrationStatus(sql);
       for (const a of status.applied) say.ok(`${String(a.version).padStart(4, "0")}_${a.name} ${c.dim(a.appliedAt.toISOString())}`);
-      for (const p of status.pending) say.warn(`${String(p.version).padStart(4, "0")}_${p.name} ${c.dim("in attesa")}`);
-      if (status.applied.length === 0 && status.pending.length === 0) say.info("Nessuna migrazione");
+      for (const p of status.pending) say.warn(`${String(p.version).padStart(4, "0")}_${p.name} ${c.dim("pending")}`);
+      if (status.applied.length === 0 && status.pending.length === 0) say.info("No migrations");
       return;
     }
     const to = options.to !== undefined ? Number(options.to) : undefined;
     if (action === "up") {
       const applied = await migrateUp(sql, { log: say.ok, ...(to !== undefined ? { to } : {}) });
-      if (applied.length === 0) say.info("Schema già aggiornato");
+      if (applied.length === 0) say.info("Schema already up to date");
       return;
     }
     const reverted = await migrateDown(sql, {
       log: say.ok,
       ...(to !== undefined ? { to } : { steps: Number(options.steps ?? 1) }),
     });
-    if (reverted.length === 0) say.info("Nulla da ritirare");
+    if (reverted.length === 0) say.info("Nothing to roll back");
   } finally {
     await db.close();
   }

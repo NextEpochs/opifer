@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "private": true,
   "type": "module",
-  "description": "Opifer — agenti AI che lavorano, imparano e vengono governati come un'organizzazione.",
+  "description": "Opifer — AI agents that work, learn and are governed like an organisation.",
   "license": "AGPL-3.0-only",
   "homepage": "https://opifer.dev",
   "repository": {

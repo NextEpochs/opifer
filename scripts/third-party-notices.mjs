@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * Genera THIRD-PARTY-NOTICES con le licenze di tutte le dipendenze di
- * produzione del workspace. Va eseguito a ogni rilascio: `pnpm third-party-notices`.
+ * Generates THIRD-PARTY-NOTICES with the licences of all the production
+ * dependencies of the workspace. Run it at every release: `pnpm third-party-notices`.
  */
 
 import { execFileSync } from "node:child_process";
@@ -13,8 +13,8 @@ const byLicense = JSON.parse(raw);
 const lines = [
   "THIRD-PARTY-NOTICES",
   "",
-  "Opifer include le seguenti dipendenze di terze parti, ciascuna con la propria licenza.",
-  "Generato automaticamente con `pnpm third-party-notices`; non modificare a mano.",
+  "Opifer includes the following third-party dependencies, each with its own licence.",
+  "Generated automatically with `pnpm third-party-notices`; do not edit by hand.",
   "",
 ];
 
@@ -30,12 +30,12 @@ for (const license of Object.keys(byLicense).sort()) {
     lines.push(`${pkg.name} ${versions}${author}${homepage}`);
     if (forbidden.has(license)) {
       problems++;
-      console.error(`Licenza non compatibile con la distribuzione commerciale: ${pkg.name} (${license})`);
+      console.error(`Licence not compatible with commercial distribution: ${pkg.name} (${license})`);
     }
   }
   lines.push("");
 }
 
 writeFileSync("THIRD-PARTY-NOTICES", lines.join("\n"), "utf8");
-console.log(`THIRD-PARTY-NOTICES aggiornato (${Object.keys(byLicense).length} licenze)`);
+console.log(`THIRD-PARTY-NOTICES updated (${Object.keys(byLicense).length} licences)`);
 if (problems > 0) process.exit(1);

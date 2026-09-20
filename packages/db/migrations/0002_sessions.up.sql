@@ -1,4 +1,4 @@
--- 0002 Sessioni: conversazioni degli agenti, messaggi, esecuzioni ed eventi.
+-- 0002 Sessions: agent conversations, messages, runs and events.
 
 CREATE TABLE sessions (
   id                  uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -7,13 +7,13 @@ CREATE TABLE sessions (
   kind                text NOT NULL DEFAULT 'chat'
                       CHECK (kind IN ('chat', 'task', 'routine')),
   title               text,
-  -- Prefisso stabile: calcolato una volta per sessione, mai modificato (invariante).
+  -- Stable prefix: computed once per session, never modified (invariant).
   system_prompt       text NOT NULL,
   system_prompt_hash  text NOT NULL,
   model               text NOT NULL,
   fallback_model      text,
-  status              text NOT NULL DEFAULT 'attiva'
-                      CHECK (status IN ('attiva', 'sospesa', 'chiusa')),
+  status              text NOT NULL DEFAULT 'active'
+                      CHECK (status IN ('active', 'suspended', 'closed')),
   workdir             text,
   last_seq            integer NOT NULL DEFAULT 0,
   created_at          timestamptz NOT NULL DEFAULT now(),
@@ -25,13 +25,13 @@ CREATE INDEX sessions_company_agent_idx ON sessions (company_id, agent_id, creat
 CREATE TRIGGER sessions_updated_at BEFORE UPDATE ON sessions
   FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
--- Il prompt di sistema non cambia per tutta la durata della sessione.
+-- The system prompt does not change for the whole life of the session.
 CREATE FUNCTION sessions_system_prompt_is_stable() RETURNS trigger
 LANGUAGE plpgsql AS $$
 BEGIN
   IF NEW.system_prompt IS DISTINCT FROM OLD.system_prompt
      OR NEW.system_prompt_hash IS DISTINCT FROM OLD.system_prompt_hash THEN
-    RAISE EXCEPTION 'il prompt di sistema di una sessione è un prefisso stabile e non si modifica'
+    RAISE EXCEPTION 'the system prompt of a session is a stable prefix and cannot change'
       USING ERRCODE = 'check_violation';
   END IF;
   RETURN NEW;
@@ -46,14 +46,14 @@ CREATE TABLE runs (
   company_id           uuid NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
   session_id           uuid NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
   agent_id             uuid NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
-  status               text NOT NULL DEFAULT 'in_corso'
-                       CHECK (status IN ('in_corso', 'conclusa', 'interrotta', 'fallita', 'in_attesa')),
+  status               text NOT NULL DEFAULT 'running'
+                       CHECK (status IN ('running', 'completed', 'interrupted', 'failed', 'waiting')),
   stop_reason          text,
   iterations           integer NOT NULL DEFAULT 0,
   input_tokens         integer NOT NULL DEFAULT 0,
   output_tokens        integer NOT NULL DEFAULT 0,
   cached_input_tokens  integer NOT NULL DEFAULT 0,
-  -- contatore atomico degli eventi dell'esecuzione (più scrittori concorrenti)
+  -- atomic counter of the run's events (multiple concurrent writers)
   event_seq            integer NOT NULL DEFAULT 0,
   error                text,
   started_at           timestamptz NOT NULL DEFAULT now(),
@@ -75,7 +75,7 @@ CREATE TABLE messages (
   run_id      uuid REFERENCES runs(id) ON DELETE SET NULL,
   seq         integer NOT NULL,
   role        text NOT NULL CHECK (role IN ('user', 'assistant', 'tool')),
-  -- Elenco di parti: testo, chiamate a tool, risultati di tool.
+  -- List of parts: text, tool calls, tool results.
   content     jsonb NOT NULL,
   usage       jsonb,
   created_at  timestamptz NOT NULL DEFAULT now(),
@@ -88,7 +88,7 @@ CREATE INDEX messages_company_idx ON messages (company_id);
 CREATE TRIGGER messages_updated_at BEFORE UPDATE ON messages
   FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
--- Alternanza rigorosa dei ruoli: mai due messaggi consecutivi dello stesso ruolo.
+-- Strict role alternation: never two consecutive messages with the same role.
 CREATE FUNCTION messages_roles_alternate() RETURNS trigger
 LANGUAGE plpgsql AS $$
 DECLARE
@@ -98,11 +98,11 @@ BEGIN
   WHERE session_id = NEW.session_id AND seq < NEW.seq
   ORDER BY seq DESC LIMIT 1;
   IF previous_role = NEW.role THEN
-    RAISE EXCEPTION 'alternanza dei ruoli violata: due messaggi consecutivi con ruolo %', NEW.role
+    RAISE EXCEPTION 'role alternation violated: two consecutive messages with role %', NEW.role
       USING ERRCODE = 'check_violation';
   END IF;
   IF previous_role IS NULL AND NEW.role <> 'user' THEN
-    RAISE EXCEPTION 'una sessione inizia sempre con un messaggio utente'
+    RAISE EXCEPTION 'a session always starts with a user message'
       USING ERRCODE = 'check_violation';
   END IF;
   RETURN NEW;

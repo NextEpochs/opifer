@@ -1,26 +1,26 @@
 /**
- * SDK di Opifer (MIT): i contratti che un plugin implementa.
+ * Opifer SDK (MIT): the contracts a plugin implements.
  *
- * Il core parla con provider di modelli, canali, tool, ambienti di esecuzione,
- * memorie esterne e gestori di segreti solo attraverso queste interfacce.
- * In M0 sono definite le forme; le implementazioni arrivano con le milestone
- * successive (M1 provider, M5 canali e sandbox).
+ * The core talks to model providers, channels, tools, execution environments,
+ * external memories and secret managers only through these interfaces.
+ * In M0 the shapes are defined; the implementations arrive with the later
+ * milestones (M1 providers, M5 channels and sandbox).
  */
 
 export type PluginKind = "provider" | "channel" | "execution-environment" | "tool" | "memory" | "secrets" | "trace-exporter";
 
 export interface PluginManifest {
-  /** Nome del pacchetto, es. `@opifer/plugin-telegram`. */
+  /** Package name, e.g. `@opifer/plugin-telegram`. */
   name: string;
   version: string;
   kind: PluginKind;
-  /** Permessi che il plugin dichiara; l'installazione li mostra e li fa approvare. */
+  /** Permissions the plugin declares; installation shows them and asks for approval. */
   permissions: readonly string[];
-  /** Schema JSON della configurazione per azienda. */
+  /** JSON schema of the per-company configuration. */
   configSchema?: Record<string, unknown>;
 }
 
-// --- Provider di modelli (M1) ---------------------------------------------
+// --- Model providers (M1) -------------------------------------------------
 
 export type MessageRole = "system" | "user" | "assistant" | "tool";
 
@@ -65,7 +65,7 @@ export interface ModelCapabilities {
 }
 
 export interface ModelPrice {
-  /** Prezzo per milione di token, nella valuta indicata. */
+  /** Price per million tokens, in the indicated currency. */
   inputPerMillion: number;
   outputPerMillion: number;
   cachedInputPerMillion?: number;
@@ -79,7 +79,7 @@ export interface CompletionRequest {
   tools?: ToolDefinition[];
   maxOutputTokens?: number;
   temperature?: number;
-  /** Il prefisso stabile (system + istantanea) può essere marcato per la cache del provider. */
+  /** The stable prefix (system + snapshot) can be marked for the provider's cache. */
   cachePrefix?: boolean;
   signal?: AbortSignal;
 }
@@ -103,17 +103,17 @@ export interface ModelInfo {
 }
 
 export interface ModelProvider {
-  /** Identificativo del provider, prefisso dei modelli: `anthropic/claude-...`. */
+  /** Provider identifier, prefix of the models: `anthropic/claude-...`. */
   readonly id: string;
   listModels(): Promise<ModelInfo[]>;
-  /** Stima dei token in ingresso; i provider senza contatore usano un'approssimazione. */
+  /** Estimate of the input tokens; providers without a counter use an approximation. */
   countTokens(request: CompletionRequest): Promise<number>;
   complete(request: CompletionRequest): AsyncIterable<StreamEvent>;
 }
 
-export type ProviderErrorKind = "transitorio" | "limite" | "autenticazione" | "richiesta" | "sconosciuto";
+export type ProviderErrorKind = "transient" | "rate_limit" | "auth" | "request" | "unknown";
 
-/** Errore di un provider, classificato per decidere ritentativi e riserva. */
+/** Provider error, classified to decide retries and fallback. */
 export class ProviderError extends Error {
   readonly kind: ProviderErrorKind;
   readonly status: number | undefined;
@@ -123,20 +123,20 @@ export class ProviderError extends Error {
     this.kind = kind;
     this.status = status;
   }
-  /** Transitori e limiti di velocità si ritentano; il resto no. */
+  /** Transient errors and rate limits are retried; the rest are not. */
   get retryable(): boolean {
-    return this.kind === "transitorio" || this.kind === "limite";
+    return this.kind === "transient" || this.kind === "rate_limit";
   }
   static fromStatus(status: number, message: string): ProviderError {
-    if (status === 401 || status === 403) return new ProviderError(message, "autenticazione", status);
-    if (status === 429) return new ProviderError(message, "limite", status);
-    if (status === 408 || status === 409 || status >= 500) return new ProviderError(message, "transitorio", status);
-    if (status >= 400) return new ProviderError(message, "richiesta", status);
-    return new ProviderError(message, "sconosciuto", status);
+    if (status === 401 || status === 403) return new ProviderError(message, "auth", status);
+    if (status === 429) return new ProviderError(message, "rate_limit", status);
+    if (status === 408 || status === 409 || status >= 500) return new ProviderError(message, "transient", status);
+    if (status >= 400) return new ProviderError(message, "request", status);
+    return new ProviderError(message, "unknown", status);
   }
 }
 
-// --- Ambienti di esecuzione (M0 interfaccia, M5 Docker) --------------------
+// --- Execution environments (M0 interface, M5 Docker) ----------------------
 
 export interface CommandResult {
   exitCode: number;
@@ -154,7 +154,7 @@ export interface ExecutionEnvironment {
   dispose(): Promise<void>;
 }
 
-// --- Canali (M5) -----------------------------------------------------------
+// --- Channels (M5) ---------------------------------------------------------
 
 export interface InboundMessage {
   channelId: string;
@@ -167,7 +167,7 @@ export interface InboundMessage {
 export interface OutboundMessage {
   externalChatId: string;
   text: string;
-  /** Pulsanti di approvazione e comandi di controllo, dove il canale li supporta. */
+  /** Approval buttons and control commands, where the channel supports them. */
   actions?: Array<{ id: string; label: string }>;
 }
 

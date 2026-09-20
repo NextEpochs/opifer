@@ -2,7 +2,7 @@
   "name": "@opifer/db",
   "version": "0.0.1",
   "private": true,
-  "description": "Schema, migrazioni avanti e indietro e Postgres incorporato di Opifer.",
+  "description": "Opifer schema, forward and backward migrations, and embedded Postgres.",
   "license": "AGPL-3.0-only",
   "type": "module",
   "main": "./dist/index.js",

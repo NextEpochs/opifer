@@ -1,11 +1,11 @@
 /**
- * Tipi di dominio condivisi tra server, CLI e UI.
- * Rispecchiano le tabelle di `packages/db/migrations`; i tipi tipizzati per
- * le query stanno nello schema Drizzle, qui ci sono solo le forme esposte
- * dall'API.
+ * Domain types shared between server, CLI and UI.
+ * They mirror the tables in `packages/db/migrations`; the typed query types
+ * live in the Drizzle schema, here there are only the shapes exposed by the
+ * API.
  */
 
-export type CompanyStatus = "attiva" | "sospesa" | "archiviata";
+export type CompanyStatus = "active" | "suspended" | "archived";
 
 export interface Company {
   id: string;
@@ -17,7 +17,7 @@ export interface Company {
   updatedAt: string;
 }
 
-export type MembershipRole = "proprietario" | "amministratore" | "operatore" | "osservatore";
+export type MembershipRole = "owner" | "admin" | "operator" | "observer";
 
 export interface User {
   id: string;
@@ -35,7 +35,7 @@ export interface Membership {
   updatedAt: string;
 }
 
-export type AgentStatus = "attivo" | "in_pausa" | "fermato_per_budget" | "archiviato";
+export type AgentStatus = "active" | "paused" | "budget_stopped" | "archived";
 
 export interface Agent {
   id: string;
@@ -51,7 +51,7 @@ export interface Agent {
   updatedAt: string;
 }
 
-export type AuditActorKind = "persona" | "agente" | "sistema";
+export type AuditActorKind = "person" | "agent" | "system";
 
 export interface AuditEntry {
   id: string;
@@ -67,5 +67,5 @@ export interface AuditEntry {
   occurredAt: string;
 }
 
-/** Modalità di installazione: lo stesso codice serve tutte e tre. */
-export type InstallMode = "locale" | "autenticata" | "gestita";
+/** Installation mode: the same code serves all three. */
+export type InstallMode = "local" | "authenticated" | "managed";

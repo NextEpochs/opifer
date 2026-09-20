@@ -16,7 +16,7 @@ const DRIZZLE_TABLES = [
   schema.runEvents,
 ];
 
-describe("lo schema Drizzle rispecchia le migrazioni", () => {
+describe("the Drizzle schema mirrors the migrations", () => {
   let db: TestDatabase;
 
   beforeAll(async () => {
@@ -27,7 +27,7 @@ describe("lo schema Drizzle rispecchia le migrazioni", () => {
     await db?.destroy();
   });
 
-  it("ogni tabella Drizzle esiste nel database con le stesse colonne", async () => {
+  it("every Drizzle table exists in the database with the same columns", async () => {
     for (const table of DRIZZLE_TABLES) {
       const name = getTableName(table);
       const rows = await db.sql<{ column_name: string }[]>`
@@ -39,11 +39,11 @@ describe("lo schema Drizzle rispecchia le migrazioni", () => {
       const inDrizzle = Object.values(getTableColumns(table))
         .map((c) => c.name)
         .sort();
-      expect(inDatabase, `colonne di ${name}`).toEqual(inDrizzle);
+      expect(inDatabase, `columns of ${name}`).toEqual(inDrizzle);
     }
   });
 
-  it("ogni tabella del database ha una definizione Drizzle", async () => {
+  it("every database table has a Drizzle definition", async () => {
     const rows = await db.sql<{ table_name: string }[]>`
       SELECT table_name FROM information_schema.tables
       WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
@@ -53,13 +53,13 @@ describe("lo schema Drizzle rispecchia le migrazioni", () => {
     expect(inDatabase).toEqual(inDrizzle);
   });
 
-  it("le query tipizzate funzionano (inserisci e leggi un'azienda)", async () => {
+  it("typed queries work (insert and read a company)", async () => {
     const [inserted] = await db.db
       .insert(schema.companies)
-      .values({ name: "Azienda di prova", mission: "Provare lo schema" })
+      .values({ name: "Test company", mission: "Try out the schema" })
       .returning();
-    expect(inserted?.status).toBe("attiva");
+    expect(inserted?.status).toBe("active");
     const found = await db.db.query.companies.findFirst();
-    expect(found?.name).toBe("Azienda di prova");
+    expect(found?.name).toBe("Test company");
   });
 });

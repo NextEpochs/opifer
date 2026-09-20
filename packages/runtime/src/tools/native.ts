@@ -1,7 +1,7 @@
 /**
- * Tool nativi del core (M1): terminale, lettura e scrittura file, elenco e
- * ricerca nei file, richiesta di chiarimento. Pochi e fondamentali: tutto il
- * resto arriva via MCP o plugin.
+ * Native core tools (M1): terminal, file read and write, file listing and
+ * search, request for clarification. Few and fundamental: everything else
+ * arrives via MCP or plugins.
  */
 
 import { readdir, stat } from "node:fs/promises";
@@ -24,21 +24,21 @@ async function environmentFor(context: ToolContext): Promise<LocalEnvironment> {
 
 function str(args: Record<string, unknown>, key: string): string {
   const value = args[key];
-  if (typeof value !== "string" || value.length === 0) throw new Error(`parametro "${key}" mancante`);
+  if (typeof value !== "string" || value.length === 0) throw new Error(`missing parameter "${key}"`);
   return value;
 }
 
 export const terminalTool: NativeTool = {
-  risk: "alto",
+  risk: "high",
   definition: {
     name: "terminal",
-    description: "Esegue un comando di shell nella cartella di lavoro e restituisce output ed exit code. Usa comandi non interattivi.",
+    description: "Runs a shell command in the working directory and returns output and exit code. Use non-interactive commands.",
     inputSchema: {
       type: "object",
       required: ["command"],
       properties: {
-        command: { type: "string", description: "Il comando da eseguire (sh -c)." },
-        timeout_seconds: { type: "integer", minimum: 1, maximum: 600, description: "Tempo massimo (default 120)." },
+        command: { type: "string", description: "The command to run (sh -c)." },
+        timeout_seconds: { type: "integer", minimum: 1, maximum: 600, description: "Maximum time (default 120)." },
       },
     },
   },
@@ -46,7 +46,7 @@ export const terminalTool: NativeTool = {
     const command = str(args, "command");
     const verdict = checkCommand(command);
     if (!verdict.allowed) {
-      return { content: `Comando rifiutato: ${verdict.reason}. Questo pattern è sempre vietato.`, isError: true };
+      return { content: `Command refused: ${verdict.reason}. This pattern is always forbidden.`, isError: true };
     }
     const env = await environmentFor(context);
     const timeoutMs = typeof args["timeout_seconds"] === "number" ? args["timeout_seconds"] * 1000 : 120_000;
@@ -60,17 +60,17 @@ export const terminalTool: NativeTool = {
 };
 
 export const readFileTool: NativeTool = {
-  risk: "basso",
+  risk: "low",
   definition: {
     name: "read_file",
-    description: "Legge un file di testo nella cartella di lavoro. Restituisce il contenuto con i numeri di riga.",
+    description: "Reads a text file in the working directory. Returns the content with line numbers.",
     inputSchema: {
       type: "object",
       required: ["path"],
       properties: {
         path: { type: "string" },
-        offset: { type: "integer", minimum: 1, description: "Prima riga da leggere (default 1)." },
-        limit: { type: "integer", minimum: 1, description: "Numero massimo di righe (default 400)." },
+        offset: { type: "integer", minimum: 1, description: "First line to read (default 1)." },
+        limit: { type: "integer", minimum: 1, description: "Maximum number of lines (default 400)." },
       },
     },
   },
@@ -83,16 +83,16 @@ export const readFileTool: NativeTool = {
     const slice = lines.slice(offset - 1, offset - 1 + limit);
     const width = String(offset + slice.length).length;
     const body = slice.map((l, i) => `${String(offset + i).padStart(width)}\t${l}`).join("\n");
-    const tail = offset - 1 + limit < lines.length ? `\n[... altre ${lines.length - (offset - 1 + limit)} righe ...]` : "";
+    const tail = offset - 1 + limit < lines.length ? `\n[... ${lines.length - (offset - 1 + limit)} more lines ...]` : "";
     return { content: body + tail };
   },
 };
 
 export const writeFileTool: NativeTool = {
-  risk: "medio",
+  risk: "medium",
   definition: {
     name: "write_file",
-    description: "Scrive (o sovrascrive) un file di testo nella cartella di lavoro, creando le cartelle mancanti.",
+    description: "Writes (or overwrites) a text file in the working directory, creating missing folders.",
     inputSchema: {
       type: "object",
       required: ["path", "content"],
@@ -104,7 +104,7 @@ export const writeFileTool: NativeTool = {
     const p = str(args, "path");
     const content = typeof args["content"] === "string" ? args["content"] : "";
     await env.writeFile(p, Buffer.from(content, "utf8"));
-    return { content: `Scritto ${p} (${content.length} caratteri)` };
+    return { content: `Wrote ${p} (${content.length} characters)` };
   },
 };
 
@@ -126,13 +126,13 @@ async function walk(root: string, dir: string, out: string[], limit: number): Pr
 }
 
 export const listFilesTool: NativeTool = {
-  risk: "basso",
+  risk: "low",
   definition: {
     name: "list_files",
-    description: "Elenca i file nella cartella di lavoro (ricorsivo, esclusi node_modules, .git e dist).",
+    description: "Lists the files in the working directory (recursive, excluding node_modules, .git and dist).",
     inputSchema: {
       type: "object",
-      properties: { path: { type: "string", description: "Sottocartella da cui partire (default la radice)." }, limit: { type: "integer", minimum: 1 } },
+      properties: { path: { type: "string", description: "Subfolder to start from (default the root)." }, limit: { type: "integer", minimum: 1 } },
     },
   },
   async execute(args, context) {
@@ -141,21 +141,21 @@ export const listFilesTool: NativeTool = {
     const limit = typeof args["limit"] === "number" ? args["limit"] : 500;
     const out: string[] = [];
     await walk(context.workdir, start, out, limit);
-    return { content: out.length ? out.join("\n") + (out.length >= limit ? "\n[... elenco troncato ...]" : "") : "(nessun file)" };
+    return { content: out.length ? out.join("\n") + (out.length >= limit ? "\n[... list truncated ...]" : "") : "(no files)" };
   },
 };
 
 export const searchFilesTool: NativeTool = {
-  risk: "basso",
+  risk: "low",
   definition: {
     name: "search_files",
-    description: "Cerca un'espressione regolare nei file di testo della cartella di lavoro. Restituisce file:riga: testo.",
+    description: "Searches a regular expression in the text files of the working directory. Returns file:line: text.",
     inputSchema: {
       type: "object",
       required: ["pattern"],
       properties: {
         pattern: { type: "string" },
-        path: { type: "string", description: "Sottocartella (default la radice)." },
+        path: { type: "string", description: "Subfolder (default the root)." },
         max_results: { type: "integer", minimum: 1 },
       },
     },
@@ -180,15 +180,15 @@ export const searchFilesTool: NativeTool = {
         if (regex.test(lines[i]!)) hits.push(`${rel}:${i + 1}: ${lines[i]!.trim().slice(0, 300)}`);
       }
     }
-    return { content: hits.length ? hits.join("\n") + (hits.length >= max ? "\n[... risultati troncati ...]" : "") : "(nessun risultato)" };
+    return { content: hits.length ? hits.join("\n") + (hits.length >= max ? "\n[... results truncated ...]" : "") : "(no results)" };
   },
 };
 
 export const askUserTool: NativeTool = {
-  risk: "basso",
+  risk: "low",
   definition: {
     name: "ask_user",
-    description: "Pone una domanda alla persona e ferma il turno in attesa della risposta. Usalo quando un'informazione manca o un'azione è ambigua.",
+    description: "Asks the person a question and stops the turn waiting for the answer. Use it when information is missing or an action is ambiguous.",
     inputSchema: {
       type: "object",
       required: ["question"],
@@ -197,7 +197,7 @@ export const askUserTool: NativeTool = {
   },
   async execute(args) {
     const question = str(args, "question");
-    return { content: `Domanda posta alla persona: ${question}`, endTurn: { stopReason: "chiarimento_richiesto" } };
+    return { content: `Question asked to the person: ${question}`, endTurn: { stopReason: "clarification_requested" } };
   },
 };
 

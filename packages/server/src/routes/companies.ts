@@ -43,7 +43,7 @@ export async function registerCompanyRoutes(app: FastifyInstance): Promise<void>
 
   app.get<{ Params: { id: string } }>("/companies/:id", async (request, reply) => {
     const [row] = await sql<CompanyRow[]>`SELECT * FROM companies WHERE id = ${request.params.id}`;
-    if (!row) return reply.code(404).send({ error: "azienda non trovata" });
+    if (!row) return reply.code(404).send({ error: "company not found" });
     return toCompany(row);
   });
 
@@ -54,16 +54,16 @@ export async function registerCompanyRoutes(app: FastifyInstance): Promise<void>
       `;
       await audit(tx, {
         companyId: row!.id,
-        actorKind: "persona",
-        action: "azienda.creata",
-        subjectKind: "azienda",
+        actorKind: "person",
+        action: "company.created",
+        subjectKind: "company",
         subjectId: row!.id,
         after: { name: row!.name, mission: row!.mission },
       });
       return row!;
     });
     const company = toCompany(created);
-    app.opifer.bus.publish("azienda.creata", company.id, company);
+    app.opifer.bus.publish("company.created", company.id, company);
     return reply.code(201).send(company);
   });
 }

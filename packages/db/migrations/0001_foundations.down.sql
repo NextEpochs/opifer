@@ -1,4 +1,4 @@
--- 0001 Fondamenta: ritorno allo schema vuoto.
+-- 0001 Foundations: back to the empty schema.
 
 DROP TRIGGER IF EXISTS agent_revisions_updated_at ON agent_revisions;
 DROP TRIGGER IF EXISTS agents_updated_at ON agents;

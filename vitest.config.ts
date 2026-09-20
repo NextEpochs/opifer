@@ -3,10 +3,10 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   test: {
     include: ["packages/*/test/**/*.test.ts", "plugins/*/test/**/*.test.ts"],
-    // Ogni file di test che usa il database avvia un Postgres incorporato: tempi generosi.
+    // Every test file that uses the database starts an embedded Postgres: generous timeouts.
     testTimeout: 30_000,
     hookTimeout: 120_000,
-    // Un cluster per file, file in sequenza: evita di saturare le porte sulle macchine piccole.
+    // One cluster per file, files in sequence: avoids exhausting the ports on small machines.
     fileParallelism: false,
     reporters: process.env["CI"] ? ["default", "github-actions"] : ["default"],
   },

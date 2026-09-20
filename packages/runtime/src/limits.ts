@@ -1,22 +1,22 @@
 /**
- * Runtime dell'agente (M1).
+ * Agent runtime (M1).
  *
- * Il turno è una sequenza di fasi separate, ognuna sostituibile e testabile
- * da sola; ogni fase che costa denaro passa prima dal governo. In M0 sono
- * fissati i nomi delle fasi e i limiti di default; il loop arriva in M1.
+ * A turn is a sequence of separate phases, each replaceable and testable on
+ * its own; every phase that costs money goes through governance first. M0
+ * fixes the phase names and the default limits; the loop arrives in M1.
  */
 
 export const TURN_PHASES = [
   "preflight",
-  "assemblaggio",
-  "chiamata",
-  "errori",
-  "lettura",
-  "tool",
+  "assemble",
+  "call",
+  "errors",
+  "read",
+  "tools",
   "overflow",
-  "compressione",
-  "recupero",
-  "chiusura",
+  "compress",
+  "recover",
+  "close",
 ] as const;
 
 export type TurnPhase = (typeof TURN_PHASES)[number];
@@ -24,7 +24,7 @@ export type TurnPhase = (typeof TURN_PHASES)[number];
 export interface TurnLimits {
   maxIterations: number;
   maxDurationMs: number;
-  /** Tetto di spesa del turno, nella valuta dell'azienda. */
+  /** Spending cap for the turn, in the company's currency. */
   budget: number | null;
 }
 
@@ -35,10 +35,10 @@ export const DEFAULT_TURN_LIMITS: TurnLimits = {
 };
 
 export type StopReason =
-  | "risposta_finale"
-  | "interruzione"
-  | "limite_iterazioni"
-  | "limite_tempo"
-  | "budget_esaurito"
-  | "approvazione_in_attesa"
-  | "errore";
+  | "final_answer"
+  | "interrupted"
+  | "iteration_limit"
+  | "time_limit"
+  | "budget_exhausted"
+  | "approval_pending"
+  | "error";

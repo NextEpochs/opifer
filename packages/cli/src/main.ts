@@ -12,10 +12,10 @@ const program = new Command();
 
 program
   .name("o4r")
-  .description("Opifer: agenti AI che lavorano, imparano e vengono governati come un'organizzazione.")
+  .description("Opifer: AI agents that work, learn and are governed like an organisation.")
   .version(OPIFER_VERSION, "-v, --version")
-  .option("--home <dir>", "cartella di Opifer (default: $OPIFER_HOME o ~/.opifer)")
-  .option("--no-color", "disattiva i colori")
+  .option("--home <dir>", "Opifer folder (default: $OPIFER_HOME or ~/.opifer)")
+  .option("--no-color", "disable colours")
   .hook("preAction", (cmd) => {
     const opts = cmd.optsWithGlobals() as { color?: boolean };
     if (opts.color === false) setColor(false);
@@ -23,64 +23,64 @@ program
 
 program
   .command("init")
-  .description("installazione guidata: database incorporato, migrazioni, prima azienda")
-  .option("--company <nome>", "nome della prima azienda")
-  .option("--host <indirizzo>", "indirizzo del server (default 127.0.0.1)")
-  .option("--port <n>", "porta del server (default 4700)")
-  .option("--db-port <n>", "porta del database incorporato (default 4701)")
-  .option("--model <provider/modello>", "modello di default (es. anthropic/claude-sonnet-5)")
-  .option("--local-url <url>", "endpoint compatibile OpenAI per modelli locali (es. http://127.0.0.1:11434/v1)")
+  .description("guided installation: embedded database, migrations, first company")
+  .option("--company <name>", "name of the first company")
+  .option("--host <address>", "server address (default 127.0.0.1)")
+  .option("--port <n>", "server port (default 4700)")
+  .option("--db-port <n>", "embedded database port (default 4701)")
+  .option("--model <provider/model>", "default model (e.g. anthropic/claude-sonnet-5)")
+  .option("--local-url <url>", "OpenAI-compatible endpoint for local models (e.g. http://127.0.0.1:11434/v1)")
   .action(async (opts: { company?: string; host?: string; port?: string; dbPort?: string; model?: string; localUrl?: string }) => {
     await runInit({ ...opts, ...homeOf(program) });
   });
 
 program
   .command("up")
-  .description("avvia database e server")
-  .option("-d, --detach", "avvia in background")
+  .description("start database and server")
+  .option("-d, --detach", "start in the background")
   .action(async (opts: { detach?: boolean }) => {
     await runUp({ ...opts, ...homeOf(program) });
   });
 
 program
   .command("down")
-  .description("ferma il server avviato in background")
+  .description("stop the server started in the background")
   .action(async () => {
     await runDown(homeOf(program));
   });
 
 program
-  .command("chat [agente]")
-  .description("conversazione da terminale con un agente (richiede il server avviato)")
-  .option("--company <nome>", "azienda (default: la prima)")
-  .option("--resume <sessione>", "riprende una sessione esistente")
-  .option("--model <provider/modello>", "modello per la nuova sessione")
-  .action(async (agente: string | undefined, opts: { company?: string; resume?: string; model?: string }) => {
-    await runChat({ ...(agente ? { agent: agente } : {}), ...opts, ...homeOf(program) });
+  .command("chat [agent]")
+  .description("terminal conversation with an agent (requires the server to be running)")
+  .option("--company <name>", "company (default: the first one)")
+  .option("--resume <session>", "resume an existing session")
+  .option("--model <provider/model>", "model for the new session")
+  .action(async (agent: string | undefined, opts: { company?: string; resume?: string; model?: string }) => {
+    await runChat({ ...(agent ? { agent } : {}), ...opts, ...homeOf(program) });
   });
 
 program
   .command("doctor")
-  .description("diagnosi dell'installazione")
+  .description("diagnose the installation")
   .action(async () => {
     await runDoctor(homeOf(program));
   });
 
-const migrate = program.command("migrate").description("migrazioni dello schema");
+const migrate = program.command("migrate").description("schema migrations");
 migrate
   .command("status")
-  .description("mostra migrazioni applicate e in attesa")
+  .description("show applied and pending migrations")
   .action(async () => runMigrate("status", homeOf(program)));
 migrate
   .command("up")
-  .description("applica le migrazioni in attesa")
-  .option("--to <versione>", "fino alla versione indicata")
+  .description("apply the pending migrations")
+  .option("--to <version>", "up to the given version")
   .action(async (opts: { to?: string }) => runMigrate("up", { ...opts, ...homeOf(program) }));
 migrate
   .command("down")
-  .description("ritira le ultime migrazioni")
-  .option("--steps <n>", "quante ritirare (default 1)")
-  .option("--to <versione>", "torna alla versione indicata (0 = schema vuoto)")
+  .description("roll back the latest migrations")
+  .option("--steps <n>", "how many to roll back (default 1)")
+  .option("--to <version>", "go back to the given version (0 = empty schema)")
   .action(async (opts: { steps?: string; to?: string }) => runMigrate("down", { ...opts, ...homeOf(program) }));
 
 function homeOf(cmd: Command): { home?: string } {

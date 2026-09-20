@@ -11,7 +11,7 @@ async function tableNames(db: TestDatabase): Promise<string[]> {
   return rows.map((r) => r.table_name);
 }
 
-describe("migrazioni avanti e indietro", () => {
+describe("forward and backward migrations", () => {
   let db: TestDatabase;
 
   beforeAll(async () => {
@@ -22,7 +22,7 @@ describe("migrazioni avanti e indietro", () => {
     await db?.destroy();
   });
 
-  it("ogni migrazione ha up e down e i numeri sono consecutivi", async () => {
+  it("every migration has up and down and the numbers are consecutive", async () => {
     const migrations = await loadMigrations();
     expect(migrations.length).toBeGreaterThan(0);
     migrations.forEach((m, i) => {
@@ -32,14 +32,14 @@ describe("migrazioni avanti e indietro", () => {
     });
   });
 
-  it("parte da uno schema vuoto", async () => {
+  it("starts from an empty schema", async () => {
     const status = await migrationStatus(db.sql);
     expect(status.applied).toHaveLength(0);
     expect(status.pending.length).toBeGreaterThan(0);
     expect(await tableNames(db)).toEqual(["schema_migrations"]);
   });
 
-  it("applica tutte le migrazioni in avanti", async () => {
+  it("applies all migrations forward", async () => {
     const applied = await migrateUp(db.sql);
     expect(applied.length).toBeGreaterThan(0);
     const status = await migrationStatus(db.sql);
@@ -48,12 +48,12 @@ describe("migrazioni avanti e indietro", () => {
     expect(await tableNames(db)).toContain("audit_log");
   });
 
-  it("è idempotente: una seconda esecuzione non applica nulla", async () => {
+  it("is idempotent: a second run applies nothing", async () => {
     const applied = await migrateUp(db.sql);
     expect(applied).toHaveLength(0);
   });
 
-  it("torna indietro fino allo schema vuoto", async () => {
+  it("goes back down to the empty schema", async () => {
     const all = await loadMigrations();
     const reverted = await migrateDown(db.sql, { to: 0 });
     expect(reverted).toHaveLength(all.length);
@@ -62,7 +62,7 @@ describe("migrazioni avanti e indietro", () => {
     expect(status.applied).toHaveLength(0);
   });
 
-  it("riapplica in avanti dopo il ritorno (avanti e indietro ripetibili)", async () => {
+  it("re-applies forward after going back (forward and backward are repeatable)", async () => {
     await migrateUp(db.sql);
     const before = await tableNames(db);
     await migrateDown(db.sql, { steps: 1 });

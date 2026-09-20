@@ -1,6 +1,6 @@
-# Opifer con Docker Compose: un solo servizio, database incorporato nel volume.
+# Opifer with Docker Compose: a single service, embedded database in the volume.
 #   docker compose up -d
-# Poi apri http://127.0.0.1:4700
+# Then open http://127.0.0.1:4700
 services:
   opifer:
     build: .
@@ -8,8 +8,8 @@ services:
     ports:
       - "4700:4700"
     environment:
-      OPIFER_COMPANY: "La mia azienda"
-      # Chiavi dei provider di modelli (M1); dalla M2 vivono nel vault cifrato.
+      OPIFER_COMPANY: "My company"
+      # Model provider keys (M1); from M2 they live in the encrypted vault.
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
     volumes:

@@ -1,13 +1,13 @@
 /**
- * Scrittura nel registro immutabile. Ogni azione che modifica stato passa di
- * qui, nella stessa transazione della modifica quando possibile.
+ * Writes to the immutable log. Every state-changing action goes through
+ * here, in the same transaction as the change whenever possible.
  */
 
 import type { Sql, TransactionSql } from "postgres";
 
 export interface AuditInput {
   companyId: string;
-  actorKind: "persona" | "agente" | "sistema";
+  actorKind: "person" | "agent" | "system";
   actorId?: string | null;
   action: string;
   subjectKind: string;

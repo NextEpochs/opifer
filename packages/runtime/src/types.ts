@@ -1,7 +1,7 @@
 import type { ContentPart, Usage } from "@opifer/sdk";
 
 export type SessionKind = "chat" | "task" | "routine";
-export type SessionStatus = "attiva" | "sospesa" | "chiusa";
+export type SessionStatus = "active" | "suspended" | "closed";
 export type StoredRole = "user" | "assistant" | "tool";
 
 export interface SessionRecord {
@@ -32,7 +32,7 @@ export interface StoredMessage {
   createdAt: string;
 }
 
-export type RunStatus = "in_corso" | "conclusa" | "interrotta" | "fallita" | "in_attesa";
+export type RunStatus = "running" | "completed" | "interrupted" | "failed" | "waiting";
 
 export interface RunRecord {
   id: string;
@@ -50,16 +50,16 @@ export interface RunRecord {
   finishedAt: string | null;
 }
 
-/** Eventi emessi durante un turno: per streaming (CLI, WebSocket) e per il registro run_events. */
+/** Events emitted during a turn: for streaming (CLI, WebSocket) and for the run_events log. */
 export type RuntimeEvent =
-  | { type: "fase"; phase: string }
-  | { type: "testo"; text: string }
-  | { type: "messaggio"; message: StoredMessage }
-  | { type: "tool_chiamata"; callId: string; name: string; arguments: Record<string, unknown> }
-  | { type: "tool_risultato"; callId: string; name: string; content: string; isError: boolean; durationMs: number }
-  | { type: "ritentativo"; attempt: number; delayMs: number; reason: string }
-  | { type: "riserva"; from: string; to: string; reason: string }
-  | { type: "avviso"; message: string }
-  | { type: "fine"; run: RunRecord };
+  | { type: "phase"; phase: string }
+  | { type: "text"; text: string }
+  | { type: "message"; message: StoredMessage }
+  | { type: "tool_call"; callId: string; name: string; arguments: Record<string, unknown> }
+  | { type: "tool_result"; callId: string; name: string; content: string; isError: boolean; durationMs: number }
+  | { type: "retry"; attempt: number; delayMs: number; reason: string }
+  | { type: "fallback"; from: string; to: string; reason: string }
+  | { type: "notice"; message: string }
+  | { type: "done"; run: RunRecord };
 
 export type RuntimeEventListener = (event: RuntimeEvent) => void;

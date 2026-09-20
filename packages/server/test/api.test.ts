@@ -9,7 +9,7 @@ describe("API /v1", () => {
 
   beforeAll(async () => {
     db = await createTestDatabase();
-    app = await buildApp({ db, mode: "locale" });
+    app = await buildApp({ db, mode: "local" });
     await app.ready();
   }, 120_000);
 
@@ -18,38 +18,38 @@ describe("API /v1", () => {
     await db?.destroy();
   });
 
-  it("risponde allo stato di salute con il database raggiungibile", async () => {
+  it("answers the health check with the database reachable", async () => {
     const res = await app.inject({ method: "GET", url: "/v1/health" });
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toMatchObject({ status: "ok", database: "ok", mode: "locale" });
+    expect(res.json()).toMatchObject({ status: "ok", database: "ok", mode: "local" });
   });
 
-  it("crea un'azienda e la registra nell'audit", async () => {
-    const created = await app.inject({ method: "POST", url: "/v1/companies", payload: { name: "NextEpochs", mission: "Provare Opifer" } });
+  it("creates a company and records it in the audit log", async () => {
+    const created = await app.inject({ method: "POST", url: "/v1/companies", payload: { name: "NextEpochs", mission: "Try Opifer" } });
     expect(created.statusCode).toBe(201);
     const company = created.json() as { id: string; name: string; status: string };
     expect(company.name).toBe("NextEpochs");
-    expect(company.status).toBe("attiva");
+    expect(company.status).toBe("active");
 
     const list = await app.inject({ method: "GET", url: "/v1/companies" });
     expect((list.json() as unknown[]).length).toBe(1);
 
     const audit = await app.inject({ method: "GET", url: `/v1/companies/${company.id}/audit` });
-    expect(audit.json()).toMatchObject([{ action: "azienda.creata", subjectId: company.id }]);
+    expect(audit.json()).toMatchObject([{ action: "company.created", subjectId: company.id }]);
   });
 
-  it("rifiuta un'azienda senza nome", async () => {
+  it("rejects a company without a name", async () => {
     const res = await app.inject({ method: "POST", url: "/v1/companies", payload: {} });
     expect(res.statusCode).toBe(400);
   });
 
-  it("crea un agente con prima revisione, organigramma e audit", async () => {
-    const company = (await app.inject({ method: "POST", url: "/v1/companies", payload: { name: "Azienda agenti" } })).json() as { id: string };
+  it("creates an agent with first revision, org chart and audit", async () => {
+    const company = (await app.inject({ method: "POST", url: "/v1/companies", payload: { name: "Agents company" } })).json() as { id: string };
 
     const manager = await app.inject({
       method: "POST",
       url: `/v1/companies/${company.id}/agents`,
-      payload: { name: "Responsabile", role: "coordina il team", model: "claude" },
+      payload: { name: "Manager", role: "coordinates the team", model: "claude" },
     });
     expect(manager.statusCode).toBe(201);
     const managerAgent = manager.json() as { id: string; currentRevision: number };
@@ -58,7 +58,7 @@ describe("API /v1", () => {
     const worker = await app.inject({
       method: "POST",
       url: `/v1/companies/${company.id}/agents`,
-      payload: { name: "Operativo", role: "esegue i task", reportsToAgentId: managerAgent.id },
+      payload: { name: "Worker", role: "executes the tasks", reportsToAgentId: managerAgent.id },
     });
     expect(worker.statusCode).toBe(201);
     expect((worker.json() as { reportsToAgentId: string }).reportsToAgentId).toBe(managerAgent.id);
@@ -68,14 +68,14 @@ describe("API /v1", () => {
 
     const audit = await app.inject({ method: "GET", url: `/v1/companies/${company.id}/audit` });
     const actions = (audit.json() as { action: string }[]).map((e) => e.action);
-    expect(actions).toEqual(["agente.creato", "agente.creato", "azienda.creata"]);
+    expect(actions).toEqual(["agent.created", "agent.created", "company.created"]);
   });
 
-  it("non permette a un agente di rispondere a un responsabile di un'altra azienda", async () => {
+  it("does not allow an agent to report to a manager of another company", async () => {
     const a = (await app.inject({ method: "POST", url: "/v1/companies", payload: { name: "A" } })).json() as { id: string };
     const b = (await app.inject({ method: "POST", url: "/v1/companies", payload: { name: "B" } })).json() as { id: string };
-    const bossOfA = (await app.inject({ method: "POST", url: `/v1/companies/${a.id}/agents`, payload: { name: "Capo A" } })).json() as { id: string };
-    const res = await app.inject({ method: "POST", url: `/v1/companies/${b.id}/agents`, payload: { name: "Intruso", reportsToAgentId: bossOfA.id } });
+    const bossOfA = (await app.inject({ method: "POST", url: `/v1/companies/${a.id}/agents`, payload: { name: "Boss A" } })).json() as { id: string };
+    const res = await app.inject({ method: "POST", url: `/v1/companies/${b.id}/agents`, payload: { name: "Intruder", reportsToAgentId: bossOfA.id } });
     expect(res.statusCode).toBe(400);
   });
 });

@@ -1,4 +1,4 @@
--- 0002 Sessioni: ritorno allo schema delle fondamenta.
+-- 0002 Sessions: back to the foundations schema.
 
 DROP TRIGGER IF EXISTS run_events_updated_at ON run_events;
 DROP TABLE IF EXISTS run_events;

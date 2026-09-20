@@ -1,4 +1,4 @@
-/** Messaggi a terminale, con colori disattivabili (`--no-color` o `NO_COLOR`). */
+/** Terminal messages, with colours that can be disabled (`--no-color` or `NO_COLOR`). */
 
 let colorEnabled = !process.env["NO_COLOR"] && process.stdout.isTTY === true;
 

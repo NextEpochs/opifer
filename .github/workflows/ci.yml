@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   verify:
-    name: Typecheck e test (${{ matrix.os }})
+    name: Typecheck and test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -35,21 +35,21 @@ jobs:
           node-version: 22
           cache: pnpm
 
-      - name: Dipendenze
+      - name: Dependencies
         run: pnpm install --frozen-lockfile
 
       - name: Build
         run: pnpm build
 
-      - name: Controllo dei tipi
+      - name: Type check
         run: pnpm typecheck
 
       - name: Test
         run: pnpm test
 
-      - name: Installazione pulita (o4r init e doctor)
+      - name: Clean installation (o4r init and doctor)
         env:
           OPIFER_HOME: ${{ runner.temp }}/opifer-home
         run: |
-          pnpm o4r init --company "Azienda di prova" --no-color
+          pnpm o4r init --company "Test company" --no-color
           pnpm o4r doctor --no-color

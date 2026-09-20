@@ -1,7 +1,7 @@
 /**
- * `o4r chat <agente>`: conversazione da terminale. È una vista sugli stessi
- * dati e sulle stesse regole dell'interfaccia web: parla con il server via
- * API e riceve lo streaming dal WebSocket degli eventi.
+ * `o4r chat <agent>`: terminal conversation. It is a view over the same data
+ * and the same rules as the web interface: it talks to the server through the
+ * API and receives the stream from the events WebSocket.
  */
 
 import { createInterface } from "node:readline/promises";
@@ -70,84 +70,84 @@ export async function runChat(options: ChatOptions): Promise<void> {
   const config = await requireConfig(home);
   const base = `http://${config.server.host}:${config.server.port}`;
   if (!(await isPortOpen(config.server.port, config.server.host === "0.0.0.0" ? "127.0.0.1" : config.server.host))) {
-    throw new Error(`Il server non è avviato su ${base}: esegui prima o4r up (anche con --detach)`);
+    throw new Error(`The server is not running on ${base}: run o4r up first (also with --detach)`);
   }
 
   const health = await api<{ runtime: string }>(base, "/v1/health");
-  if (health.runtime !== "ok") throw new Error("Il server non ha provider di modelli configurati: imposta ANTHROPIC_API_KEY, OPENAI_API_KEY o un endpoint locale e riavvia");
+  if (health.runtime !== "ok") throw new Error("The server has no model providers configured: set ANTHROPIC_API_KEY, OPENAI_API_KEY or a local endpoint and restart");
 
   let session: Session;
   let agent: Agent;
   if (options.resume) {
     session = await api<Session>(base, `/v1/sessions/${options.resume}`);
     const agents = await api<Agent[]>(base, `/v1/companies/${session.companyId}/agents`);
-    agent = agents.find((a) => a.id === session.agentId) ?? { id: session.agentId, name: "agente", role: "" };
-    if (session.status !== "attiva") throw new Error(`La sessione è ${session.status}`);
-    say.ok(`Sessione ripresa: ${c.bold(session.title ?? session.id)}`);
+    agent = agents.find((a) => a.id === session.agentId) ?? { id: session.agentId, name: "agent", role: "" };
+    if (session.status !== "active") throw new Error(`The session is ${session.status}`);
+    say.ok(`Session resumed: ${c.bold(session.title ?? session.id)}`);
     await printHistory(base, session.id);
   } else {
     const companies = await api<Company[]>(base, "/v1/companies");
     const company = options.company ? companies.find((co) => co.name.toLowerCase() === options.company!.toLowerCase()) : companies[0];
-    if (!company) throw new Error(options.company ? `Azienda "${options.company}" non trovata` : "Nessuna azienda: crea la prima con o4r init --company");
+    if (!company) throw new Error(options.company ? `Company "${options.company}" not found` : "No company: create the first one with o4r init --company");
     const agents = await api<Agent[]>(base, `/v1/companies/${company.id}/agents`);
-    if (agents.length === 0) throw new Error(`Nessun agente in ${company.name}: creane uno dall'interfaccia web (${base})`);
+    if (agents.length === 0) throw new Error(`No agent in ${company.name}: create one from the web interface (${base})`);
     const chosen = options.agent ? agents.find((a) => a.name.toLowerCase() === options.agent!.toLowerCase()) : agents[0];
-    if (!chosen) throw new Error(`Agente "${options.agent}" non trovato in ${company.name}. Disponibili: ${agents.map((a) => a.name).join(", ")}`);
+    if (!chosen) throw new Error(`Agent "${options.agent}" not found in ${company.name}. Available: ${agents.map((a) => a.name).join(", ")}`);
     agent = chosen;
     session = await api<Session>(base, `/v1/companies/${company.id}/sessions`, {
       method: "POST",
       body: JSON.stringify({ agentId: agent.id, ...(options.model ? { model: options.model } : {}) }),
     });
-    say.ok(`Nuova sessione con ${c.bold(agent.name)} (${session.model}) in ${company.name}`);
-    say.info(c.dim(`id sessione ${session.id} — riprendi con: o4r chat --resume ${session.id}`));
+    say.ok(`New session with ${c.bold(agent.name)} (${session.model}) in ${company.name}`);
+    say.info(c.dim(`session id ${session.id} — resume with: o4r chat --resume ${session.id}`));
   }
-  say.info(c.dim("Comandi: /stop interrompe il turno, /exit esce. Un messaggio durante un turno viene passato all'agente nel prossimo risultato di tool."));
+  say.info(c.dim("Commands: /stop interrupts the turn, /exit quits. A message sent during a turn is passed to the agent in the next tool result."));
 
   const socket = new WebSocket(`${base.replace("http", "ws")}/v1/events`);
   await new Promise<void>((resolve, reject) => {
     socket.addEventListener("open", () => resolve(), { once: true });
-    socket.addEventListener("error", () => reject(new Error("WebSocket degli eventi non raggiungibile")), { once: true });
+    socket.addEventListener("error", () => reject(new Error("events WebSocket not reachable")), { once: true });
   });
 
   let turnDone: (() => void) | null = null;
   let streamingLine = false;
   socket.addEventListener("message", (message) => {
     const event = JSON.parse(String(message.data)) as BusEvent;
-    if (event.type !== "sessione.evento" || event.payload.sessionId !== session.id || !event.payload.event) return;
+    if (event.type !== "session.event" || event.payload.sessionId !== session.id || !event.payload.event) return;
     const e = event.payload.event;
     switch (e.type) {
-      case "testo":
+      case "text":
         if (!streamingLine) {
           stdout.write(`${c.cyan(agent.name)}: `);
           streamingLine = true;
         }
         stdout.write(e.text ?? "");
         break;
-      case "tool_chiamata":
+      case "tool_call":
         endLine();
         say.info(c.dim(`  ⚙ ${e.name} ${JSON.stringify(e.arguments ?? {}).slice(0, 200)}`));
         break;
-      case "tool_risultato":
+      case "tool_result":
         say.info(c.dim(`  ${e.isError ? "✗" : "✓"} ${e.name} (${e.durationMs} ms) ${firstLine(e.content ?? "")}`));
         break;
-      case "ritentativo":
+      case "retry":
         endLine();
-        say.warn(`ritentativo ${e.attempt}: ${e.reason}`);
+        say.warn(`retry ${e.attempt}: ${e.reason}`);
         break;
-      case "riserva":
+      case "fallback":
         endLine();
-        say.warn(`passo al modello di riserva ${e.to}: ${e.reason}`);
+        say.warn(`switching to the fallback model ${e.to}: ${e.reason}`);
         break;
-      case "avviso":
+      case "notice":
         endLine();
         say.warn(e.message ?? "");
         break;
-      case "fine":
+      case "done":
         endLine();
         if (e.run) {
           const tokens = `${e.run.inputTokens} in / ${e.run.outputTokens} out`;
-          const status = e.run.status === "conclusa" ? c.green(e.run.stopReason ?? "") : c.yellow(`${e.run.status}: ${e.run.stopReason ?? ""}`);
-          say.info(c.dim(`  [${status}, ${e.run.iterations} iterazioni, ${tokens}]`));
+          const status = e.run.status === "completed" ? c.green(e.run.stopReason ?? "") : c.yellow(`${e.run.status}: ${e.run.stopReason ?? ""}`);
+          say.info(c.dim(`  [${status}, ${e.run.iterations} iterations, ${tokens}]`));
         }
         turnDone?.();
         break;
@@ -163,7 +163,7 @@ export async function runChat(options: ChatOptions): Promise<void> {
     }
   }
 
-  const rl = createInterface({ input: stdin, output: stdout, prompt: `${c.bold("tu")}: ` });
+  const rl = createInterface({ input: stdin, output: stdout, prompt: `${c.bold("you")}: ` });
   const shutdown = () => {
     rl.close();
     socket.close();
@@ -174,7 +174,7 @@ export async function runChat(options: ChatOptions): Promise<void> {
     process.exit(0);
   });
 
-  // Le righe vengono lette con l'iteratore: funzionano sia da terminale sia da input a tubo.
+  // Lines are read through the iterator: this works both from a terminal and from piped input.
   rl.prompt();
   for await (const raw of rl) {
     const line = raw.trim();
@@ -199,8 +199,8 @@ export async function runChat(options: ChatOptions): Promise<void> {
       rl.prompt();
       continue;
     }
-    if (accepted.accepted === "iniettato") {
-      say.info(c.dim("  (messaggio passato all'agente durante il turno)"));
+    if (accepted.accepted === "injected") {
+      say.info(c.dim("  (message passed to the agent during the turn)"));
       rl.prompt();
       continue;
     }
@@ -220,10 +220,10 @@ async function printHistory(base: string, sessionId: string): Promise<void> {
   const messages = await api<Array<{ role: string; content: Array<{ type: string; text?: string; name?: string; content?: string }> }>>(base, `/v1/sessions/${sessionId}/messages`);
   for (const m of messages.slice(-12)) {
     for (const part of m.content) {
-      if (part.type === "text" && m.role === "user") say.info(`${c.bold("tu")}: ${part.text}`);
-      else if (part.type === "text") say.info(`${c.cyan("agente")}: ${part.text}`);
+      if (part.type === "text" && m.role === "user") say.info(`${c.bold("you")}: ${part.text}`);
+      else if (part.type === "text") say.info(`${c.cyan("agent")}: ${part.text}`);
       else if (part.type === "tool_call") say.info(c.dim(`  ⚙ ${part.name}`));
     }
   }
-  if (messages.length > 12) say.info(c.dim(`  (… ${messages.length - 12} messaggi precedenti)`));
+  if (messages.length > 12) say.info(c.dim(`  (… ${messages.length - 12} earlier messages)`));
 }

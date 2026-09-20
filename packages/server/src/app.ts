@@ -18,14 +18,14 @@ export interface AppOptions {
   db: DatabaseHandle;
   mode: InstallMode;
   bus?: EventBus;
-  /** Cartella con la UI compilata; se esiste viene servita alla radice. */
+  /** Folder with the compiled UI; if it exists it is served at the root. */
   uiDir?: string;
   logger?: boolean;
-  /** Provider di modelli e modello di default; senza, le sessioni non sono disponibili. */
+  /** Model providers and default model; without them, sessions are not available. */
   providers?: ProviderSetup;
-  /** Cartella radice delle cartelle di lavoro delle sessioni. */
+  /** Root folder of the sessions' working directories. */
   workRoot?: string;
-  /** Esecutore dei tool; default i tool nativi. */
+  /** Tool executor; defaults to the native tools. */
   tools?: ConstructorParameters<typeof AgentRuntime>[0]["tools"];
 }
 
@@ -76,28 +76,28 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
     : null;
   app.decorate("opifer", { db: options.db, bus, mode: options.mode, runtime });
   if (runtime) {
-    // Dopo un riavvio le esecuzioni rimaste "in corso" sono interrotte: la cronologia resta, niente replay.
+    // After a restart the runs left "running" are marked interrupted: the history stays, no replay.
     const stale = await runtime.store.markAllStaleRunsInterrupted();
-    if (stale > 0) app.log.warn({ stale }, "esecuzioni interrotte da un riavvio");
+    if (stale > 0) app.log.warn({ stale }, "runs interrupted by a restart");
   }
 
   await app.register(fastifyWebsocket);
 
   app.get("/v1/health", async () => {
-    let database: "ok" | "errore" = "ok";
+    let database: "ok" | "error" = "ok";
     try {
       await options.db.sql`SELECT 1`;
     } catch {
-      database = "errore";
+      database = "error";
     }
-    return { status: database === "ok" ? "ok" : "degradato", version: OPIFER_VERSION, mode: options.mode, database, runtime: runtime ? "ok" : "assente" };
+    return { status: database === "ok" ? "ok" : "degraded", version: OPIFER_VERSION, mode: options.mode, database, runtime: runtime ? "ok" : "absent" };
   });
 
   app.get("/v1/events", { websocket: true }, (socket) => {
     const unsubscribe = bus.subscribe((event) => {
       if (socket.readyState === socket.OPEN) socket.send(JSON.stringify(event));
     });
-    socket.send(JSON.stringify({ type: "connesso", companyId: null, occurredAt: new Date().toISOString(), payload: { version: OPIFER_VERSION } }));
+    socket.send(JSON.stringify({ type: "connected", companyId: null, occurredAt: new Date().toISOString(), payload: { version: OPIFER_VERSION } }));
     socket.on("close", unsubscribe);
   });
 
@@ -113,7 +113,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   if (options.uiDir && (await dirExists(options.uiDir))) {
     await app.register(fastifyStatic, { root: options.uiDir, prefix: "/" });
     app.setNotFoundHandler(async (request, reply) => {
-      if (request.url.startsWith("/v1/")) return reply.code(404).send({ error: "non trovato" });
+      if (request.url.startsWith("/v1/")) return reply.code(404).send({ error: "not found" });
       return reply.sendFile("index.html");
     });
   }
