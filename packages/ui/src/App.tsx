@@ -110,15 +110,22 @@ export function App() {
 
   // Any event of this company refreshes the overview, coalesced so a busy turn does not hammer the API.
   useEffect(() => {
-    return eventsSocket((event) => {
-      if (event.type === "company.created" || event.type === "company.stopped" || event.type === "company.resumed") void loadCompanies();
-      if (!company || event.companyId !== company.id) return;
-      if (refreshTimer.current) return;
-      refreshTimer.current = window.setTimeout(() => {
-        refreshTimer.current = null;
-        void refresh();
-      }, 400);
-    }, setLive);
+    return eventsSocket(
+      (event) => {
+        if (event.type === "company.created" || event.type === "company.stopped" || event.type === "company.resumed") void loadCompanies();
+        if (!company || event.companyId !== company.id) return;
+        if (refreshTimer.current) return;
+        refreshTimer.current = window.setTimeout(() => {
+          refreshTimer.current = null;
+          void refresh();
+        }, 400);
+      },
+      (open) => {
+        setLive(open);
+        // Back online after a restart: whatever happened meanwhile is fetched again.
+        if (open) void refresh();
+      },
+    );
   }, [company, refresh, loadCompanies]);
 
   const switchLocale = (next: Locale) => setLocale(next);

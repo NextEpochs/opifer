@@ -855,16 +855,37 @@ export interface BusEvent {
 
 export function eventsSocket(onEvent: (event: BusEvent) => void, onState: (open: boolean) => void): () => void {
   const protocol = location.protocol === "https:" ? "wss" : "ws";
-  const socket = new WebSocket(`${protocol}://${location.host}/v1/events`);
-  socket.onopen = () => onState(true);
-  socket.onclose = () => onState(false);
-  socket.onerror = () => onState(false);
-  socket.onmessage = (message) => {
-    try {
-      onEvent(JSON.parse(String(message.data)) as BusEvent);
-    } catch {
-      // invalid message: ignored
-    }
+  let socket: WebSocket | null = null;
+  let closed = false;
+  let attempt = 0;
+  let timer: number | null = null;
+  const connect = () => {
+    if (closed) return;
+    socket = new WebSocket(`${protocol}://${location.host}/v1/events`);
+    socket.onopen = () => {
+      attempt = 0;
+      onState(true);
+    };
+    socket.onmessage = (message) => {
+      try {
+        onEvent(JSON.parse(String(message.data)) as BusEvent);
+      } catch {
+        // invalid message: ignored
+      }
+    };
+    // A restart of the server, a sleeping laptop, a flaky network: reconnect with a growing pause, up to 15 seconds.
+    socket.onclose = () => {
+      onState(false);
+      if (closed) return;
+      attempt++;
+      timer = window.setTimeout(connect, Math.min(15_000, 500 * 2 ** Math.min(attempt, 5)));
+    };
+    socket.onerror = () => onState(false);
   };
-  return () => socket.close();
+  connect();
+  return () => {
+    closed = true;
+    if (timer) window.clearTimeout(timer);
+    socket?.close();
+  };
 }
