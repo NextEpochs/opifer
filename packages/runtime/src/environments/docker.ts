@@ -66,6 +66,7 @@ export class DockerEnvironment extends LocalEnvironment {
     const workdir = this.resolve(".");
     const cwd = options.cwd ? `/work/${options.cwd.replace(/^\.?\//, "")}` : "/work";
     const args = ["run", "--rm", "--network", this.network, "-v", `${workdir}:/work`, "-w", cwd, "--init"];
+    if (this.user) args.push("--user", this.user, "-e", "HOME=/work");
     for (const [k, v] of Object.entries(options.env ?? {})) args.push("-e", `${k}=${v}`);
     args.push(...this.extraArgs, this.image, ...command);
     // The host-side runner spawns docker itself; the container gets the timeout and the abort.
