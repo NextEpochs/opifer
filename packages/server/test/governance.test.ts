@@ -214,7 +214,9 @@ describe("Governance API", () => {
     expect(bind.statusCode).toBe(201);
     expect((await app.inject({ method: "PUT", url: `/v1/companies/${companyId}/secrets`, payload: { name: "bad name", value: "x" } })).statusCode).toBe(400);
 
-    const patched = (await app.inject({ method: "PATCH", url: `/v1/agents/${agentId}`, payload: { role: "operations lead", note: "promotion" } })).json() as { revision: number };
+    const patchResponse = await app.inject({ method: "PATCH", url: `/v1/agents/${agentId}`, payload: { role: "operations lead", note: "promotion" } });
+    expect(patchResponse.statusCode, patchResponse.body).toBe(200);
+    const patched = patchResponse.json() as { revision: number };
     expect(patched.revision).toBe(2);
     const restored = (await app.inject({ method: "POST", url: `/v1/agents/${agentId}/revisions/1/restore` })).json() as { revision: number; config: { role: string } };
     expect(restored).toMatchObject({ revision: 3, config: { role: "operations" } });

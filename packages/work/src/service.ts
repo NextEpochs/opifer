@@ -949,9 +949,17 @@ export class WorkService {
   }
 
   /** Wake-ups left "running" by a crashed process go back to pending after the given age. */
+  /**
+   * Puts wake-ups that have been "running" for longer than `olderThanMs` back in the queue. With `olderThanMs` of zero
+   * (a fresh process after a restart: nothing running can be ours) every running wake-up goes back, without comparing
+   * clocks — the database's `now()` can sit a few milliseconds ahead of this process's.
+   */
   async requeueStaleWakeups(olderThanMs: number, now: Date = new Date()): Promise<number> {
     const since = new Date(now.getTime() - olderThanMs);
-    const rows = await this.sql<{ id: string }[]>`UPDATE wakeups SET status = 'pending', claimed_at = NULL WHERE status = 'running' AND claimed_at < ${since} RETURNING id`;
+    const rows =
+      olderThanMs <= 0
+        ? await this.sql<{ id: string }[]>`UPDATE wakeups SET status = 'pending', claimed_at = NULL WHERE status = 'running' RETURNING id`
+        : await this.sql<{ id: string }[]>`UPDATE wakeups SET status = 'pending', claimed_at = NULL WHERE status = 'running' AND claimed_at < ${since} RETURNING id`;
     return rows.length;
   }
 
