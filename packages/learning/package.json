@@ -1,9 +1,17 @@
 {
   "name": "@opifer/learning",
   "version": "1.0.0",
-  "private": true,
   "description": "Memory and skills: scoped entries, snapshot for the prompt, search, versions, curator, promotion, background review.",
   "license": "AGPL-3.0-only",
+  "homepage": "https://opifer.dev",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/NextEpochs/opifer.git",
+    "directory": "packages/learning"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

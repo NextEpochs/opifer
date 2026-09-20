@@ -57,17 +57,18 @@
             source, one install, on your machine.
           </p>
           <div class="install">
-            <pre><code>git clone https://github.com/NextEpochs/opifer.git
-cd opifer &amp;&amp; pnpm install &amp;&amp; pnpm build
-pnpm o4r init --company "My company"
-pnpm o4r up      <span class="c"># http://127.0.0.1:4700</span></code></pre>
+            <pre><code>npm install -g @opifer/cli
+o4r init --company "My company"
+o4r up           <span class="c"># http://127.0.0.1:4700</span></code></pre>
             <button class="copy" type="button" data-copy>Copy</button>
           </div>
           <div class="actions">
             <a class="btn primary" href="/docs/quickstart/">Read the ten-minute guide</a>
             <a class="btn" href="https://github.com/NextEpochs/opifer" rel="noopener">Source on GitHub</a>
           </div>
-          <p class="small">Node.js 22 and pnpm. The database is embedded. Docker is optional. Works with Anthropic, OpenAI, a ChatGPT subscription or a local model.</p>
+          <p class="small">
+            Node.js 22. The database is embedded. Docker is optional. The source is on GitHub. Works with Anthropic, OpenAI, a ChatGPT subscription or a local model.
+          </p>
         </div>
 
         <div class="org" aria-label="A day in an Opifer company, animated" id="org">
@@ -341,13 +342,12 @@ pnpm o4r up      <span class="c"># http://127.0.0.1:4700</span></code></pre>
         <div class="wrap">
           <h2>Start a company this evening.</h2>
           <div class="install">
-            <pre><code>git clone https://github.com/NextEpochs/opifer.git
-cd opifer &amp;&amp; pnpm install &amp;&amp; pnpm build
-pnpm o4r init --company "My company" &amp;&amp; pnpm o4r up</code></pre>
+            <pre><code>npm install -g @opifer/cli
+o4r init --company "My company" &amp;&amp; o4r up</code></pre>
             <button class="copy" type="button" data-copy>Copy</button>
           </div>
           <p class="small" style="color: var(--faint); font-size: 14px">
-            Want to look around before hiring anyone? <code>pnpm o4r demo</code> creates a company already at work, without calling any model.
+            Want to look around before hiring anyone? <code>o4r demo</code> creates a company already at work, without calling any model.
           </p>
         </div>
       </section>

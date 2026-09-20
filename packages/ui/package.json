@@ -1,10 +1,21 @@
 {
   "name": "@opifer/ui",
   "version": "1.0.0",
-  "private": true,
   "description": "Opifer web interface (React, Vite, Tailwind).",
   "license": "AGPL-3.0-only",
+  "homepage": "https://opifer.dev",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/NextEpochs/opifer.git",
+    "directory": "packages/ui"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "type": "module",
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "dev": "vite",
     "build": "tsc -p tsconfig.json && vite build",

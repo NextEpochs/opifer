@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 import { openSync, existsSync } from "node:fs";
 import { readFile, rm, writeFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { EventBus } from "@opifer/core";
@@ -16,8 +17,14 @@ export interface UpOptions {
 }
 
 /** Folder of the compiled UI, next to the monorepo packages. */
+/** The built interface, found through the @opifer/ui package so that it works installed from npm as well as in the repository. */
 export function uiDistDir(): string {
-  return path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "ui", "dist");
+  try {
+    const require = createRequire(import.meta.url);
+    return path.join(path.dirname(require.resolve("@opifer/ui/package.json")), "dist");
+  } catch {
+    return path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "ui", "dist");
+  }
 }
 
 async function readPid(home: OpiferHome): Promise<number | null> {

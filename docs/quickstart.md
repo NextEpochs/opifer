@@ -1,28 +1,28 @@
 # Opifer in ten minutes
 
-You need Node.js 22 and pnpm. Nothing else: the database is embedded, Docker is optional.
+You need Node.js 22. Nothing else: the database is embedded, Docker is optional.
 
 ## 1. Install
 
 ```bash
-git clone https://github.com/NextEpochs/opifer.git
-cd opifer
-pnpm install && pnpm build        # about two minutes on a laptop
-pnpm o4r init --company "My company"
+npm install -g @opifer/cli        # the o4r command
+o4r init --company "My company"
 ```
+
+Prefer the repository (to develop, or to run the latest main)? `git clone https://github.com/NextEpochs/opifer.git && cd opifer && pnpm install && pnpm build`, then every `o4r` command below as `pnpm o4r …`.
 
 `o4r init` writes the configuration in `~/.opifer`, starts the embedded PostgreSQL, applies the migrations and creates your company. Give it a model:
 
 - **Anthropic**: `export ANTHROPIC_API_KEY=…`
 - **OpenAI with a key**: `export OPENAI_API_KEY=…`
-- **OpenAI with your ChatGPT subscription**: `pnpm o4r login chatgpt` (a browser opens; no key needed)
-- **A local model**: `pnpm o4r init --local-url http://127.0.0.1:11434/v1` (Ollama, LM Studio, vLLM…)
+- **OpenAI with your ChatGPT subscription**: `o4r login chatgpt` (a browser opens; no key needed)
+- **A local model**: `o4r init --local-url http://127.0.0.1:11434/v1` (Ollama, LM Studio, vLLM…)
 
 Then:
 
 ```bash
-pnpm o4r up --detach
-pnpm o4r doctor                   # every check green?
+o4r up --detach
+o4r doctor                        # every check green?
 ```
 
 Open http://127.0.0.1:4700.
@@ -30,7 +30,7 @@ Open http://127.0.0.1:4700.
 ## 2. Look around with a company already at work
 
 ```bash
-pnpm o4r demo
+o4r demo
 ```
 
 This creates a demo company with four agents, a goal, two projects, tasks in every state, memories, skills, two routines, a workflow connection, a webhook and a subscription — no model is called. Pick it in **Settings**, then walk through Home, Inbox, Team, Work, Learning and Connections.
@@ -59,22 +59,22 @@ In **Connections** add an MCP server or a workflow (n8n, Zapier, Make) as tools;
 
 ## 6. When something goes wrong
 
-- **Stop everything**: the red button in the sidebar (or `pnpm o4r stop`). Every agent stops, routines pause, no model is called until you resume.
-- `pnpm o4r doctor` says what is missing.
+- **Stop everything**: the red button in the sidebar (or `o4r stop`). Every agent stops, routines pause, no model is called until you resume.
+- `o4r doctor` says what is missing.
 - Every step is in the audit (Home → Activity) and in the costs.
 - Export your company from Settings (configuration and work, never secret values) and import it elsewhere.
 
 ## Command line
 
 ```bash
-pnpm o4r status                   # is it running?
-pnpm o4r chat Philip              # talk from the terminal
-pnpm o4r task create "Compare three CRMs" --agent Nora
-pnpm o4r approvals                # what waits for you
-pnpm o4r routine create "Weekly digest" --agent Philip --every "monday 9" --as-task --prompt "…"
-pnpm o4r export                   # opifer-<company>.json
-pnpm o4r stop / pnpm o4r resume   # emergency stop
-pnpm o4r down                     # stop the server
+o4r status                   # is it running?
+o4r chat Philip              # talk from the terminal
+o4r task create "Compare three CRMs" --agent Nora
+o4r approvals                # what waits for you
+o4r routine create "Weekly digest" --agent Philip --every "monday 9" --as-task --prompt "…"
+o4r export                   # opifer-<company>.json
+o4r stop / pnpm o4r resume   # emergency stop
+o4r down                     # stop the server
 ```
 
 Everything the interface does, the API does: `http://127.0.0.1:4700/v1/…` (see the README).

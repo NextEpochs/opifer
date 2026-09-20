@@ -3,12 +3,40 @@
   "version": "1.0.0",
   "description": "Provider for OpenAI-compatible endpoints: local models with Ollama, vLLM, LM Studio and the like.",
   "license": "MIT",
+  "homepage": "https://opifer.dev",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/NextEpochs/opifer.git",
+    "directory": "plugins/provider-openai-compatible"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } },
-  "files": ["dist", "LICENSE"],
-  "scripts": { "build": "tsc -b", "typecheck": "tsc -b" },
-  "opifer": { "kind": "provider", "permissions": ["network:configured-endpoint"] },
-  "dependencies": { "@opifer/provider-openai": "workspace:*", "@opifer/sdk": "workspace:*" }
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc -b"
+  },
+  "dependencies": {
+    "@opifer/provider-openai": "workspace:*",
+    "@opifer/sdk": "workspace:*"
+  },
+  "opifer": {
+    "kind": "provider",
+    "permissions": [
+      "network:configured-endpoint"
+    ]
+  }
 }

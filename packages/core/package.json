@@ -1,9 +1,17 @@
 {
   "name": "@opifer/core",
   "version": "1.0.0",
-  "private": true,
   "description": "Opifer domain model, invariants and events.",
   "license": "AGPL-3.0-only",
+  "homepage": "https://opifer.dev",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/NextEpochs/opifer.git",
+    "directory": "packages/core"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

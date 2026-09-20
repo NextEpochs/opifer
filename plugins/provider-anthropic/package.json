@@ -3,12 +3,40 @@
   "version": "1.0.0",
   "description": "Anthropic (Claude) model provider for Opifer.",
   "license": "MIT",
+  "homepage": "https://opifer.dev",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/NextEpochs/opifer.git",
+    "directory": "plugins/provider-anthropic"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } },
-  "files": ["dist", "LICENSE"],
-  "scripts": { "build": "tsc -b", "typecheck": "tsc -b" },
-  "opifer": { "kind": "provider", "permissions": ["network:api.anthropic.com"] },
-  "dependencies": { "@anthropic-ai/sdk": "^0.127.0", "@opifer/sdk": "workspace:*" }
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc -b"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.127.0",
+    "@opifer/sdk": "workspace:*"
+  },
+  "opifer": {
+    "kind": "provider",
+    "permissions": [
+      "network:api.anthropic.com"
+    ]
+  }
 }

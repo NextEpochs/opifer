@@ -1,9 +1,17 @@
 {
   "name": "@opifer/db",
   "version": "1.0.0",
-  "private": true,
   "description": "Opifer schema, forward and backward migrations, and embedded Postgres.",
   "license": "AGPL-3.0-only",
+  "homepage": "https://opifer.dev",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/NextEpochs/opifer.git",
+    "directory": "packages/db"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -17,7 +25,10 @@
       "default": "./dist/testing.js"
     }
   },
-  "files": ["dist", "migrations"],
+  "files": [
+    "dist",
+    "migrations"
+  ],
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc -b"

@@ -122,15 +122,16 @@ Twenty invariants are the contract of the system and outweigh any feature. They 
 
 ## Quick start
 
-Node.js 22 and pnpm 10. Nothing else: PostgreSQL is embedded, Docker is optional.
+Node.js 22. Nothing else: PostgreSQL is embedded, Docker is optional.
 
 ```bash
-git clone https://github.com/NextEpochs/opifer.git && cd opifer
-pnpm install && pnpm build
-pnpm o4r init --company "My company"   # local database, migrations, first company
-pnpm o4r up --detach                   # http://127.0.0.1:4700
-pnpm o4r doctor                        # every check green?
+npm install -g @opifer/cli             # the o4r command
+o4r init --company "My company"        # local database, migrations, first company
+o4r up --detach                        # http://127.0.0.1:4700
+o4r doctor                             # every check green?
 ```
+
+From the repository instead (to develop, or to run the latest main): `git clone https://github.com/NextEpochs/opifer.git && cd opifer && pnpm install && pnpm build`, then the same commands as `pnpm o4r …`.
 
 Give it a model, then open the interface:
 
@@ -138,16 +139,16 @@ Give it a model, then open the interface:
 | ---------------------------------- | ---------------------------------------------------------------------------------------------------- |
 | **Anthropic**                      | `export ANTHROPIC_API_KEY=…`                                                                         |
 | **OpenAI**                         | `export OPENAI_API_KEY=…`                                                                            |
-| **ChatGPT subscription** (no key)  | `pnpm o4r login chatgpt`, then `pnpm o4r init --model chatgpt/<model>` — models are billed to the plan |
-| **Local model** (Ollama, LM Studio, vLLM, llama.cpp) | `pnpm o4r init --local-url http://127.0.0.1:11434/v1 --model local/llama3`         |
+| **ChatGPT subscription** (no key)  | `o4r login chatgpt`, then `o4r init --model chatgpt/<model>` — models are billed to the plan |
+| **Local model** (Ollama, LM Studio, vLLM, llama.cpp) | `o4r init --local-url http://127.0.0.1:11434/v1 --model local/llama3`         |
 
-The default model is `--model provider/model`; `pnpm o4r doctor` shows which providers are active. Keys can also live in the encrypted vault (`pnpm o4r secret set`).
+The default model is `--model provider/model`; `o4r doctor` shows which providers are active. Keys can also live in the encrypted vault (`o4r secret set`).
 
-Want to look around first? `pnpm o4r demo` creates a company with four agents, goals, tasks in every state, memories, skills, routines and connections, without calling any model.
+Want to look around first? `o4r demo` creates a company with four agents, goals, tasks in every state, memories, skills, routines and connections, without calling any model.
 
 📖 **[The ten-minute guide →](docs/quickstart.md)**
 
-> The ChatGPT sign-in is the same one OpenAI ships in its Codex CLI: OpenAI publicly tolerates third-party tools using it, but nothing in its terms guarantees it. Use your own account and expect it to change. `pnpm o4r logout chatgpt` removes the credentials.
+> The ChatGPT sign-in is the same one OpenAI ships in its Codex CLI: OpenAI publicly tolerates third-party tools using it, but nothing in its terms guarantees it. Use your own account and expect it to change. `o4r logout chatgpt` removes the credentials.
 
 <br/>
 

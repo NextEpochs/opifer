@@ -3,6 +3,15 @@
   "version": "1.0.0",
   "description": "Telegram channel for Opifer: one bot per company, chats with agents, approvals with buttons.",
   "license": "MIT",
+  "homepage": "https://opifer.dev",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/NextEpochs/opifer.git",
+    "directory": "plugins/channel-telegram"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -20,13 +29,13 @@
     "build": "tsc -b",
     "typecheck": "tsc -b"
   },
+  "dependencies": {
+    "@opifer/sdk": "workspace:*"
+  },
   "opifer": {
     "kind": "channel",
     "permissions": [
       "network:api.telegram.org"
     ]
-  },
-  "dependencies": {
-    "@opifer/sdk": "workspace:*"
   }
 }
