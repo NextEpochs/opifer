@@ -47,6 +47,15 @@ describe("runtime: turno base", () => {
     expect(runEvents.map((e) => e.type)).toContain("modello");
   });
 
+  it("gli eventi di un'esecuzione scritti in concorrenza hanno sequenze distinte", async () => {
+    const session = await f.runtime.startSession({ companyId: f.companyId, agentId: f.agentId });
+    const run = await f.runtime.store.createRun(session);
+    await Promise.all(Array.from({ length: 25 }, (_, i) => f.runtime.store.appendRunEvent(run, "prova", { i })));
+    const events = await f.runtime.store.listRunEvents(run.id);
+    expect(events.map((e) => e.seq)).toEqual(Array.from({ length: 25 }, (_, i) => i + 1));
+    await f.runtime.store.finishRun(run.id, { status: "conclusa", stopReason: "prova" });
+  });
+
   it("rifiuta un secondo turno senza un nuovo messaggio", async () => {
     const session = await f.runtime.startSession({ companyId: f.companyId, agentId: f.agentId });
     await f.runtime.runTurn({ sessionId: session.id, text: "uno" });

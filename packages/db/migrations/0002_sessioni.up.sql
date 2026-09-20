@@ -53,6 +53,8 @@ CREATE TABLE runs (
   input_tokens         integer NOT NULL DEFAULT 0,
   output_tokens        integer NOT NULL DEFAULT 0,
   cached_input_tokens  integer NOT NULL DEFAULT 0,
+  -- contatore atomico degli eventi dell'esecuzione (più scrittori concorrenti)
+  event_seq            integer NOT NULL DEFAULT 0,
   error                text,
   started_at           timestamptz NOT NULL DEFAULT now(),
   finished_at          timestamptz,

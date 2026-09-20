@@ -47,6 +47,7 @@ interface RunRow {
   input_tokens: number;
   output_tokens: number;
   cached_input_tokens: number;
+  event_seq: number;
   error: string | null;
   started_at: Date;
   finished_at: Date | null;
@@ -248,14 +249,16 @@ export class SessionStore {
   }
 
   async appendRunEvent(run: { id: string; companyId: string }, type: string, payload: Record<string, unknown>): Promise<void> {
-    await this.sql`
-      INSERT INTO run_events (company_id, run_id, seq, type, payload)
-      VALUES (
-        ${run.companyId}, ${run.id},
-        (SELECT coalesce(max(seq), 0) + 1 FROM run_events WHERE run_id = ${run.id}),
-        ${type}, ${payload as never}::jsonb
-      )
-    `;
+    // Il numero di sequenza viene da un contatore atomico sulla riga dell'esecuzione:
+    // scrittori concorrenti (ritentativi, riserva, fasi) non collidono mai.
+    await this.sql.begin(async (tx) => {
+      const [next] = await tx<{ event_seq: number }[]>`UPDATE runs SET event_seq = event_seq + 1 WHERE id = ${run.id} RETURNING event_seq`;
+      if (!next) throw new Error(`Esecuzione ${run.id} non trovata`);
+      await tx`
+        INSERT INTO run_events (company_id, run_id, seq, type, payload)
+        VALUES (${run.companyId}, ${run.id}, ${next.event_seq}, ${type}, ${payload as never}::jsonb)
+      `;
+    });
   }
 
   async listRunEvents(runId: string): Promise<Array<{ seq: number; type: string; payload: Record<string, unknown>; occurredAt: string }>> {
