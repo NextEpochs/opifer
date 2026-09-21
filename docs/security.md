@@ -35,6 +35,10 @@ Put a reverse proxy with TLS in front (nginx, Caddy); bind Opifer to `127.0.0.1`
 
 - Permissions per role and agent; low and medium risk automatic, high risk asks; a policy can block a tool.
 - Dangerous commands (recursive deletion, sudo, force push, destructive git, DROP, chmod loosening, publishing, kill…) always ask, whatever the policy. Some patterns are refused outright.
+- Since 1.3 the sandbox network is **on** by default (agents install, build, push); `"sandbox": { "network": "none" }` in `config.json` isolates it.
+- `run_coder` (Claude Code or the Codex CLI) runs on the machine, not in the sandbox, and inside the project folder; it is a high-risk tool, so it asks for approval unless a policy allows it.
+- Repository tokens (`GITHUB_TOKEN`) reach git through a helper script as a bound secret of the agent; they are never written into `.git/config` nor shown to the model.
+- Files of a task's folder are served by the API to signed-in people only (observer and up), never outside that folder.
 - With Docker available, commands run in a container with **no network**, only the task's working folder mounted. Without Docker they run on the machine as the server's user: the interface, `o4r doctor` and `/v1/health` say so.
 - MCP servers run as the server's user with the environment you give them; treat a connection like installing software. Workflow tools call only the URL you configured.
 

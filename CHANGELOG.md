@@ -2,6 +2,19 @@
 
 All notable changes to Opifer. The format follows Keep a Changelog; versions follow SemVer.
 
+## 1.3.0 — 2026-09-21 — software work and artifacts
+
+### Added
+- Projects can be git repositories (`repoUrl`, `branch`): cloned into the project's folder at creation, with the company's `GITHUB_TOKEN` for private ones; agents push with a token bound to them through a credential helper, never stored in the repository. `o4r project list|create --repo --branch`; repository URL and branch on the project form, clone status on the project.
+- Tools for software: `edit_file` (exact replacement), `apply_patch` (unified diff), and `run_coder`, which hands a brief to Claude Code or the Codex CLI installed on the machine and reports the summary and the diff stat (found on the PATH at start, or `coder` in `config.json`; high risk). Tasks on a repository carry an engineer's guide; the terminal sets git up and can run up to 30 minutes.
+- Artifacts: everything the agents produced, in the task panel (products declared at delivery, files of the task folder, open or download) and in Work → Artifacts for the whole company; `GET /v1/companies/:id/artifacts`, `GET /v1/tasks/:id/files[/path]`; `o4r artifacts`, `o4r task files <id> [path]`.
+- Archive an agent from the Team page (Archive / Bring back, an Archived list) and `o4r agent list|pause|resume|archive|restore`.
+
+### Changed
+- The default sandbox image is `node:22-bookworm` (git, curl, python, build tools) with the network on; `"sandbox": { "network": "none" }` isolates it.
+- No made-up default model: without a connected provider the interface, the CLI and the runtime say so.
+- Migration `0011_project_repos`.
+
 ## 1.2.0 — 2026-09-21 — updating
 
 ### Added

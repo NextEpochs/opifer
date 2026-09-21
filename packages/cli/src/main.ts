@@ -6,6 +6,7 @@ import { runDoctor } from "./commands/doctor.js";
 import { cliVersion, runUpdate } from "./commands/update.js";
 import { runAgentArchive, runAgentList, runAgentPause, runAgentRestore, runAgentResume } from "./commands/agent.js";
 import { runProjectCreate, runProjectList } from "./commands/project.js";
+import { runArtifactList, runTaskFiles } from "./commands/artifacts.js";
 import {
   runAuthDisable,
   runAuthEnable,
@@ -378,6 +379,13 @@ task
   .action(async (title: string, opts: { agent?: string; description?: string; acceptance?: string; priority?: string; project?: string; parent?: string; company?: string }) =>
     runTaskCreate({ title, ...opts, ...homeOf(program) }),
   );
+program
+  .command("artifacts")
+  .description("what the agents produced across every task: files, links, documents, decisions")
+  .option("--limit <n>", "how many (default 100)")
+  .option("--company <name>", "company (default: the first one)")
+  .action(async (opts: { limit?: string; company?: string }) => runArtifactList({ ...opts, ...homeOf(program) }));
+
 const projectCmd = program.command("project").description("projects: folders or git repositories the tasks work in");
 projectCmd
   .command("list", { isDefault: true })
@@ -396,6 +404,12 @@ projectCmd
     runProjectCreate({ name, ...opts, ...homeOf(program) }),
   );
 
+task
+  .command("files <id> [path]")
+  .description("the files in the task's folder; with a path, prints that file")
+  .action(async (id: string, filePath: string | undefined, opts: Record<string, never>) =>
+    runTaskFiles({ id, ...(filePath ? { path: filePath } : {}), ...opts, ...homeOf(program) }),
+  );
 task
   .command("show <id>")
   .description("the task with its why chain, results, subtasks and comments")

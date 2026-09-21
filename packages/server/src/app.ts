@@ -15,6 +15,7 @@ import { registerModelRoutes } from "./routes/models.js";
 import { registerGovernanceRoutes } from "./routes/governance.js";
 import { registerOverviewRoutes } from "./routes/overview.js";
 import { registerWorkRoutes } from "./routes/work.js";
+import { registerArtifactRoutes } from "./routes/artifacts.js";
 import {
   AgentRuntime,
   NATIVE_TOOLS,
@@ -441,6 +442,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   await app.register(registerAgentRoutes, { prefix: "/v1" });
   await app.register(registerAuditRoutes, { prefix: "/v1" });
   await app.register(async (scope) => registerWorkRoutes(scope, { work, runtime, workRoot, secrets: governance?.secrets ?? null }), { prefix: "/v1" });
+  await app.register(async (scope) => registerArtifactRoutes(scope, { work, workRoot }), { prefix: "/v1" });
   await app.register(async (scope) => registerRoutineRoutes(scope, { routines }), { prefix: "/v1" });
   await app.register(
     async (scope) => registerConnectionRoutes(scope, { connections, webhooks, events, channels, hub, invalidateTools: (companyId) => connectionExecutor.invalidate(companyId) }),

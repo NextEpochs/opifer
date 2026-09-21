@@ -245,6 +245,11 @@ export const api = {
     return request<Task[]>(`/v1/companies/${companyId}/tasks?${params}`);
   },
   task: (id: string) => request<TaskDetail>(`/v1/tasks/${id}`),
+  taskFiles: (id: string) => request<{ folder: string; files: Array<{ path: string; size: number; modifiedAt: string }> }>(`/v1/tasks/${id}/files`),
+  /** Where a file of a task's folder can be opened in a new tab (inline) or downloaded. */
+  taskFileUrl: (id: string, path: string, download = false) =>
+    `${API_BASE}/v1/tasks/${id}/files/${path.split("/").map(encodeURIComponent).join("/")}${download ? "?download=1" : ""}`,
+  artifacts: (companyId: string) => request<Artifact[]>(`/v1/companies/${companyId}/artifacts`),
   createTask: (
     companyId: string,
     input: {
@@ -818,6 +823,20 @@ export interface Goal {
   measure: string;
   status: "active" | "reached" | "dropped";
   dueAt: string | null;
+}
+
+/** Something an agent produced: a product declared at delivery, with the task it belongs to. */
+export interface Artifact {
+  id: string;
+  taskId: string;
+  taskTitle: string;
+  taskStatus: string;
+  kind: "file" | "link" | "diff" | "document" | "decision" | "note";
+  title: string;
+  ref: string;
+  summary: string;
+  by: string;
+  createdAt: string;
 }
 
 export interface Project {

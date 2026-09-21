@@ -1,6 +1,6 @@
 {
   "name": "@opifer/connections",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "Tool connections (MCP servers, workflow tools), inbound webhooks, outbound signed events, messaging channels, the Docker sandbox.",
   "license": "AGPL-3.0-only",
   "homepage": "https://opifer.dev",

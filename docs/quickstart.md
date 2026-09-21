@@ -45,6 +45,8 @@ An agent you no longer need is archived from their panel in **Team** (or `o4r ag
 
 Talk to any agent in **Chat**. Ask "how are things in the company?": the agent reads the company status and can hand out work to its reports.
 
+What the agents produce is under **Artifacts**: in a task's panel (the products they declared at delivery, and every file in the task's folder, to open or download) and in **Work → Artifacts** for the whole company. From the command line: `o4r artifacts`, `o4r task files <id> [path]`.
+
 ## 4. Money, permissions, learning
 
 **Money** shows where every euro goes and lets you set caps (company, agent, project, task). When a cap is reached the agent stops *before* the next call and asks you.
@@ -52,6 +54,12 @@ Talk to any agent in **Chat**. Ask "how are things in the company?": the agent r
 Each agent's drawer in **Team** has its permissions per tool (Auto / Ask / Off). Dangerous commands (deleting folders, sudo, force push) always ask.
 
 After every finished task a background review keeps what is worth keeping: memories and skills, in **Learning**. A repeated job costs less the second time. A skill that proves itself is proposed for the whole company, and you decide.
+
+## Software: projects that are repositories
+
+A project can be a git repository: give its URL (and a branch) when you create it in **Work → Projects** or with `o4r project create "Site" --repo https://github.com/org/site --branch main`. It is cloned into the project's folder; every task of the project works there. For a private repository, store a token first (`o4r secret set GITHUB_TOKEN`) and bind it to the agents that push (`o4r secret bind GITHUB_TOKEN --agent Theo --tool terminal`): git authenticates through a helper, the token never lands in the repository.
+
+Agents write software with the terminal (network on, an image with git, curl, python and build tools), `read_file`/`write_file`, `edit_file` (exact replacement) and `apply_patch` (a diff), and they deliver a branch with commits. When Claude Code or the Codex CLI is installed on the machine that runs Opifer, agents also get `run_coder`: they hand a full brief to it and it does the multi-step work in the project folder, under the same approvals and review. Its own usage is billed to its subscription, and the result says so.
 
 ## 5. Routines and connections
 

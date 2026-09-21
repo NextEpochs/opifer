@@ -19,5 +19,5 @@ Anything that lets a person or an agent do more than the governance allows: read
 
 | Version | Supported |
 | ------- | --------- |
-| 1.2.x   | Yes       |
-| 1.1.x, 1.0.x | Upgrade with `o4r update` |
+| 1.3.x   | Yes       |
+| 1.2.x and older | Upgrade with `o4r update` |

@@ -43,6 +43,8 @@ describe("interface strings", () => {
       "email",
       "password",
       "branch",
+      "artifacts",
+      "views.artifacts",
       "comingSoon",
       "botUser",
       "connUrl",

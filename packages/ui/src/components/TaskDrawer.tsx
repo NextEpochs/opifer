@@ -15,12 +15,15 @@ export function TaskDrawer({ ws, taskId, onClose }: { ws: Workspace; taskId: str
   const [subtask, setSubtask] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [files, setFiles] = useState<Array<{ path: string; size: number; modifiedAt: string }>>([]);
 
   const load = useCallback(
     () =>
-      api
-        .task(taskId)
-        .then(setTask)
+      Promise.all([api.task(taskId), api.taskFiles(taskId).catch(() => ({ folder: "", files: [] }))])
+        .then(([detail, listing]) => {
+          setTask(detail);
+          setFiles(listing.files);
+        })
         .catch((e) => setError(e instanceof Error ? e.message : String(e))),
     [taskId],
   );
@@ -178,19 +181,57 @@ export function TaskDrawer({ ws, taskId, onClose }: { ws: Workspace; taskId: str
             )}
           </section>
         )}
-        {task.products.length > 0 && (
+        {(task.products.length > 0 || files.length > 0) && (
           <section>
+            <h3 className="m-0 mb-1.5 text-[12px] font-bold uppercase tracking-wide text-mute">{t.artifacts}</h3>
             <ul className="m-0 list-none space-y-1.5 p-0 text-[13px]">
-              {task.products.map((p) => (
-                <li key={p.id} className="flex min-w-0 items-center gap-2">
-                  <Chip tone="mute">{p.kind}</Chip>
-                  <span className="shrink-0 font-bold">{p.title}</span>
-                  <span className="min-w-0 truncate font-mono text-[12px] text-mute" title={p.ref}>
-                    {p.ref}
-                  </span>
-                </li>
-              ))}
+              {task.products.map((p) => {
+                const file = p.kind === "file" && files.some((f) => f.path === p.ref.replace(/^\.?\//, ""));
+                const link = p.kind === "link" && /^https?:\/\//.test(p.ref);
+                return (
+                  <li key={p.id} className="flex min-w-0 items-center gap-2">
+                    <Chip tone="mute">{p.kind}</Chip>
+                    <span className="shrink-0 font-bold">{p.title}</span>
+                    {file ? (
+                      <>
+                        <a href={api.taskFileUrl(taskId, p.ref.replace(/^\.?\//, ""))} target="_blank" rel="noopener" className="min-w-0 truncate font-mono text-[12px]">
+                          {p.ref}
+                        </a>
+                        <a href={api.taskFileUrl(taskId, p.ref.replace(/^\.?\//, ""), true)} className="shrink-0 text-[12px] font-bold text-accent-text no-underline">
+                          {t.download}
+                        </a>
+                      </>
+                    ) : link ? (
+                      <a href={p.ref} target="_blank" rel="noopener" className="min-w-0 truncate font-mono text-[12px]">
+                        {p.ref}
+                      </a>
+                    ) : (
+                      <span className="min-w-0 truncate font-mono text-[12px] text-mute" title={p.ref}>
+                        {p.ref}
+                      </span>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
+            {files.length > 0 && (
+              <details className="mt-2 text-[13px]">
+                <summary className="cursor-pointer text-mute">{fill(t.filesInFolder, { n: String(files.length) })}</summary>
+                <ul className="m-0 mt-1 list-none space-y-1 p-0">
+                  {files.map((f) => (
+                    <li key={f.path} className="flex min-w-0 items-center gap-2">
+                      <a href={api.taskFileUrl(taskId, f.path)} target="_blank" rel="noopener" className="min-w-0 truncate font-mono text-[12px]">
+                        {f.path}
+                      </a>
+                      <span className="shrink-0 text-[11px] text-faint">{f.size < 1024 ? `${f.size} B` : `${Math.round(f.size / 1024)} kB`}</span>
+                      <a href={api.taskFileUrl(taskId, f.path, true)} className="shrink-0 text-[12px] font-bold text-accent-text no-underline">
+                        {t.download}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            )}
           </section>
         )}
 
