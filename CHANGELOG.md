@@ -7,6 +7,8 @@ All notable changes to Opifer. The format follows Keep a Changelog; versions fol
 ### Added
 - Email as a connection: a mailbox per company (SMTP to send, IMAP to read), the password a company secret. The agents get `<name>__send` (high risk: a person approves each email unless the policy allows it), `<name>__list`, `<name>__read` and `<name>__search`. Connections → Tools → Add a mailbox; `o4r connection add-email <name> --smtp host:port --imap host:port --user … --from …`. Migration `0012_email_connections`.
 
+- A browser for the agents: with Chrome or Chromium on the machine (found at start, `OPIFER_BROWSER`, or `browser.executablePath` in `config.json`), `browser_open`, `browser_read`, `browser_click`, `browser_type`, `browser_select` and `browser_screenshot` (a PNG in the task folder). One page per session, public addresses only, closed after ten minutes idle; `o4r doctor` reports the browser in use.
+
 ### Fixed
 - The CLI declared a JSON body on calls that send none, so `o4r connection check|remove`, `o4r resume`, `o4r routine run`, `o4r skill restore` and the chat interrupt answered `Bad Request` in 1.3.0.
 

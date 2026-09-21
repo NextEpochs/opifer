@@ -28,6 +28,8 @@ export interface OpiferConfig {
   coder?: { kind: "claude" | "codex"; binary?: string; maxTurns?: number } | null;
   /** Web search for the agents: the provider (keys from BRAVE_API_KEY / TAVILY_API_KEY, or the SearXNG URL); null turns web_search off. */
   web?: { search?: { provider: "brave" | "tavily" | "searxng"; url?: string } | null };
+  /** The browser for the agents: Chrome or Chromium on this machine (found at start, or `executablePath`); null turns the browser_* tools off. */
+  browser?: { executablePath?: string } | null;
 }
 
 export const DEFAULT_CONFIG: OpiferConfig = {

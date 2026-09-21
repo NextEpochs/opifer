@@ -12,6 +12,7 @@ import { uiDistDir } from "./up.js";
 import { readCliKey } from "./auth.js";
 import { cliVersion } from "./update.js";
 import { searchFromConfig } from "./web.js";
+import { browserFromConfig } from "./browser.js";
 import { compareVersions, fetchLatestVersion } from "@opifer/server";
 
 interface Check {
@@ -160,6 +161,15 @@ export async function runDoctor(options: { home?: string }): Promise<void> {
         ok: true,
         warn: !search,
         detail: search ? `web_fetch and web_search through ${search.provider}` : "web_fetch only: set BRAVE_API_KEY, TAVILY_API_KEY or SEARXNG_URL for web_search",
+      });
+    }
+    {
+      const browser = browserFromConfig(config);
+      checks.push({
+        name: "Browser",
+        ok: true,
+        warn: !browser,
+        detail: browser ? `browser_* tools through ${browser.executablePath}` : "no Chrome or Chromium found: install one (or set OPIFER_BROWSER) for the browser_* tools",
       });
     }
     if (config.auth?.enabled) checks.push({ name: "Authentication", ok: true, detail: "authenticated mode: sign-in required on the API and the interface" });

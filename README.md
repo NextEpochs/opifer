@@ -191,6 +191,8 @@ Everything the interface does, the `o4r` command and the `/v1` API do too.
 
 **The web.** `web_fetch` reads any public page or API as clean text; `web_search` searches through Brave, Tavily or your own SearXNG when a key or URL is configured. Every number an agent reports comes with its source.
 
+**The browser.** With Chrome or Chromium on the machine, agents drive a real browser: `browser_open` returns a page as text plus the elements they can act on, `browser_click`, `browser_type` and `browser_select` act on them, `browser_screenshot` saves what they saw among the artifacts. Web apps, forms, sites that need clicks.
+
 **Software.** A project can be a git repository: cloned into its folder, worked on a branch, pushed with a token kept as a company secret. Agents get `edit_file`, `apply_patch` and a terminal with the network on and build tools, and, when Claude Code or the Codex CLI is installed on the machine, `run_coder`: they hand it a full brief and it does the multi-step work in the project folder, under the same approvals and review. Everything produced is under **Artifacts**, to open or download.
 
 **Delegation closes the loop.** Whoever delegates becomes the reviewer of the subtask: woken up on delivery, it checks the result and approves it or sends it back. A parent is delivered only after its subtasks are closed. In a chat, an agent can read the company status and hand out work to its reports.

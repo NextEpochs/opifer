@@ -32,7 +32,7 @@ export function isPrivateAddress(ip: string): boolean {
   return false;
 }
 
-async function assertPublic(url: URL): Promise<void> {
+export async function assertPublic(url: URL): Promise<void> {
   if (url.protocol !== "http:" && url.protocol !== "https:") throw new Error(`only http and https are fetched, not ${url.protocol}`);
   const host = url.hostname.replace(/^\[|\]$/g, "");
   if (host === "localhost" || host.endsWith(".localhost") || host.endsWith(".internal") || host.endsWith(".local")) throw new Error("local addresses are not fetched");

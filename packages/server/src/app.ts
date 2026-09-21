@@ -23,6 +23,9 @@ import {
   SessionStore,
   applyPatchTool,
   coderTool,
+  BrowserSessions,
+  browserTools,
+  type BrowserOptions,
   editFileTool,
   webFetchTool,
   webSearchTool,
@@ -68,6 +71,8 @@ export interface AppOptions {
   coder?: CoderOptions | null;
   /** The web: web_fetch is always there; web_search when a provider is configured. */
   web?: { search?: SearchOptions | null };
+  /** A browser (Chrome or Chromium on the machine, through Playwright) offered as the browser_* tools; null turns it off. */
+  browser?: BrowserOptions | null;
   /** Model providers and default model; without them, sessions are not available. */
   providers?: ProviderSetup;
   /** Root folder of the sessions' working directories. */
@@ -282,6 +287,8 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   const events = new EventService(options.db.sql);
   const channels = new ChannelService(options.db.sql);
   // Native tools plus the task and learning tools, then the connection tools, under governance when it is on.
+  const browsers = options.browser === null ? null : new BrowserSessions(options.browser ?? {});
+  if (browsers) app.addHook("onClose", async () => browsers.closeAll());
   const nativeExecutor = new NativeToolExecutor([
     ...NATIVE_TOOLS,
     editFileTool,
@@ -289,6 +296,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
     webFetchTool,
     ...(options.web?.search ? [webSearchTool(options.web.search)] : []),
     ...(options.coder ? [coderTool(options.coder)] : []),
+    ...(browsers ? browserTools(browsers) : []),
     ...taskTools(work, options.db.sql),
     ...(learning ? learningTools(learning.memories, learning.skills) : []),
   ]);

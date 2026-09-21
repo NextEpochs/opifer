@@ -36,6 +36,7 @@
     "@opifer/core": "workspace:*",
     "@opifer/db": "workspace:*",
     "@opifer/sdk": "workspace:*",
+    "playwright-core": "^1.63.0",
     "postgres": "^3.4.7"
   }
 }

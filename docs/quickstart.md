@@ -59,6 +59,10 @@ After every finished task a background review keeps what is worth keeping: memor
 
 Agents read the web with `web_fetch` (a page as clean text, a JSON API) out of the box. For `web_search`, give the server a search provider: `BRAVE_API_KEY` (Brave Search API), `TAVILY_API_KEY`, or `SEARXNG_URL` for a SearXNG instance of yours, in the environment of `o4r up` (the systemd unit, the compose file); `o4r doctor` says which one is in use. Fetching never reaches private addresses of the machine or its network.
 
+## The browser
+
+When Google Chrome or Chromium is on the machine that runs Opifer (`o4r doctor` says so; `OPIFER_BROWSER=/path/to/chrome` or `"browser": { "executablePath": "…" }` in `config.json` names one), agents also get a real browser: `browser_open` loads a page with its JavaScript and returns the text plus a numbered list of what can be acted on (links, buttons, fields, selects); `browser_click`, `browser_type` (with `submit`) and `browser_select` act on those; `browser_read` reads the page again; `browser_screenshot` saves a PNG into the task folder, among the artifacts. One page per session, kept between calls, closed after ten minutes without use. The browser reaches public addresses only, like `web_fetch`. Clicking and typing are medium-risk tools (automatic by default, a policy can make them ask); `"browser": null` in `config.json` turns the browser off.
+
 ## Email
 
 Give the company a mailbox in **Connections → Tools → Add a mailbox** (SMTP server, IMAP server, login, From address, password) or `o4r connection add-email agents --smtp smtp.example.com:587 --imap imap.example.com:993 --user agents@example.com --from "Opifer <agents@example.com>"` then `o4r secret set EMAIL_PASSWORD`. Agents get `agents__send`, `agents__list`, `agents__read`, `agents__search`: reading is automatic, every email they send asks you first (a card in the Inbox, or Telegram) until you allow sending for that agent.
