@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
-import { Plus, Square } from "lucide-react";
+import { Archive, Plus, Square } from "lucide-react";
 import { api, eventsSocket, type Session, type SessionDetail, type StoredMessage } from "../api";
 import { fill, plural, type Strings } from "../i18n";
 import { Avatar, Button, Chip, Code, Input, Select, money } from "../ui";
@@ -165,10 +165,23 @@ export function ChatPage({ ws, param }: { ws: Workspace; param: string | null })
   const totalIn = detail?.runs.reduce((n, r) => n + r.inputTokens, 0) ?? 0;
   const totalOut = detail?.runs.reduce((n, r) => n + r.outputTokens, 0) ?? 0;
   const today = new Date().toDateString();
+  const open = sessions.filter((s) => s.status !== "closed");
+  const archived = sessions.filter((s) => s.status === "closed");
   const groups = [
-    { label: t.today, items: sessions.filter((s) => new Date(s.createdAt).toDateString() === today) },
-    { label: t.earlier, items: sessions.filter((s) => new Date(s.createdAt).toDateString() !== today) },
+    { label: t.today, items: open.filter((s) => new Date(s.createdAt).toDateString() === today) },
+    { label: t.earlier, items: open.filter((s) => new Date(s.createdAt).toDateString() !== today) },
   ];
+  const archive = async (id: string) => {
+    await api.closeSession(id);
+    await loadSessions();
+    if (selected === id) await loadDetail(id);
+  };
+  const bringBack = async (id: string) => {
+    await api.reopenSession(id);
+    await loadSessions();
+    if (selected === id) await loadDetail(id);
+    else ws.go("chat", id);
+  };
 
   return (
     <div className="flex h-full min-h-screen">
@@ -195,20 +208,44 @@ export function ChatPage({ ws, param }: { ws: Workspace; param: string | null })
                 <div key={g.label}>
                   <div className="px-2 pb-0.5 pt-3 text-[11px] font-bold uppercase tracking-wide text-mute">{g.label}</div>
                   {g.items.map((s) => (
-                    <a
-                      key={s.id}
-                      href={`#/chat/${s.id}`}
-                      aria-current={selected === s.id ? "true" : undefined}
-                      className={`block rounded-control px-3 py-2.5 no-underline ${selected === s.id ? "bg-accent-soft text-ink" : "text-ink hover:bg-hover"}`}
-                    >
-                      <span className="block truncate text-sm font-bold">{s.title ?? t.untitled}</span>
-                      <span className="block truncate text-[13px] text-mute">
-                        {ws.agentName(s.agentId)} · {s.status}
-                      </span>
-                    </a>
+                    <div key={s.id} className={`group flex items-center rounded-control ${selected === s.id ? "bg-accent-soft text-ink" : "text-ink hover:bg-hover"}`}>
+                      <a href={`#/chat/${s.id}`} aria-current={selected === s.id ? "true" : undefined} className="min-w-0 flex-1 px-3 py-2.5 text-ink no-underline">
+                        <span className="block truncate text-sm font-bold">{s.title ?? t.untitled}</span>
+                        <span className="block truncate text-[13px] text-mute">
+                          {ws.agentName(s.agentId)} · {s.status}
+                        </span>
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => void archive(s.id)}
+                        title={t.archiveChat}
+                        aria-label={t.archiveChat}
+                        className="mr-1.5 shrink-0 rounded-control border-0 bg-transparent p-1.5 text-mute opacity-0 hover:text-ink focus:opacity-100 group-hover:opacity-100"
+                      >
+                        <Archive size={14} />
+                      </button>
+                    </div>
                   ))}
                 </div>
               ),
+          )}
+          {archived.length > 0 && (
+            <details className="mt-3">
+              <summary className="cursor-pointer px-2 pb-0.5 text-[11px] font-bold uppercase tracking-wide text-mute">
+                {t.archivedChats} ({archived.length})
+              </summary>
+              {archived.map((s) => (
+                <div key={s.id} className={`flex items-center rounded-control ${selected === s.id ? "bg-accent-soft" : "hover:bg-hover"}`}>
+                  <a href={`#/chat/${s.id}`} className="min-w-0 flex-1 px-3 py-2 text-mute no-underline">
+                    <span className="block truncate text-sm">{s.title ?? t.untitled}</span>
+                    <span className="block truncate text-[12px]">{ws.agentName(s.agentId)}</span>
+                  </a>
+                  <button type="button" onClick={() => void bringBack(s.id)} className="mr-2 shrink-0 border-0 bg-transparent text-[12px] font-bold text-accent-text">
+                    {t.unarchive}
+                  </button>
+                </div>
+              ))}
+            </details>
           )}
           {sessions.length === 0 && <p className="px-2 text-[13px] text-mute">{t.noConversations}</p>}
         </div>
@@ -304,6 +341,14 @@ export function ChatPage({ ws, param }: { ws: Workspace; param: string | null })
             {error && (
               <p role="alert" className="m-0 px-7 text-xs text-danger">
                 {error}
+              </p>
+            )}
+            {detail.status === "closed" && (
+              <p className="m-0 flex items-center gap-3 px-7 pt-3 text-[13px] text-mute">
+                {t.chatArchived}
+                <Button type="button" size="sm" onClick={() => void bringBack(detail.id)}>
+                  {t.unarchive}
+                </Button>
               </p>
             )}
             <form onSubmit={send} className="flex items-center gap-2.5 px-7 pb-6 pt-3">

@@ -205,6 +205,25 @@ describe("Governance API", () => {
     await app.inject({ method: "DELETE", url: `/v1/companies/${companyId}/routines/${(routine.json() as { id: string }).id}` });
   });
 
+  it("sets a company's web search as a secret and reports it without the value", async () => {
+    expect((await app.inject({ method: "GET", url: `/v1/companies/${companyId}/web-search` })).json()).toMatchObject({ provider: null, source: null });
+    const set = await app.inject({ method: "PUT", url: `/v1/companies/${companyId}/web-search`, payload: { provider: "tavily", value: "tvly-secret" } });
+    expect(set.statusCode, set.body).toBe(200);
+    expect(set.json()).toMatchObject({ provider: "tavily", source: "secret" });
+    expect(set.body).not.toContain("tvly-secret");
+    const names = ((await app.inject({ method: "GET", url: `/v1/companies/${companyId}/secrets` })).json() as Array<{ name: string }>).map((s) => s.name);
+    expect(names).toContain("TAVILY_API_KEY");
+    const switched = (await app.inject({ method: "PUT", url: `/v1/companies/${companyId}/web-search`, payload: { provider: "brave", value: "brave-key" } })).json() as {
+      provider: string;
+    };
+    expect(switched.provider).toBe("brave");
+    const after = ((await app.inject({ method: "GET", url: `/v1/companies/${companyId}/secrets` })).json() as Array<{ name: string }>).map((s) => s.name);
+    expect(after).toContain("BRAVE_API_KEY");
+    expect(after).not.toContain("TAVILY_API_KEY");
+    expect((await app.inject({ method: "DELETE", url: `/v1/companies/${companyId}/web-search` })).json()).toMatchObject({ provider: null });
+    expect((await app.inject({ method: "PUT", url: `/v1/companies/${companyId}/web-search`, payload: { provider: "google", value: "x" } })).statusCode).toBe(400);
+  });
+
   it("stores secrets without ever returning their values, and versions agent changes", async () => {
     const put = await app.inject({ method: "PUT", url: `/v1/companies/${companyId}/secrets`, payload: { name: "API_KEY", value: "very-secret-value" } });
     expect(put.statusCode).toBe(201);

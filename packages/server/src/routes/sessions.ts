@@ -136,4 +136,12 @@ export async function registerSessionRoutes(app: FastifyInstance, options: Sessi
     await store.setSessionStatus(session.id, "closed");
     return { id: session.id, status: "closed" };
   });
+
+  /** An archived (closed) conversation back in the list, ready for messages. */
+  app.post<{ Params: { id: string } }>("/sessions/:id/reopen", { schema: { params: sessionParams } }, async (request, reply) => {
+    const session = await store.getSession(request.params.id);
+    if (!session) return reply.code(404).send({ error: "session not found" });
+    await store.setSessionStatus(session.id, "active");
+    return { id: session.id, status: "active" };
+  });
 }

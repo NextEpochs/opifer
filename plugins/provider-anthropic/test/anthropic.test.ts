@@ -115,6 +115,16 @@ async function collect(provider: AnthropicProvider, req: CompletionRequest) {
 }
 
 describe("Anthropic provider", () => {
+  it("adds Anthropic's server-side web search when the request asks for it", async () => {
+    mode = "text";
+    const provider = new AnthropicProvider({ apiKey: "test", baseURL });
+    await collect(provider, { ...request, webSearch: true });
+    const tools = captured.at(-1)!["tools"] as Array<Record<string, unknown>>;
+    expect(tools.map((t) => t["name"])).toEqual(["terminal", "web_search"]);
+    expect(tools[1]).toMatchObject({ type: "web_search_20250305", max_uses: 5 });
+    expect((await provider.listModels())[0]!.capabilities.webSearch).toBe(true);
+  });
+
   it("maps messages and tools to the Messages format, with cache on the prefix", async () => {
     mode = "text";
     const provider = new AnthropicProvider({ apiKey: "test", baseURL });

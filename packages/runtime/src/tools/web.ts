@@ -214,9 +214,14 @@ export async function webSearch(query: string, options: SearchOptions, count = 8
   return (body.results ?? []).slice(0, n).map((r) => ({ title: r.title, url: r.url, snippet: r.content ?? "" }));
 }
 
-export function webSearchTool(options: SearchOptions): NativeTool {
+/** The search provider of a company, or null when there is none; the tool is offered only where one exists. */
+export type SearchResolver = (companyId: string) => Promise<SearchOptions | null>;
+
+export function webSearchTool(options: SearchOptions | SearchResolver): NativeTool {
+  const resolve: SearchResolver = typeof options === "function" ? options : async () => options;
   return {
     risk: "low",
+    available: async (scope) => (await resolve(scope.companyId)) !== null,
     definition: {
       name: "web_search",
       description:
@@ -227,10 +232,13 @@ export function webSearchTool(options: SearchOptions): NativeTool {
         properties: { query: { type: "string" }, count: { type: "integer", minimum: 1, maximum: 20, description: "Results to return (default 8)." } },
       },
     },
-    async execute(args) {
+    async execute(args, context) {
       const query = str(args, "query");
       const count = typeof args["count"] === "number" ? args["count"] : 8;
-      const results = await webSearch(query, options, count);
+      const resolved = await resolve(context.companyId);
+      if (!resolved)
+        return { content: "No search provider is set for this company: store a Brave or Tavily key (Settings → Web search) or use web_fetch and the browser.", isError: true };
+      const results = await webSearch(query, resolved, count);
       if (results.length === 0) return { content: `No results for "${query}".` };
       return { content: results.map((r, i) => `${i + 1}. ${r.title}\n   ${r.url}${r.snippet ? `\n   ${r.snippet.replace(/\s+/g, " ").slice(0, 300)}` : ""}`).join("\n\n") };
     },

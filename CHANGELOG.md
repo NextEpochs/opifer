@@ -2,6 +2,12 @@
 
 All notable changes to Opifer. The format follows Keep a Changelog; versions follow SemVer.
 
+## 1.6.0 — 2026-09-21 — web search for everyone, archived conversations
+
+### Added
+- Web search without setup: the models of ChatGPT (subscription) and Anthropic search by themselves, with their provider's own tool, on every turn. For other models, **Settings → Web search** stores a Brave or Tavily key, or a SearXNG URL, as a company secret (`PUT/GET/DELETE /v1/companies/:id/web-search`); the server's environment keys still work for every company. `web_search` is offered only where a source exists.
+- Archive a conversation from the Chat list (and bring it back): `POST /v1/sessions/:id/reopen`.
+
 ## 1.5.0 — 2026-09-21 — files for a task
 
 ### Added

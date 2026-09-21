@@ -62,6 +62,8 @@ export interface ModelCapabilities {
   vision: boolean;
   reasoning: boolean;
   toolCalling: boolean;
+  /** The provider can let the model search the web with a tool of its own (no key of ours needed). */
+  webSearch?: boolean;
 }
 
 export interface ModelPrice {
@@ -81,6 +83,8 @@ export interface CompletionRequest {
   temperature?: number;
   /** The stable prefix (system + snapshot) can be marked for the provider's cache. */
   cachePrefix?: boolean;
+  /** Let the model search the web with the provider's own tool, where there is one (ChatGPT, Anthropic). */
+  webSearch?: boolean;
   signal?: AbortSignal;
 }
 

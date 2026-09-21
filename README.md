@@ -191,7 +191,7 @@ Everything the interface does, the `o4r` command and the `/v1` API do too.
 
 **Email.** A mailbox is a connection: SMTP to send, IMAP to read and search, the password a company secret. Reading is automatic; every email an agent sends asks a person first until sending is allowed for that agent.
 
-**The web.** `web_fetch` reads any public page or API as clean text; `web_search` searches through Brave, Tavily or your own SearXNG when a key or URL is configured. Every number an agent reports comes with its source.
+**The web.** `web_fetch` reads any public page or API as clean text. Searching needs no setup with ChatGPT or Anthropic models, which search by themselves; any other model searches through a Brave or Tavily key, or your own SearXNG, stored from Settings. Every number an agent reports comes with its source.
 
 **The browser.** With Chrome or Chromium on the machine, agents drive a real browser: `browser_open` returns a page as text plus the elements they can act on, `browser_click`, `browser_type` and `browser_select` act on them, `browser_screenshot` saves what they saw among the artifacts. Web apps, forms, sites that need clicks.
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fetchReadable, htmlToText, isPrivateAddress, webSearch, webFetchTool } from "../src/tools/web.js";
+import { fetchReadable, htmlToText, isPrivateAddress, webSearch, webFetchTool, webSearchTool } from "../src/tools/web.js";
 
 const response = (body: string, init: { status?: number; type?: string; location?: string } = {}) =>
   ({
@@ -51,6 +51,19 @@ describe("web tools", () => {
     expect(short.truncated).toBe(true);
     expect(short.text).toContain("[truncated at 10 characters of 100]");
     expect(webFetchTool.definition.name).toBe("web_fetch");
+  });
+
+  it("offers web_search only to companies with a provider, and explains itself otherwise", async () => {
+    const options = new Map<string, { provider: "brave"; apiKey: string; fetcher: typeof fetch }>();
+    const fetcher = (async () =>
+      response(JSON.stringify({ web: { results: [{ title: "B", url: "https://b", description: "brave" }] } }), { type: "application/json" })) as unknown as typeof fetch;
+    options.set("acme", { provider: "brave", apiKey: "k", fetcher });
+    const tool = webSearchTool(async (companyId) => options.get(companyId) ?? null);
+    expect(await tool.available!({ companyId: "acme", agentId: "a" })).toBe(true);
+    expect(await tool.available!({ companyId: "other", agentId: "a" })).toBe(false);
+    const context = { sessionId: "s", companyId: "other", agentId: "a", runId: "r", callId: "c", agentRole: "x", workdir: "/tmp", signal: new AbortController().signal };
+    expect((await tool.execute({ query: "q" }, context)).isError).toBe(true);
+    expect((await tool.execute({ query: "q" }, { ...context, companyId: "acme" })).content).toContain("https://b");
   });
 
   it("searches through Brave, Tavily or SearXNG and normalises the results", async () => {

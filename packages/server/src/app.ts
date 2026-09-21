@@ -48,6 +48,7 @@ import { registerConnectionRoutes } from "./routes/connections.js";
 import { ChannelHub } from "./channels.js";
 import { ChannelService, ConnectionService, ConnectionToolExecutor, EventService, WebhookService } from "@opifer/connections";
 import { DockerEnvironment, LocalEnvironment, dockerAvailable, useEnvironment } from "@opifer/runtime";
+import { SEARCH_SECRETS, WebSearchSetup, type SearchProvider } from "./websearch.js";
 import { API_KEY_PREFIX, AuthService, atLeast, requiredRole, sessionTokenOf, type Actor } from "./auth.js";
 import { registerAuthRoutes } from "./routes/auth.js";
 import { UpdateCheck, type Fetcher } from "./updates.js";
@@ -286,6 +287,12 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   const webhooks = new WebhookService(options.db.sql);
   const events = new EventService(options.db.sql);
   const channels = new ChannelService(options.db.sql);
+  // Web search: the company's key, the installation's environment, or nothing (the models of ChatGPT and Anthropic search by themselves).
+  const webSearch = new WebSearchSetup(
+    () => governanceRef.current?.secrets ?? null,
+    options.web?.search ?? null,
+    () => (options.providers?.report ?? []).filter((r) => r.enabled && (r.id === "chatgpt" || r.id === "anthropic")).map((r) => r.id),
+  );
   // Native tools plus the task and learning tools, then the connection tools, under governance when it is on.
   const browsers = options.browser === null ? null : new BrowserSessions(options.browser ?? {});
   if (browsers) app.addHook("onClose", async () => browsers.closeAll());
@@ -294,7 +301,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
     editFileTool,
     applyPatchTool,
     webFetchTool,
-    ...(options.web?.search ? [webSearchTool(options.web.search)] : []),
+    webSearchTool((companyId) => webSearch.resolve(companyId)),
     ...(options.coder ? [coderTool(options.coder)] : []),
     ...(browsers ? browserTools(browsers) : []),
     ...taskTools(work, options.db.sql),
@@ -461,6 +468,41 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   await app.register(async (scope) => registerRoutineRoutes(scope, { routines }), { prefix: "/v1" });
   await app.register(
     async (scope) => registerConnectionRoutes(scope, { connections, webhooks, events, channels, hub, invalidateTools: (companyId) => connectionExecutor.invalidate(companyId) }),
+    { prefix: "/v1" },
+  );
+  await app.register(
+    async (scope) => {
+      /** What web search this company has, and where to set it. */
+      scope.get<{ Params: { id: string } }>("/companies/:id/web-search", async (request) => webSearch.status(request.params.id));
+      /** Store a Brave or Tavily key, or a SearXNG URL, as the company's search: a company secret under the hood. */
+      scope.put<{ Params: { id: string }; Body: { provider: SearchProvider; value: string } }>(
+        "/companies/:id/web-search",
+        {
+          schema: {
+            body: {
+              type: "object",
+              required: ["provider", "value"],
+              additionalProperties: false,
+              properties: { provider: { type: "string", enum: Object.keys(SEARCH_SECRETS) }, value: { type: "string", minLength: 1, maxLength: 4000 } },
+            },
+          },
+        },
+        async (request, reply) => {
+          const secrets = governanceRef.current?.secrets;
+          if (!secrets) return reply.code(503).send({ error: "secrets are not available on this server" });
+          for (const name of Object.values(SEARCH_SECRETS)) if (name !== SEARCH_SECRETS[request.body.provider]) await secrets.remove(request.params.id, name);
+          await secrets.set({ companyId: request.params.id, name: SEARCH_SECRETS[request.body.provider], value: request.body.value.trim() });
+          return webSearch.status(request.params.id);
+        },
+      );
+      /** Back to the installation's environment or the model's own search. */
+      scope.delete<{ Params: { id: string } }>("/companies/:id/web-search", async (request, reply) => {
+        const secrets = governanceRef.current?.secrets;
+        if (!secrets) return reply.code(503).send({ error: "secrets are not available on this server" });
+        for (const name of Object.values(SEARCH_SECRETS)) await secrets.remove(request.params.id, name);
+        return webSearch.status(request.params.id);
+      });
+    },
     { prefix: "/v1" },
   );
   if (runtime && options.providers) {

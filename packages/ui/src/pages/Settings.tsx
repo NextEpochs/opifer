@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { api, type Company, type Health, type Me, type ModelsInfo } from "../api";
+import { api, type Company, type Health, type Me, type ModelsInfo, type WebSearchStatus } from "../api";
 import { fill, type Locale, type Strings } from "../i18n";
 import type { Theme, ViewMode } from "../prefs";
 import { Button, Card, CardHeader, Chip, Input, Segmented } from "../ui";
@@ -41,6 +41,31 @@ export function SettingsPage(p: SettingsProps) {
   }, []);
 
   const [notice, setNotice] = useState<string | null>(null);
+  const [search, setSearch] = useState<WebSearchStatus | null>(null);
+  const [searchProvider, setSearchProvider] = useState<"brave" | "tavily" | "searxng">("brave");
+  const [searchValue, setSearchValue] = useState("");
+  const [searchBusy, setSearchBusy] = useState(false);
+  useEffect(() => {
+    if (!p.company) return;
+    api
+      .webSearch(p.company.id)
+      .then(setSearch)
+      .catch(() => setSearch(null));
+  }, [p.company]);
+  const saveSearch = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!p.company) return;
+    setSearchBusy(true);
+    try {
+      setSearch(await api.setWebSearch(p.company.id, searchProvider, searchValue));
+      setSearchValue("");
+      setNotice(fill(t.webSearchSaved, { provider: searchProvider }));
+    } catch (err) {
+      setNotice(err instanceof Error ? err.message : String(err));
+    } finally {
+      setSearchBusy(false);
+    }
+  };
   const demo = async () => {
     setBusy(true);
     try {
@@ -223,6 +248,72 @@ export function SettingsPage(p: SettingsProps) {
           </dl>
         </Card>
 
+        {p.company && (
+          <Card>
+            <CardHeader title={t.webSearch} />
+            <div className="flex flex-col gap-2 px-[18px] pb-[18px] pt-2 text-sm">
+              <p className="m-0 text-[13px] text-mute">{t.webSearchExplain}</p>
+              {search && (
+                <>
+                  <p className="m-0 text-[13px]">{search.native.length > 0 ? fill(t.webSearchNative, { providers: search.native.join(", ") }) : t.webSearchNoNative}</p>
+                  <p className="m-0 text-[13px]">
+                    {search.provider
+                      ? fill(t.webSearchUsing, { provider: search.provider, source: search.source === "secret" ? t.webSearchSourceSecret : t.webSearchSourceEnv })
+                      : search.native.length > 0
+                        ? ""
+                        : t.webSearchNone}
+                  </p>
+                </>
+              )}
+              <form onSubmit={saveSearch} className="flex flex-wrap items-center gap-2">
+                <select
+                  value={searchProvider}
+                  onChange={(e) => setSearchProvider(e.target.value as "brave" | "tavily" | "searxng")}
+                  aria-label={t.webSearch}
+                  className="h-9 rounded-[10px] border border-line bg-card px-2 text-[13px] text-ink"
+                >
+                  <option value="brave">Brave Search</option>
+                  <option value="tavily">Tavily</option>
+                  <option value="searxng">SearXNG</option>
+                </select>
+                <div className="min-w-56 flex-1">
+                  <Input
+                    type={searchProvider === "searxng" ? "url" : "password"}
+                    value={searchValue}
+                    onChange={(e) => setSearchValue(e.target.value)}
+                    placeholder={searchProvider === "searxng" ? t.webSearchUrl : t.webSearchKey}
+                    aria-label={searchProvider === "searxng" ? t.webSearchUrl : t.webSearchKey}
+                    required
+                    autoComplete="off"
+                  />
+                </div>
+                <Button type="submit" size="sm" variant="primary" disabled={searchBusy || !searchValue.trim()}>
+                  {t.webSearchSave}
+                </Button>
+                {search?.source === "secret" && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    disabled={searchBusy}
+                    onClick={async () => {
+                      if (!p.company) return;
+                      setSearchBusy(true);
+                      try {
+                        setSearch(await api.clearWebSearch(p.company.id));
+                      } finally {
+                        setSearchBusy(false);
+                      }
+                    }}
+                  >
+                    {t.webSearchRemove}
+                  </Button>
+                )}
+              </form>
+              <p className="m-0 text-[12px] text-faint">{t.webSearchFree}</p>
+            </div>
+          </Card>
+        )}
         <Card>
           <CardHeader title={t.providers} />
           <div className="flex flex-col gap-2 px-[18px] pb-[18px] pt-2 text-sm">

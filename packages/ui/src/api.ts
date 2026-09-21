@@ -164,6 +164,8 @@ export const api = {
     request<{ interrupted: boolean }>(`/v1/sessions/${id}/interrupt`, {
       method: "POST",
     }),
+  closeSession: (id: string) => request<{ id: string; status: string }>(`/v1/sessions/${id}/close`, { method: "POST" }),
+  reopenSession: (id: string) => request<{ id: string; status: string }>(`/v1/sessions/${id}/reopen`, { method: "POST" }),
   approvals: (companyId: string, status?: string) => request<Approval[]>(`/v1/companies/${companyId}/approvals${status ? `?status=${status}` : ""}`),
   decide: (approvalId: string, status: "approved" | "denied", note?: string, newCap?: number) =>
     request<Approval>(`/v1/approvals/${approvalId}/decide`, {
@@ -238,6 +240,10 @@ export const api = {
   restoreRevision: (agentId: string, revision: number) => request<{ revision: number }>(`/v1/agents/${agentId}/revisions/${revision}/restore`, { method: "POST" }),
   overview: (companyId: string) => request<Overview>(`/v1/companies/${companyId}/overview`),
   models: () => request<ModelsInfo>("/v1/models"),
+  webSearch: (companyId: string) => request<WebSearchStatus>(`/v1/companies/${companyId}/web-search`),
+  setWebSearch: (companyId: string, provider: WebSearchStatus["provider"], value: string) =>
+    request<WebSearchStatus>(`/v1/companies/${companyId}/web-search`, { method: "PUT", body: JSON.stringify({ provider, value }) }),
+  clearWebSearch: (companyId: string) => request<WebSearchStatus>(`/v1/companies/${companyId}/web-search`, { method: "DELETE" }),
   sessionsAll: (companyId: string) => request<Session[]>(`/v1/companies/${companyId}/sessions`),
   // work
   tasks: (companyId: string, query: { status?: string; agentId?: string; projectId?: string } = {}) => {
@@ -777,6 +783,12 @@ export interface Overview {
   recentRuns: RecentRun[];
   activity: ActivityEntry[];
   working: number;
+}
+
+export interface WebSearchStatus {
+  native: string[];
+  provider: "brave" | "tavily" | "searxng" | null;
+  source: "secret" | "environment" | null;
 }
 
 export interface ModelsInfo {

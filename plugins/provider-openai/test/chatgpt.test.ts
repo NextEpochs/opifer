@@ -208,6 +208,15 @@ describe("ChatGPT provider", () => {
     expect((call.body["tools"] as Array<Record<string, unknown>>)[0]).toMatchObject({ type: "function", name: "terminal" });
   });
 
+  it("adds the backend's own web_search tool when the request asks for it", async () => {
+    backendMode = "text";
+    const provider = new ChatGPTProvider({ store: new MemoryCredentialStore(freshCredentials(3_600_000)), baseURL: `${base}/codex`, oauth: endpoints() });
+    await collect(provider, { ...request, webSearch: true });
+    const tools = backendCalls.at(-1)!.body["tools"] as Array<Record<string, unknown>>;
+    expect(tools.map((t) => t["type"])).toEqual(["function", "web_search"]);
+    expect((await provider.listModels())[0]!.capabilities.webSearch).toBe(true);
+  });
+
   it("reads tool calls from the stream", async () => {
     backendMode = "tools";
     const provider = new ChatGPTProvider({ store: new MemoryCredentialStore(freshCredentials(3_600_000)), baseURL: `${base}/codex`, oauth: endpoints() });

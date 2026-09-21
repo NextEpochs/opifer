@@ -294,7 +294,7 @@ export function requiredRole(method: string, url: string): Role {
   }
   if (/^\/v1\/(users|api-keys)(\/|$)/.test(path)) return "owner";
   if (/^\/v1\/companies(\/[^/]+\/(stop|resume|export)|\/import)?$/.test(path)) return "owner";
-  if (/^\/v1\/companies\/[^/]+\/(budgets|tool-policies|secrets|secret-bindings|learning|connections|webhooks|subscriptions|channels|routines)(\/|$)/.test(path)) {
+  if (/^\/v1\/companies\/[^/]+\/(budgets|tool-policies|secrets|secret-bindings|learning|connections|webhooks|subscriptions|channels|routines|web-search)(\/|$)/.test(path)) {
     // Running a routine now is daily work; creating or changing one is configuration.
     if (/\/routines\/[^/]+\/run$/.test(path)) return "operator";
     return "admin";

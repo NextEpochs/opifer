@@ -119,6 +119,10 @@ describe("Sessions API", () => {
     expect(closed.json()).toMatchObject({ status: "closed" });
     const refused = await app.inject({ method: "POST", url: `/v1/sessions/${session.id}/messages`, payload: { text: "hello" } });
     expect(refused.statusCode).toBe(409);
+    const reopened = await app.inject({ method: "POST", url: `/v1/sessions/${session.id}/reopen` });
+    expect(reopened.json()).toMatchObject({ status: "active" });
+    expect((await app.inject({ method: "GET", url: `/v1/sessions/${session.id}` })).json()).toMatchObject({ status: "active" });
+    expect((await app.inject({ method: "POST", url: `/v1/sessions/00000000-0000-0000-0000-000000000000/reopen` })).statusCode).toBe(404);
   });
 
   it("lists the available models with the default model", async () => {

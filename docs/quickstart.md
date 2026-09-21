@@ -59,7 +59,13 @@ After every finished task a background review keeps what is worth keeping: memor
 
 ## The web
 
-Agents read the web with `web_fetch` (a page as clean text, a JSON API) out of the box. For `web_search`, give the server a search provider: `BRAVE_API_KEY` (Brave Search API), `TAVILY_API_KEY`, or `SEARXNG_URL` for a SearXNG instance of yours, in the environment of `o4r up` (the systemd unit, the compose file); `o4r doctor` says which one is in use. Fetching never reaches private addresses of the machine or its network.
+Agents read the web with `web_fetch` (a page as clean text, a JSON API) out of the box, and drive a real browser when Chrome is on the machine (next section). Searching works three ways, checked in this order:
+
+1. **The model's own search.** The models of ChatGPT (the subscription) and of Anthropic search the web by themselves, inside the model call: nothing to configure, billed to the plan or the API key. Settings → Web search says which connected providers do.
+2. **A key of the company.** In **Settings → Web search** store a Brave Search key (2000 free searches a month), a Tavily key (1000) or the URL of your own SearXNG: it becomes a company secret and the agents get `web_search`. Any model can search then, including local ones.
+3. **The server's environment.** `BRAVE_API_KEY`, `TAVILY_API_KEY` or `SEARXNG_URL` in the environment of `o4r up` gives `web_search` to every company of the installation.
+
+Without any of these, `web_search` is not offered and the agents say so; `web_fetch` and the browser still work. Fetching never reaches private addresses of the machine or its network.
 
 ## The browser
 

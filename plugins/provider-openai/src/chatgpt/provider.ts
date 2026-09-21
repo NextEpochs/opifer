@@ -156,7 +156,7 @@ export class ChatGPTProvider implements ModelProvider {
     }
     return ids.map((id) => ({
       id,
-      capabilities: { contextWindow: 200_000, maxOutputTokens: 32_000, vision: true, reasoning: true, toolCalling: true },
+      capabilities: { contextWindow: 200_000, maxOutputTokens: 32_000, vision: true, reasoning: true, toolCalling: true, webSearch: true },
       // Billed to the subscription: no per-token price.
       price: { inputPerMillion: 0, outputPerMillion: 0, currency: "USD" },
     }));
@@ -168,7 +168,15 @@ export class ChatGPTProvider implements ModelProvider {
   }
 
   async *complete(request: CompletionRequest): AsyncIterable<StreamEvent> {
-    const tools = (request.tools ?? []).map((t) => ({ type: "function", name: t.name, description: t.description, parameters: t.inputSchema, strict: false }));
+    const tools: Array<Record<string, unknown>> = (request.tools ?? []).map((t) => ({
+      type: "function",
+      name: t.name,
+      description: t.description,
+      parameters: t.inputSchema,
+      strict: false,
+    }));
+    // The backend's own search: the model searches and opens pages by itself, billed to the plan.
+    if (request.webSearch) tools.push({ type: "web_search" });
     const body: Record<string, unknown> = {
       model: request.model,
       instructions: request.system,

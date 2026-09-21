@@ -48,6 +48,8 @@ export interface NativeTool {
   risk: "low" | "medium" | "high";
   /** When given, the tool is offered only where this returns true (for example, only inside a task). */
   when?(scope: ToolScope): boolean;
+  /** Like `when`, for a check that has to look something up (a company setting). */
+  available?(scope: ToolScope): Promise<boolean>;
   execute(args: Record<string, unknown>, context: ToolContext): Promise<ToolOutcome>;
 }
 
@@ -81,7 +83,13 @@ export class NativeToolExecutor implements ToolExecutor {
   }
 
   async definitionsFor(scope: ToolScope): Promise<ToolDefinition[]> {
-    return [...this.tools.values()].filter((t) => !t.when || t.when(scope)).map((t) => t.definition);
+    const offered: ToolDefinition[] = [];
+    for (const t of this.tools.values()) {
+      if (t.when && !t.when(scope)) continue;
+      if (t.available && !(await t.available(scope))) continue;
+      offered.push(t.definition);
+    }
+    return offered;
   }
 
   riskOf(name: string): NativeTool["risk"] | undefined {

@@ -177,6 +177,7 @@ export class Turn {
       tools,
       maxOutputTokens: this.deps.maxOutputTokens,
       cachePrefix: true,
+      webSearch: true,
       signal: this.ctx.controller.signal,
     };
   }

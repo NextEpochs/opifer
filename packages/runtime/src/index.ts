@@ -29,4 +29,4 @@ export type { ContextOptions } from "./context.js";
 export { webFetchTool, webSearchTool, fetchReadable, htmlToText, isPrivateAddress, webSearch } from "./tools/web.js";
 export { BrowserSessions, browserTools, findBrowser, snapshot } from "./tools/browser.js";
 export type { BrowserOptions, Snapshot } from "./tools/browser.js";
-export type { SearchOptions, SearchResult } from "./tools/web.js";
+export type { SearchOptions, SearchResult, SearchResolver } from "./tools/web.js";

@@ -65,12 +65,14 @@ function toAnthropicMessages(messages: Message[]): MessageParam[] {
 }
 
 function toAnthropicTools(request: CompletionRequest): Tool[] | undefined {
-  if (!request.tools || request.tools.length === 0) return undefined;
-  return request.tools.map((t) => ({
+  const tools: Tool[] = (request.tools ?? []).map((t) => ({
     name: t.name,
     description: t.description,
     input_schema: { type: "object", ...(t.inputSchema as Record<string, unknown>) } as Tool["input_schema"],
   }));
+  // Anthropic's server-side search: the model searches by itself; the results come back as content, not as a call for us.
+  if (request.webSearch) tools.push({ type: "web_search_20250305", name: "web_search", max_uses: 5 } as unknown as Tool);
+  return tools.length > 0 ? tools : undefined;
 }
 
 function mapError(error: unknown): ProviderError {
@@ -100,7 +102,7 @@ export class AnthropicProvider implements ModelProvider {
   async listModels(): Promise<ModelInfo[]> {
     return KNOWN_MODELS.map((m) => ({
       id: m.id,
-      capabilities: { contextWindow: m.contextWindow, maxOutputTokens: m.maxOutputTokens, vision: true, reasoning: m.reasoning, toolCalling: true },
+      capabilities: { contextWindow: m.contextWindow, maxOutputTokens: m.maxOutputTokens, vision: true, reasoning: m.reasoning, toolCalling: true, webSearch: true },
       price: priceFor(m.id, this.prices),
     }));
   }

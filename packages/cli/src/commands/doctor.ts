@@ -159,8 +159,9 @@ export async function runDoctor(options: { home?: string }): Promise<void> {
       checks.push({
         name: "Web",
         ok: true,
-        warn: !search,
-        detail: search ? `web_fetch and web_search through ${search.provider}` : "web_fetch only: set BRAVE_API_KEY, TAVILY_API_KEY or SEARXNG_URL for web_search",
+        detail: search
+          ? `web_fetch, and web_search through ${search.provider} for every company`
+          : "web_fetch; web_search where the model searches by itself (ChatGPT, Anthropic) or a company stores a Brave/Tavily key in Settings → Web search",
       });
     }
     {
