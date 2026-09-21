@@ -1262,7 +1262,8 @@ export function detectLocale(): Locale {
   const saved = safeGet("opifer.locale");
   if (saved === '"it"' || saved === "it") return "it";
   if (saved === '"en"' || saved === "en") return "en";
-  return navigator.language.toLowerCase().startsWith("it") ? "it" : "en";
+  // English by default, whatever the browser says: Italian is a choice made in Settings.
+  return "en";
 }
 
 function safeGet(key: string): string | null {
