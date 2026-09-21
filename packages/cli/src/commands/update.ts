@@ -4,6 +4,7 @@
  */
 
 import { execFile } from "node:child_process";
+import { readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -79,18 +80,20 @@ export async function runUpdate(options: UpdateOptions): Promise<void> {
     return;
   }
 
-  say.step(`Installing @opifer/cli@latest in ${c.dim(where.prefix)}`);
+  // The exact version the registry named, fetched online: npm's own cache can lag behind the "latest" tag.
+  const spec = latest ? `@opifer/cli@${latest}` : "@opifer/cli@latest";
+  say.step(`Installing ${spec} in ${c.dim(where.prefix)}`);
   const npm = process.platform === "win32" ? "npm.cmd" : "npm";
   try {
-    await run(npm, ["install", "-g", "@opifer/cli@latest"], {
+    await run(npm, ["install", "-g", spec, "--prefer-online"], {
       env: { ...process.env, npm_config_prefix: where.prefix, NO_COLOR: "1" },
       maxBuffer: 16 * 1024 * 1024,
     });
   } catch (error) {
     throw new Error(`npm install failed: ${error instanceof Error ? error.message.split("\n").slice(-3).join(" ") : String(error)}`);
   }
-  const installed = await run(process.execPath, [path.join(where.prefix, "lib", "node_modules", "@opifer", "cli", "dist", "main.js"), "--version"])
-    .then((r) => r.stdout.trim())
+  const installed = await readFile(path.join(where.prefix, "lib", "node_modules", "@opifer", "cli", "package.json"), "utf8")
+    .then((raw) => (JSON.parse(raw) as { version: string }).version)
     .catch(() => "?");
   say.ok(`Installed ${c.bold(installed)}`);
 

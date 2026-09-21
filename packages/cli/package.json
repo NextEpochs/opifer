@@ -1,6 +1,6 @@
 {
   "name": "@opifer/cli",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "description": "The o4r command: installation, start-up, configuration and everyday use of Opifer.",
   "license": "AGPL-3.0-only",
   "homepage": "https://opifer.dev",
