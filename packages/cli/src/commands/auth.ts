@@ -9,6 +9,7 @@ import { hostname } from "node:os";
 import path from "node:path";
 import { stdin, stdout } from "node:process";
 import { createInterface } from "node:readline/promises";
+import { Writable } from "node:stream";
 import { migrateUp } from "@opifer/db";
 import { AuthService, type Role } from "@opifer/server";
 import { openDatabase } from "../database.js";
@@ -38,8 +39,8 @@ async function askSecret(question: string): Promise<string> {
     for await (const chunk of stdin) data += chunk;
     return data.trim();
   }
-  // The answer is not echoed: the output is muted while the person types.
-  const muted = { write: (_chunk: unknown, ...rest: unknown[]) => (typeof rest.at(-1) === "function" ? (rest.at(-1) as () => void)() : true) } as unknown as NodeJS.WritableStream;
+  // The answer is not echoed: readline writes the typed characters to a stream that drops them.
+  const muted = new Writable({ write: (_chunk, _encoding, done) => done() });
   stdout.write(question);
   const rl = createInterface({ input: stdin, output: muted, terminal: true });
   const answer = await rl.question("");
