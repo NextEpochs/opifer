@@ -53,6 +53,21 @@ export async function runTaskFiles(options: Common & { id: string; path?: string
   process.stdout.write("\n");
 }
 
+/** `o4r task upload <id> <file...>`: files for the task, into its folder (uploads/ by default). */
+export async function runTaskUpload(options: Common & { id: string; files: string[]; to?: string }): Promise<void> {
+  const base = await serverBase(options.home);
+  const { readFile } = await import("node:fs/promises");
+  const { basename } = await import("node:path");
+  const headers = { ...(await authHeaders(options.home)), "content-type": "application/octet-stream" };
+  for (const file of options.files) {
+    const bytes = await readFile(file);
+    const target = `${(options.to ?? "uploads").replace(/\/+$/, "")}/${basename(file)}`;
+    const res = await fetch(`${base}/v1/tasks/${options.id}/files/${target.split("/").map(encodeURIComponent).join("/")}`, { method: "PUT", headers, body: bytes });
+    if (!res.ok) throw new Error(((await res.json().catch(() => ({}))) as { error?: string }).error ?? `${res.status} ${res.statusText}`);
+    say.ok(`${target}  ${c.dim(`${bytes.length} bytes`)}`);
+  }
+}
+
 async function authHeaders(home?: string): Promise<Record<string, string>> {
   const { readCliKey } = await import("./auth.js");
   const { resolveHome } = await import("../home.js");

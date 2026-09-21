@@ -250,6 +250,17 @@ export const api = {
   taskFileUrl: (id: string, path: string, download = false) =>
     `${API_BASE}/v1/tasks/${id}/files/${path.split("/").map(encodeURIComponent).join("/")}${download ? "?download=1" : ""}`,
   artifacts: (companyId: string) => request<Artifact[]>(`/v1/companies/${companyId}/artifacts`),
+  uploadTaskFile: async (id: string, path: string, file: Blob) => {
+    const res = await fetch(`${API_BASE}/v1/tasks/${id}/files/${path.split("/").map(encodeURIComponent).join("/")}`, {
+      method: "PUT",
+      credentials: "same-origin",
+      headers: { "content-type": "application/octet-stream" },
+      body: file,
+    });
+    if (res.status === 401) throw new SignInRequired();
+    if (!res.ok) throw new Error(((await res.json().catch(() => ({}))) as { error?: string }).error ?? `${res.status} ${res.statusText}`);
+    return (await res.json()) as { path: string; size: number; modifiedAt: string };
+  },
   createTask: (
     companyId: string,
     input: {

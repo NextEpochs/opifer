@@ -5,7 +5,7 @@
  */
 
 import { createReadStream } from "node:fs";
-import { readdir, stat } from "node:fs/promises";
+import { mkdir, readdir, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { FastifyInstance } from "fastify";
 import type { WorkService } from "@opifer/work";
@@ -13,10 +13,12 @@ import type { WorkService } from "@opifer/work";
 export interface ArtifactRoutesOptions {
   work: WorkService;
   workRoot: string;
+  bus?: { publish(kind: string, companyId: string, payload: Record<string, unknown>): void } | undefined;
 }
 
 const MAX_LIST = 2000;
 const MAX_INLINE = 20 * 1024 * 1024;
+const MAX_UPLOAD = 100 * 1024 * 1024;
 const SKIP = new Set(["node_modules", ".git", ".opifer", "dist", "build", ".cache", "__pycache__", ".venv", "venv", ".next", "target"]);
 
 const TYPES: Record<string, string> = {
@@ -89,6 +91,8 @@ export function insideOf(root: string, relative: string): string | null {
 export async function registerArtifactRoutes(app: FastifyInstance, options: ArtifactRoutesOptions): Promise<void> {
   const { work } = options;
   const { sql } = app.opifer.db;
+  // Uploads arrive as raw bytes, whatever the file: parsed to a buffer, never as JSON.
+  app.addContentTypeParser(["application/octet-stream", "image/*", "application/pdf", "application/zip"], { parseAs: "buffer" }, (_request, body, done) => done(null, body));
 
   const folderOfTask = async (taskId: string): Promise<{ companyId: string; folder: string } | null> => {
     const [row] = await sql<{ company_id: string }[]>`SELECT company_id FROM tasks WHERE id = ${taskId}`;
@@ -148,6 +152,31 @@ export async function registerArtifactRoutes(app: FastifyInstance, options: Arti
     if (!where) return reply.code(404).send({ error: "task not found" });
     const files = await listFiles(where.folder).catch(() => []);
     return { folder: where.folder, files };
+  });
+
+  /** A file given to the task (a brief, a spreadsheet, an image): written into its folder and announced in a comment, so the agent finds it. */
+  app.put<{ Params: { id: string; "*": string } }>("/tasks/:id/files/*", { bodyLimit: MAX_UPLOAD }, async (request, reply) => {
+    const where = await folderOfTask(request.params.id);
+    if (!where) return reply.code(404).send({ error: "task not found" });
+    const relative = request.params["*"].replace(/^\/+/, "");
+    if (!relative || relative.endsWith("/")) return reply.code(400).send({ error: "a file path is needed" });
+    if (relative.split("/").some((part) => SKIP.has(part))) return reply.code(400).send({ error: "that folder is reserved" });
+    const full = insideOf(where.folder, relative);
+    if (!full) return reply.code(400).send({ error: "path outside the task folder" });
+    const body = request.body;
+    const bytes = Buffer.isBuffer(body) ? body : typeof body === "string" ? Buffer.from(body) : null;
+    if (!bytes) return reply.code(415).send({ error: "send the file as raw bytes (application/octet-stream)" });
+    await mkdir(path.dirname(full), { recursive: true });
+    await writeFile(full, bytes);
+    const size = bytes.length;
+    const comment = await work.comment(
+      where.companyId,
+      request.params.id,
+      { kind: "person" },
+      `Uploaded ${relative} (${size < 1024 ? `${size} B` : `${Math.round(size / 1024)} kB`}) to the task folder.`,
+    );
+    options.bus?.publish("task.commented", where.companyId, { taskId: request.params.id, commentId: comment.id });
+    return reply.code(201).send({ path: relative, size, modifiedAt: new Date().toISOString() });
   });
 
   /** One file of the task's working folder: inline when the browser can show it, a download with ?download=1. */

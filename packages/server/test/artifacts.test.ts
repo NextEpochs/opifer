@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { createTestDatabase, type TestDatabase } from "@opifer/db/testing";
@@ -45,6 +45,31 @@ describe("Artifacts: products across tasks and the files of a task", () => {
     const items = res.json() as Array<{ kind: string; title: string; taskTitle: string; ref: string; by: string }>;
     expect(items.map((i) => i.kind)).toEqual(["link", "file"]);
     expect(items[1]).toMatchObject({ title: "Technical report", taskTitle: "Write the report", ref: "reports/jev.md", by: "a person" });
+  });
+
+  it("takes a file given to the task as raw bytes, announces it in a comment, and refuses reserved or escaping paths", async () => {
+    const put = await app.inject({
+      method: "PUT",
+      url: `/v1/tasks/${taskId}/files/uploads/brief.pdf`,
+      headers: { "content-type": "application/octet-stream" },
+      payload: Buffer.from("%PDF-1.4 brief"),
+    });
+    expect(put.statusCode).toBe(201);
+    expect(put.json()).toMatchObject({ path: "uploads/brief.pdf", size: 14 });
+    const listing = (await app.inject({ method: "GET", url: `/v1/tasks/${taskId}/files` })).json() as { files: Array<{ path: string }> };
+    expect(listing.files.map((f) => f.path)).toContain("uploads/brief.pdf");
+    const back = await app.inject({ method: "GET", url: `/v1/tasks/${taskId}/files/uploads/brief.pdf` });
+    expect(back.headers["content-type"]).toBe("application/pdf");
+    expect(back.body).toBe("%PDF-1.4 brief");
+    const detail = (await app.inject({ method: "GET", url: `/v1/tasks/${taskId}` })).json() as { comments: Array<{ body: string }> };
+    expect(detail.comments.some((c) => c.body.includes("uploads/brief.pdf"))).toBe(true);
+    expect(
+      (await app.inject({ method: "PUT", url: `/v1/tasks/${taskId}/files/node_modules/x.js`, headers: { "content-type": "application/octet-stream" }, payload: "x" })).statusCode,
+    ).toBe(400);
+    expect(
+      (await app.inject({ method: "PUT", url: `/v1/tasks/${taskId}/files/..%2Fout.txt`, headers: { "content-type": "application/octet-stream" }, payload: "x" })).statusCode,
+    ).toBe(400);
+    await rm(path.join(dir, "work", `task-${taskId}`, "uploads"), { recursive: true, force: true });
   });
 
   it("lists the files of the task folder, skipping dependencies, and serves one inline or as a download", async () => {

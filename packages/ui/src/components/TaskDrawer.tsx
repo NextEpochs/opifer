@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { Plus, X } from "lucide-react";
 import { api, eventsSocket, type TaskDetail } from "../api";
-import { fill } from "../i18n";
+import { fill, plural } from "../i18n";
 import { Avatar, Button, Chip, Input, Select, money, timeAgo } from "../ui";
 import { StatusChip, TaskForm, priorityTone } from "./TaskBits";
 import type { Workspace } from "../App";
@@ -16,6 +16,7 @@ export function TaskDrawer({ ws, taskId, onClose }: { ws: Workspace; taskId: str
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [files, setFiles] = useState<Array<{ path: string; size: number; modifiedAt: string }>>([]);
+  const [uploading, setUploading] = useState(false);
 
   const load = useCallback(
     () =>
@@ -181,59 +182,87 @@ export function TaskDrawer({ ws, taskId, onClose }: { ws: Workspace; taskId: str
             )}
           </section>
         )}
-        {(task.products.length > 0 || files.length > 0) && (
-          <section>
-            <h3 className="m-0 mb-1.5 text-[12px] font-bold uppercase tracking-wide text-mute">{t.artifacts}</h3>
-            <ul className="m-0 list-none space-y-1.5 p-0 text-[13px]">
-              {task.products.map((p) => {
-                const file = p.kind === "file" && files.some((f) => f.path === p.ref.replace(/^\.?\//, ""));
-                const link = p.kind === "link" && /^https?:\/\//.test(p.ref);
-                return (
-                  <li key={p.id} className="flex min-w-0 items-center gap-2">
-                    <Chip tone="mute">{p.kind}</Chip>
-                    <span className="shrink-0 font-bold">{p.title}</span>
-                    {file ? (
-                      <>
-                        <a href={api.taskFileUrl(taskId, p.ref.replace(/^\.?\//, ""))} target="_blank" rel="noopener" className="min-w-0 truncate font-mono text-[12px]">
+        <section>
+          <div className="mb-1.5 flex items-center gap-2">
+            <h3 className="m-0 text-[12px] font-bold uppercase tracking-wide text-mute">{t.artifacts}</h3>
+            <label className="ml-auto cursor-pointer text-[12px] font-bold text-accent-text" title={t.uploadHint}>
+              {uploading ? t.uploading : t.upload}
+              <input
+                type="file"
+                multiple
+                className="hidden"
+                disabled={uploading}
+                onChange={async (e) => {
+                  const chosen = Array.from(e.target.files ?? []);
+                  e.target.value = "";
+                  if (chosen.length === 0) return;
+                  setUploading(true);
+                  setError(null);
+                  try {
+                    for (const f of chosen) await api.uploadTaskFile(taskId, `uploads/${f.name}`, f);
+                    await load();
+                  } catch (err) {
+                    setError(err instanceof Error ? err.message : String(err));
+                  } finally {
+                    setUploading(false);
+                  }
+                }}
+              />
+            </label>
+          </div>
+          {(task.products.length > 0 || files.length > 0) && (
+            <>
+              <ul className="m-0 list-none space-y-1.5 p-0 text-[13px]">
+                {task.products.map((p) => {
+                  const file = p.kind === "file" && files.some((f) => f.path === p.ref.replace(/^\.?\//, ""));
+                  const link = p.kind === "link" && /^https?:\/\//.test(p.ref);
+                  return (
+                    <li key={p.id} className="flex min-w-0 items-center gap-2">
+                      <Chip tone="mute">{p.kind}</Chip>
+                      <span className="shrink-0 font-bold">{p.title}</span>
+                      {file ? (
+                        <>
+                          <a href={api.taskFileUrl(taskId, p.ref.replace(/^\.?\//, ""))} target="_blank" rel="noopener" className="min-w-0 truncate font-mono text-[12px]">
+                            {p.ref}
+                          </a>
+                          <a href={api.taskFileUrl(taskId, p.ref.replace(/^\.?\//, ""), true)} className="shrink-0 text-[12px] font-bold text-accent-text no-underline">
+                            {t.download}
+                          </a>
+                        </>
+                      ) : link ? (
+                        <a href={p.ref} target="_blank" rel="noopener" className="min-w-0 truncate font-mono text-[12px]">
                           {p.ref}
                         </a>
-                        <a href={api.taskFileUrl(taskId, p.ref.replace(/^\.?\//, ""), true)} className="shrink-0 text-[12px] font-bold text-accent-text no-underline">
+                      ) : (
+                        <span className="min-w-0 truncate font-mono text-[12px] text-mute" title={p.ref}>
+                          {p.ref}
+                        </span>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+              {files.length > 0 && (
+                <details className="mt-2 text-[13px]">
+                  <summary className="cursor-pointer text-mute">{plural(t.filesInFolder, files.length, ws.locale)}</summary>
+                  <ul className="m-0 mt-1 list-none space-y-1 p-0">
+                    {files.map((f) => (
+                      <li key={f.path} className="flex min-w-0 items-center gap-2">
+                        <a href={api.taskFileUrl(taskId, f.path)} target="_blank" rel="noopener" className="min-w-0 truncate font-mono text-[12px]">
+                          {f.path}
+                        </a>
+                        <span className="shrink-0 text-[11px] text-faint">{f.size < 1024 ? `${f.size} B` : `${Math.round(f.size / 1024)} kB`}</span>
+                        <a href={api.taskFileUrl(taskId, f.path, true)} className="shrink-0 text-[12px] font-bold text-accent-text no-underline">
                           {t.download}
                         </a>
-                      </>
-                    ) : link ? (
-                      <a href={p.ref} target="_blank" rel="noopener" className="min-w-0 truncate font-mono text-[12px]">
-                        {p.ref}
-                      </a>
-                    ) : (
-                      <span className="min-w-0 truncate font-mono text-[12px] text-mute" title={p.ref}>
-                        {p.ref}
-                      </span>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-            {files.length > 0 && (
-              <details className="mt-2 text-[13px]">
-                <summary className="cursor-pointer text-mute">{fill(t.filesInFolder, { n: String(files.length) })}</summary>
-                <ul className="m-0 mt-1 list-none space-y-1 p-0">
-                  {files.map((f) => (
-                    <li key={f.path} className="flex min-w-0 items-center gap-2">
-                      <a href={api.taskFileUrl(taskId, f.path)} target="_blank" rel="noopener" className="min-w-0 truncate font-mono text-[12px]">
-                        {f.path}
-                      </a>
-                      <span className="shrink-0 text-[11px] text-faint">{f.size < 1024 ? `${f.size} B` : `${Math.round(f.size / 1024)} kB`}</span>
-                      <a href={api.taskFileUrl(taskId, f.path, true)} className="shrink-0 text-[12px] font-bold text-accent-text no-underline">
-                        {t.download}
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              </details>
-            )}
-          </section>
-        )}
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              )}
+            </>
+          )}
+        </section>
 
         <section>
           <div className="mb-1.5 flex items-center">

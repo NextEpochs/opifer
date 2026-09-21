@@ -6,7 +6,7 @@ import { runDoctor } from "./commands/doctor.js";
 import { cliVersion, runUpdate } from "./commands/update.js";
 import { runAgentArchive, runAgentList, runAgentPause, runAgentRestore, runAgentResume } from "./commands/agent.js";
 import { runProjectCreate, runProjectList } from "./commands/project.js";
-import { runArtifactList, runTaskFiles } from "./commands/artifacts.js";
+import { runArtifactList, runTaskFiles, runTaskUpload } from "./commands/artifacts.js";
 import {
   runAuthDisable,
   runAuthEnable,
@@ -411,6 +411,11 @@ task
   .action(async (id: string, filePath: string | undefined, opts: Record<string, never>) =>
     runTaskFiles({ id, ...(filePath ? { path: filePath } : {}), ...opts, ...homeOf(program) }),
   );
+task
+  .command("upload <id> <file...>")
+  .description("give files to a task: written into its folder (uploads/ by default) and announced in a comment")
+  .option("--to <folder>", "folder inside the task, default uploads")
+  .action(async (id: string, files: string[], opts: { to?: string }) => runTaskUpload({ id, files, ...opts, ...homeOf(program) }));
 task
   .command("show <id>")
   .description("the task with its why chain, results, subtasks and comments")
