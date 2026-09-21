@@ -24,7 +24,10 @@ import {
   applyPatchTool,
   coderTool,
   editFileTool,
+  webFetchTool,
+  webSearchTool,
   type CoderOptions,
+  type SearchOptions,
   type GovernanceGates,
   type LearningHooks,
   type RuntimeGuides,
@@ -63,6 +66,8 @@ export interface AppOptions {
   updates?: { check?: boolean; intervalMs?: number; current?: string; fetcher?: Fetcher };
   /** A coding agent (Claude Code or Codex) installed on the machine, offered to the agents as the run_coder tool. */
   coder?: CoderOptions | null;
+  /** The web: web_fetch is always there; web_search when a provider is configured. */
+  web?: { search?: SearchOptions | null };
   /** Model providers and default model; without them, sessions are not available. */
   providers?: ProviderSetup;
   /** Root folder of the sessions' working directories. */
@@ -281,6 +286,8 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
     ...NATIVE_TOOLS,
     editFileTool,
     applyPatchTool,
+    webFetchTool,
+    ...(options.web?.search ? [webSearchTool(options.web.search)] : []),
     ...(options.coder ? [coderTool(options.coder)] : []),
     ...taskTools(work, options.db.sql),
     ...(learning ? learningTools(learning.memories, learning.skills) : []),

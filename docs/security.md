@@ -39,6 +39,7 @@ Put a reverse proxy with TLS in front (nginx, Caddy); bind Opifer to `127.0.0.1`
 - `run_coder` (Claude Code or the Codex CLI) runs on the machine, not in the sandbox, and inside the project folder; it is a high-risk tool, so it asks for approval unless a policy allows it.
 - Repository tokens (`GITHUB_TOKEN`) reach git through a helper script as a bound secret of the agent; they are never written into `.git/config` nor shown to the model.
 - Files of a task's folder are served by the API to signed-in people only (observer and up), never outside that folder.
+- `web_fetch` resolves the host first and refuses private, loopback, link-local and carrier-grade addresses at every redirect, so an agent cannot reach the services next to Opifer on the machine or its network; pages are capped at 5 MB and only http(s).
 - With Docker available, commands run in a container with **no network**, only the task's working folder mounted. Without Docker they run on the machine as the server's user: the interface, `o4r doctor` and `/v1/health` say so.
 - MCP servers run as the server's user with the environment you give them; treat a connection like installing software. Workflow tools call only the URL you configured.
 

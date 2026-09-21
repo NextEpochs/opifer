@@ -55,6 +55,10 @@ Each agent's drawer in **Team** has its permissions per tool (Auto / Ask / Off).
 
 After every finished task a background review keeps what is worth keeping: memories and skills, in **Learning**. A repeated job costs less the second time. A skill that proves itself is proposed for the whole company, and you decide.
 
+## The web
+
+Agents read the web with `web_fetch` (a page as clean text, a JSON API) out of the box. For `web_search`, give the server a search provider: `BRAVE_API_KEY` (Brave Search API), `TAVILY_API_KEY`, or `SEARXNG_URL` for a SearXNG instance of yours, in the environment of `o4r up` (the systemd unit, the compose file); `o4r doctor` says which one is in use. Fetching never reaches private addresses of the machine or its network.
+
 ## Software: projects that are repositories
 
 A project can be a git repository: give its URL (and a branch) when you create it in **Work → Projects** or with `o4r project create "Site" --repo https://github.com/org/site --branch main`. It is cloned into the project's folder; every task of the project works there. For a private repository, store a token first (`o4r secret set GITHUB_TOKEN`) and bind it to the agents that push (`o4r secret bind GITHUB_TOKEN --agent Theo --tool terminal`): git authenticates through a helper, the token never lands in the repository.

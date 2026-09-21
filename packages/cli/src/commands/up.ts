@@ -12,6 +12,7 @@ import { requireConfig, resolveHome, type OpiferHome } from "../home.js";
 import { c, say } from "../output.js";
 import { cliVersion } from "./update.js";
 import { detectCoder } from "./coder.js";
+import { searchFromConfig } from "./web.js";
 
 export interface UpOptions {
   home?: string;
@@ -101,6 +102,7 @@ export async function runUp(options: UpOptions): Promise<void> {
     bus: new EventBus(),
     updates: { check: config.updates?.check ?? true, current: cliVersion() },
     coder: config.coder === undefined ? await detectCoder() : config.coder,
+    web: { search: searchFromConfig(config, process.env) },
     uiDir,
     logger: { level: "warn" },
     providers,

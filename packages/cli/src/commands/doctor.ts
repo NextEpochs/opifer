@@ -11,6 +11,7 @@ import { c, say } from "../output.js";
 import { uiDistDir } from "./up.js";
 import { readCliKey } from "./auth.js";
 import { cliVersion } from "./update.js";
+import { searchFromConfig } from "./web.js";
 import { compareVersions, fetchLatestVersion } from "@opifer/server";
 
 interface Check {
@@ -151,6 +152,15 @@ export async function runDoctor(options: { home?: string }): Promise<void> {
       if (stopped.length > 0) checks.push({ name: "Emergency stop", ok: false, warn: true, detail: `${stopped.map((co) => co.name).join(", ")} stopped: o4r resume when ready` });
     } catch (error) {
       checks.push({ name: "Health", ok: false, detail: `the server does not answer: ${String(error).slice(0, 80)}` });
+    }
+    {
+      const search = searchFromConfig(config, process.env);
+      checks.push({
+        name: "Web",
+        ok: true,
+        warn: !search,
+        detail: search ? `web_fetch and web_search through ${search.provider}` : "web_fetch only: set BRAVE_API_KEY, TAVILY_API_KEY or SEARXNG_URL for web_search",
+      });
     }
     if (config.auth?.enabled) checks.push({ name: "Authentication", ok: true, detail: "authenticated mode: sign-in required on the API and the interface" });
     else if (config.server.host === "0.0.0.0")

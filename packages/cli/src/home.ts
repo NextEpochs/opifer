@@ -26,6 +26,8 @@ export interface OpiferConfig {
   updates?: { check?: boolean };
   /** A coding agent installed on this machine, offered to the agents as run_coder: Claude Code (`claude`) or the Codex CLI (`codex`); null turns it off. */
   coder?: { kind: "claude" | "codex"; binary?: string; maxTurns?: number } | null;
+  /** Web search for the agents: the provider (keys from BRAVE_API_KEY / TAVILY_API_KEY, or the SearXNG URL); null turns web_search off. */
+  web?: { search?: { provider: "brave" | "tavily" | "searxng"; url?: string } | null };
 }
 
 export const DEFAULT_CONFIG: OpiferConfig = {
