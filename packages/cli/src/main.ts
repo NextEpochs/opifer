@@ -1,10 +1,9 @@
 #!/usr/bin/env node
 import { Command } from "commander";
-import { OPIFER_VERSION } from "@opifer/core";
 import { runChat } from "./commands/chat.js";
 import { runLogin, runLogout } from "./commands/login.js";
 import { runDoctor } from "./commands/doctor.js";
-import { runUpdate } from "./commands/update.js";
+import { cliVersion, runUpdate } from "./commands/update.js";
 import {
   runAuthDisable,
   runAuthEnable,
@@ -78,7 +77,7 @@ const program = new Command();
 program
   .name("o4r")
   .description("Opifer: AI agents that work, learn and are governed like an organisation.")
-  .version(OPIFER_VERSION, "-v, --version")
+  .version(cliVersion(), "-v, --version")
   .option("--home <dir>", "Opifer folder (default: $OPIFER_HOME or ~/.opifer)")
   .option("--no-color", "disable colours")
   .hook("preAction", (cmd) => {
