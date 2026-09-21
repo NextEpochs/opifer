@@ -25,7 +25,11 @@ export async function serverBase(homeDir?: string): Promise<string> {
 export async function api<T>(base: string, path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${base}${path}`, {
     ...init,
-    headers: { "content-type": "application/json", ...(bearer ? { authorization: `Bearer ${bearer}` } : {}), ...(init?.headers as Record<string, string> | undefined) },
+    headers: {
+      ...(init?.body !== undefined ? { "content-type": "application/json" } : {}),
+      ...(bearer ? { authorization: `Bearer ${bearer}` } : {}),
+      ...(init?.headers as Record<string, string> | undefined),
+    },
   });
   if (!res.ok) {
     const body = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
