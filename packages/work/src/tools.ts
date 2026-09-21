@@ -29,6 +29,10 @@ export function describeTask(task: Task, why: WhyChain, extra: { comments?: Arra
   if (why.mission) lines.push(`- Company mission (${why.companyName}): ${why.mission}`);
   for (const goal of why.goals) lines.push(`- Goal: ${goal.title}${goal.measure ? ` (measured by: ${goal.measure})` : ""}`);
   if (why.project) lines.push(`- Project: ${why.project.name}${why.project.description ? ` — ${why.project.description}` : ""}`);
+  if (why.project?.repoUrl)
+    lines.push(
+      `- Repository: ${why.project.repoUrl}${why.project.branch ? ` (branch ${why.project.branch})` : ""}, ${why.project.repoStatus === "cloned" ? "cloned in your working directory" : `not cloned (${why.project.repoDetail || why.project.repoStatus})`}. ${ENGINEER_GUIDE}`,
+    );
   for (const parent of why.parents) lines.push(`- Part of: ${parent.title}`);
   if (task.result?.summary) lines.push(`\nDelivered result: ${task.result.summary}${task.result.verification ? `\nHow to verify: ${task.result.verification}` : ""}`);
   if (extra.comments && extra.comments.length > 0) {
@@ -37,6 +41,9 @@ export function describeTask(task: Task, why: WhyChain, extra: { comments?: Arra
   }
   return lines.join("\n");
 }
+
+/** How to work on a repository: explore, change precisely, test, commit on a branch, deliver the diff. */
+export const ENGINEER_GUIDE = `Work like an engineer: read before you change (list_files, search_files, read_file); make precise changes with edit_file or apply_patch, write_file for new files; run the build and the tests in the terminal and fix what breaks; commit on a branch named after the task (git checkout -b, git add, git commit -m) and push it when the company gave you a token for the repository (git push -u origin <branch>); for a large piece of work hand a full brief to run_coder when it is available. Deliver with the branch, the commits, the diff stat and how the result was verified.`;
 
 export const TASK_GUIDE = `You work on tasks. Use the task tools: task_status to re-read the task, task_comment to report progress or ask the people following it, task_create to delegate a subtask to someone who reports to you (or to yourself), task_deliver when the result is ready for review, task_block when you cannot continue. When you delegate, you are the reviewer of that subtask: you will be woken up when it is delivered, and you close it with task_approve or send it back with task_request_changes. A parent task is delivered only after its subtasks are closed; while you wait, end your turn and you will be woken up. A task closes only with a verifiable result: say what you produced and how it can be checked.`;
 

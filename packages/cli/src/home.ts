@@ -24,6 +24,8 @@ export interface OpiferConfig {
   auth?: { enabled: boolean; trustProxy?: boolean; sessionDays?: number };
   /** The daily look at npm for a newer version; `check: false` turns it off (no other data leaves the machine). */
   updates?: { check?: boolean };
+  /** A coding agent installed on this machine, offered to the agents as run_coder: Claude Code (`claude`) or the Codex CLI (`codex`); null turns it off. */
+  coder?: { kind: "claude" | "codex"; binary?: string; maxTurns?: number } | null;
 }
 
 export const DEFAULT_CONFIG: OpiferConfig = {
@@ -31,7 +33,8 @@ export const DEFAULT_CONFIG: OpiferConfig = {
   server: { host: "127.0.0.1", port: 4700 },
   database: { port: 4701 },
   models: { default: null, fallback: null, auxiliary: null, local: null },
-  sandbox: { kind: "auto", image: "node:22-bookworm-slim", network: "none" },
+  // A full image (git, curl, python, build tools) with the network on: agents install, build and push. "none" isolates.
+  sandbox: { kind: "auto", image: "node:22-bookworm", network: "bridge" },
 };
 
 export interface OpiferHome {

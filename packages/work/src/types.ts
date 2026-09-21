@@ -29,6 +29,11 @@ export interface Project {
   description: string;
   status: ProjectStatus;
   workdir: string | null;
+  /** A git repository the project works on; cloned into the working folder. */
+  repoUrl: string | null;
+  branch: string | null;
+  repoStatus: "none" | "cloned" | "failed";
+  repoDetail: string;
   createdAt: Date;
 }
 

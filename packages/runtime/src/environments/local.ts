@@ -24,6 +24,11 @@ export class LocalEnvironment implements ExecutionEnvironment {
     this.workdir = workdir;
   }
 
+  /** The path a command sees for a file of the working directory (the host path here; /work/… in a container). */
+  containerPath(p: string): string {
+    return this.resolve(p);
+  }
+
   resolve(p: string): string {
     const full = path.resolve(this.workdir, p);
     if (full !== this.workdir && !full.startsWith(this.workdir + path.sep)) {

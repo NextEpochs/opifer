@@ -19,7 +19,7 @@ export function useEnvironment(make: () => LocalEnvironment): void {
   environments.clear();
 }
 
-async function environmentFor(context: ToolContext): Promise<LocalEnvironment> {
+export async function environmentFor(context: ToolContext): Promise<LocalEnvironment> {
   let env = environments.get(context.workdir);
   if (!env) {
     env = factory();
@@ -29,7 +29,7 @@ async function environmentFor(context: ToolContext): Promise<LocalEnvironment> {
   return env;
 }
 
-function str(args: Record<string, unknown>, key: string): string {
+export function str(args: Record<string, unknown>, key: string): string {
   const value = args[key];
   if (typeof value !== "string" || value.length === 0) throw new Error(`missing parameter "${key}"`);
   return value;
@@ -45,7 +45,7 @@ export const terminalTool: NativeTool = {
       required: ["command"],
       properties: {
         command: { type: "string", description: "The command to run (sh -c)." },
-        timeout_seconds: { type: "integer", minimum: 1, maximum: 600, description: "Maximum time (default 120)." },
+        timeout_seconds: { type: "integer", minimum: 1, maximum: 1800, description: "Maximum time (default 120; builds and test suites may need more)." },
       },
     },
   },
@@ -57,7 +57,16 @@ export const terminalTool: NativeTool = {
     }
     const env = await environmentFor(context);
     const timeoutMs = typeof args["timeout_seconds"] === "number" ? args["timeout_seconds"] * 1000 : 120_000;
-    const result = await env.run(["sh", "-c", command], { timeoutMs, signal: context.signal, ...(context.secrets ? { env: context.secrets } : {}) });
+    // Git never prompts; a project clone leaves a credential helper in .opifer/askpass that answers with the bound token.
+    const gitEnv: Record<string, string> = {
+      GIT_TERMINAL_PROMPT: "0",
+      GIT_ASKPASS: env.containerPath(".opifer/askpass"),
+      GIT_AUTHOR_NAME: "Opifer agent",
+      GIT_AUTHOR_EMAIL: "agents@opifer.dev",
+      GIT_COMMITTER_NAME: "Opifer agent",
+      GIT_COMMITTER_EMAIL: "agents@opifer.dev",
+    };
+    const result = await env.run(["sh", "-c", command], { timeoutMs, signal: context.signal, env: { ...gitEnv, ...(context.secrets ?? {}) } });
     const parts = [];
     if (result.stdout.trim()) parts.push(result.stdout.trimEnd());
     if (result.stderr.trim()) parts.push(`[stderr]\n${result.stderr.trimEnd()}`);

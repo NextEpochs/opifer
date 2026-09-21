@@ -290,7 +290,7 @@ export const api = {
       body: JSON.stringify(patch),
     }),
   projects: (companyId: string) => request<Project[]>(`/v1/companies/${companyId}/projects`),
-  createProject: (companyId: string, input: { name: string; description?: string; goalId?: string | null }) =>
+  createProject: (companyId: string, input: { name: string; description?: string; goalId?: string | null; repoUrl?: string | null; branch?: string | null }) =>
     request<Project>(`/v1/companies/${companyId}/projects`, {
       method: "POST",
       body: JSON.stringify(input),
@@ -827,6 +827,10 @@ export interface Project {
   description: string;
   status: "active" | "paused" | "done" | "archived";
   workdir: string | null;
+  repoUrl: string | null;
+  branch: string | null;
+  repoStatus: "none" | "cloned" | "failed";
+  repoDetail: string;
 }
 
 export interface TaskComment {

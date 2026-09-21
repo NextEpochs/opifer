@@ -33,7 +33,7 @@ function defaultUser(): string | undefined {
   return uid === 0 ? undefined : `${uid}:${process.getgid()}`;
 }
 
-export const DEFAULT_IMAGE = "node:22-bookworm-slim";
+export const DEFAULT_IMAGE = "node:22-bookworm";
 
 /** Whether Docker is usable on this machine. */
 export async function dockerAvailable(binary = "docker"): Promise<{ ok: boolean; detail: string }> {
@@ -60,6 +60,10 @@ export class DockerEnvironment extends LocalEnvironment {
     this.extraArgs = options.extraArgs ?? [];
     this.binary = options.binary ?? "docker";
     this.user = options.user === "root" ? undefined : (options.user ?? defaultUser());
+  }
+
+  override containerPath(p: string): string {
+    return `/work/${p.replace(/^\.?\//, "")}`;
   }
 
   override run(command: string[], options: { cwd?: string; timeoutMs?: number; env?: Record<string, string>; signal?: AbortSignal } = {}): Promise<CommandResult> {

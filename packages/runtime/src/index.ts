@@ -15,6 +15,8 @@ export type { NativeTool, ToolContext, ToolOutcome, ToolExecutor, ApprovalNeeded
 export type { BudgetGate, BudgetContext, BudgetDecision, CostEstimate, ApprovalGate, ApprovalRequest, ApprovalRecord, GovernanceGates } from "./governance.js";
 export { NATIVE_TOOLS, useEnvironment, terminalTool, readFileTool, writeFileTool, listFilesTool, searchFilesTool, askUserTool } from "./tools/native.js";
 export { checkCommand, classifyCommand } from "./tools/safety.js";
+export { editFileTool, applyPatchTool, coderTool } from "./tools/code.js";
+export type { CoderOptions } from "./tools/code.js";
 export type { CommandVerdict, CommandClass } from "./tools/safety.js";
 export { LocalEnvironment } from "./environments/local.js";
 export { DockerEnvironment, dockerAvailable, DEFAULT_IMAGE as DEFAULT_DOCKER_IMAGE } from "./environments/docker.js";

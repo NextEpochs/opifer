@@ -15,7 +15,20 @@ import { registerModelRoutes } from "./routes/models.js";
 import { registerGovernanceRoutes } from "./routes/governance.js";
 import { registerOverviewRoutes } from "./routes/overview.js";
 import { registerWorkRoutes } from "./routes/work.js";
-import { AgentRuntime, NATIVE_TOOLS, NativeToolExecutor, SessionStore, type GovernanceGates, type LearningHooks, type RuntimeGuides, type ProviderRegistry } from "@opifer/runtime";
+import {
+  AgentRuntime,
+  NATIVE_TOOLS,
+  NativeToolExecutor,
+  SessionStore,
+  applyPatchTool,
+  coderTool,
+  editFileTool,
+  type CoderOptions,
+  type GovernanceGates,
+  type LearningHooks,
+  type RuntimeGuides,
+  type ProviderRegistry,
+} from "@opifer/runtime";
 import { CHAT_GUIDE, RoutineService, WorkService, taskTools } from "@opifer/work";
 import { LEARNING_GUIDE, LearningService, learningTools, renderSkillMarkdown } from "@opifer/learning";
 import type { ProviderSetup } from "./providers.js";
@@ -47,6 +60,8 @@ export interface AppOptions {
   auth?: { sessionDays?: number; trustProxy?: boolean };
   /** The daily look at npm for a newer version (`check: false` turns it off); `current` is the CLI's version when it is ahead of the core. */
   updates?: { check?: boolean; intervalMs?: number; current?: string; fetcher?: Fetcher };
+  /** A coding agent (Claude Code or Codex) installed on the machine, offered to the agents as the run_coder tool. */
+  coder?: CoderOptions | null;
   /** Model providers and default model; without them, sessions are not available. */
   providers?: ProviderSetup;
   /** Root folder of the sessions' working directories. */
@@ -231,7 +246,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
     if (docker.ok) {
       sandbox = {
         kind: "docker",
-        detail: `${docker.detail}, image ${options.connections?.dockerImage ?? "node:22-bookworm-slim"}, network ${options.connections?.dockerNetwork ?? "none"}`,
+        detail: `${docker.detail}, image ${options.connections?.dockerImage ?? "node:22-bookworm"}, network ${options.connections?.dockerNetwork ?? "none"}`,
       };
       useEnvironment(
         () =>
@@ -261,7 +276,14 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   const events = new EventService(options.db.sql);
   const channels = new ChannelService(options.db.sql);
   // Native tools plus the task and learning tools, then the connection tools, under governance when it is on.
-  const nativeExecutor = new NativeToolExecutor([...NATIVE_TOOLS, ...taskTools(work, options.db.sql), ...(learning ? learningTools(learning.memories, learning.skills) : [])]);
+  const nativeExecutor = new NativeToolExecutor([
+    ...NATIVE_TOOLS,
+    editFileTool,
+    applyPatchTool,
+    ...(options.coder ? [coderTool(options.coder)] : []),
+    ...taskTools(work, options.db.sql),
+    ...(learning ? learningTools(learning.memories, learning.skills) : []),
+  ]);
   const connectionExecutor = new ConnectionToolExecutor(options.tools ?? nativeExecutor, connections);
   const inner = connectionExecutor;
   const governance =
@@ -418,7 +440,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   await app.register(registerPreferenceRoutes, { prefix: "/v1" });
   await app.register(registerAgentRoutes, { prefix: "/v1" });
   await app.register(registerAuditRoutes, { prefix: "/v1" });
-  await app.register(async (scope) => registerWorkRoutes(scope, { work, runtime }), { prefix: "/v1" });
+  await app.register(async (scope) => registerWorkRoutes(scope, { work, runtime, workRoot, secrets: governance?.secrets ?? null }), { prefix: "/v1" });
   await app.register(async (scope) => registerRoutineRoutes(scope, { routines }), { prefix: "/v1" });
   await app.register(
     async (scope) => registerConnectionRoutes(scope, { connections, webhooks, events, channels, hub, invalidateTools: (companyId) => connectionExecutor.invalidate(companyId) }),

@@ -42,6 +42,7 @@ describe("interface strings", () => {
     const allowed = new Set([
       "email",
       "password",
+      "branch",
       "comingSoon",
       "botUser",
       "connUrl",

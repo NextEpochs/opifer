@@ -11,6 +11,7 @@ import { isPortOpen, openDatabase } from "../database.js";
 import { requireConfig, resolveHome, type OpiferHome } from "../home.js";
 import { c, say } from "../output.js";
 import { cliVersion } from "./update.js";
+import { detectCoder } from "./coder.js";
 
 export interface UpOptions {
   home?: string;
@@ -99,6 +100,7 @@ export async function runUp(options: UpOptions): Promise<void> {
       : {}),
     bus: new EventBus(),
     updates: { check: config.updates?.check ?? true, current: cliVersion() },
+    coder: config.coder === undefined ? await detectCoder() : config.coder,
     uiDir,
     logger: { level: "warn" },
     providers,

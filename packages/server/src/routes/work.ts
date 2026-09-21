@@ -6,10 +6,16 @@
 import type { AgentRuntime } from "@opifer/runtime";
 import { WorkError, type Task, type TaskPriority, type TaskStatus, type WorkService } from "@opifer/work";
 import type { FastifyInstance } from "fastify";
+import path from "node:path";
+import { cloneRepository } from "../repos.js";
 
 export interface WorkRoutesOptions {
   work: WorkService;
   runtime: AgentRuntime | null;
+  /** Where project folders live when a project has no folder of its own. */
+  workRoot: string;
+  /** The company secrets, for the repository token at clone time. */
+  secrets?: { readForSystem(companyId: string, name: string, purpose: string): Promise<string | null> } | null;
 }
 
 const uuid = { type: "string", format: "uuid" } as const;
@@ -50,6 +56,8 @@ const projectBody = {
     description: { type: "string", maxLength: 5000 },
     goalId: nullableUuid,
     workdir: { type: ["string", "null"], maxLength: 1000 },
+    repoUrl: { type: ["string", "null"], maxLength: 1000 },
+    branch: { type: ["string", "null"], maxLength: 200 },
   },
 } as const;
 
@@ -181,15 +189,22 @@ export async function registerWorkRoutes(app: FastifyInstance, options: WorkRout
   );
 
   app.get<{ Params: { id: string } }>("/companies/:id/projects", async (request) => work.listProjects(request.params.id));
-  app.post<{ Params: { id: string }; Body: { name: string; description?: string; goalId?: string | null; workdir?: string | null } }>(
-    "/companies/:id/projects",
-    { schema: { body: projectBody } },
-    async (request, reply) =>
-      handle(reply, async () => {
-        const project = await work.createProject({ companyId: request.params.id, ...request.body }, person);
-        bus.publish("project.created", request.params.id, { projectId: project.id });
-        return reply.code(201).send(project);
-      }),
+  app.post<{
+    Params: { id: string };
+    Body: { name: string; description?: string; goalId?: string | null; workdir?: string | null; repoUrl?: string | null; branch?: string | null };
+  }>("/companies/:id/projects", { schema: { body: projectBody } }, async (request, reply) =>
+    handle(reply, async () => {
+      let project = await work.createProject({ companyId: request.params.id, ...request.body }, person);
+      // A repository: cloned now into the project's folder, with the company's GITHUB_TOKEN when there is one.
+      if (project.repoUrl) {
+        const workdir = project.workdir ?? path.join(options.workRoot, `project-${project.id}`);
+        const token = (await options.secrets?.readForSystem(request.params.id, "GITHUB_TOKEN", "repository clone")) ?? null;
+        const cloned = await cloneRepository({ repoUrl: project.repoUrl, branch: project.branch, workdir, token });
+        project = await work.updateProject(request.params.id, project.id, { workdir, repoStatus: cloned.ok ? "cloned" : "failed", repoDetail: cloned.detail }, person);
+      }
+      bus.publish("project.created", request.params.id, { projectId: project.id });
+      return reply.code(201).send(project);
+    }),
   );
   app.patch<{ Params: { id: string; projectId: string }; Body: Record<string, unknown> }>(
     "/companies/:id/projects/:projectId",

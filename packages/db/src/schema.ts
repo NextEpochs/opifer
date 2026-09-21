@@ -531,6 +531,12 @@ export const projects = pgTable(
       .notNull()
       .default("active"),
     workdir: text("workdir"),
+    repoUrl: text("repo_url"),
+    branch: text("branch"),
+    repoStatus: text("repo_status", { enum: ["none", "cloned", "failed"] })
+      .notNull()
+      .default("none"),
+    repoDetail: text("repo_detail").notNull().default(""),
     ...timestamps,
   },
   (t) => [index("projects_company_idx").on(t.companyId), unique().on(t.companyId, t.name)],

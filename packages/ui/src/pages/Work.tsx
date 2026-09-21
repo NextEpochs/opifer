@@ -263,6 +263,9 @@ function GoalsPanel({ ws, goals, projects, onChanged }: { ws: Workspace; goals: 
   const [goalMeasure, setGoalMeasure] = useState("");
   const [projectName, setProjectName] = useState("");
   const [projectGoal, setProjectGoal] = useState("");
+  const [projectRepo, setProjectRepo] = useState("");
+  const [projectBranch, setProjectBranch] = useState("");
+  const [projectBusy, setProjectBusy] = useState(false);
 
   const addGoal = async (e: FormEvent) => {
     e.preventDefault();
@@ -277,13 +280,22 @@ function GoalsPanel({ ws, goals, projects, onChanged }: { ws: Workspace; goals: 
   };
   const addProject = async (e: FormEvent) => {
     e.preventDefault();
-    if (!projectName.trim()) return;
-    await api.createProject(company.id, {
-      name: projectName.trim(),
-      goalId: projectGoal || null,
-    });
-    setProjectName("");
-    await onChanged();
+    if (!projectName.trim() || projectBusy) return;
+    setProjectBusy(true);
+    try {
+      await api.createProject(company.id, {
+        name: projectName.trim(),
+        goalId: projectGoal || null,
+        repoUrl: projectRepo.trim() || null,
+        branch: projectBranch.trim() || null,
+      });
+      setProjectName("");
+      setProjectRepo("");
+      setProjectBranch("");
+      await onChanged();
+    } finally {
+      setProjectBusy(false);
+    }
   };
   const roots = goals.filter((g) => !g.parentId);
   const childrenOf = (id: string) => goals.filter((g) => g.parentId === id);
@@ -332,6 +344,13 @@ function GoalsPanel({ ws, goals, projects, onChanged }: { ws: Workspace; goals: 
           <div key={p.id} className="flex items-center gap-2 py-1 text-sm">
             <span className="font-bold">{p.name}</span>
             {p.goalId && <span className="truncate text-[12px] text-mute">→ {goals.find((g) => g.id === p.goalId)?.title}</span>}
+            {p.repoUrl && (
+              <span className="truncate font-mono text-[11px] text-mute" title={`${p.repoUrl}${p.branch ? ` (${p.branch})` : ""} — ${p.repoDetail}`}>
+                {p.repoUrl.replace(/^https?:\/\/(www\.)?/, "").replace(/\.git$/, "")}
+                {p.branch ? `@${p.branch}` : ""}
+              </span>
+            )}
+            {p.repoUrl && <Chip tone={p.repoStatus === "cloned" ? "ok" : "danger"}>{p.repoStatus === "cloned" ? t.repoCloned : t.repoFailed}</Chip>}
             <Chip tone={p.status === "active" ? "ok" : "mute"} className="ml-auto">
               {p.status}
             </Chip>
@@ -340,6 +359,12 @@ function GoalsPanel({ ws, goals, projects, onChanged }: { ws: Workspace; goals: 
         <form onSubmit={addProject} className="mt-3 flex flex-wrap gap-2 border-t border-line pt-3">
           <div className="min-w-40 flex-1">
             <Input value={projectName} onChange={(e) => setProjectName(e.target.value)} placeholder={t.newProject} aria-label={t.newProject} />
+          </div>
+          <div className="min-w-56 flex-[2]">
+            <Input value={projectRepo} onChange={(e) => setProjectRepo(e.target.value)} placeholder={t.repoUrl} aria-label={t.repoUrl} />
+          </div>
+          <div className="min-w-24 w-28">
+            <Input value={projectBranch} onChange={(e) => setProjectBranch(e.target.value)} placeholder={t.branch} aria-label={t.branch} />
           </div>
           <select
             value={projectGoal}
@@ -356,8 +381,8 @@ function GoalsPanel({ ws, goals, projects, onChanged }: { ws: Workspace; goals: 
                 </option>
               ))}
           </select>
-          <Button type="submit" variant="soft" disabled={!projectName.trim()}>
-            <Plus size={14} /> {t.newProject}
+          <Button type="submit" variant="soft" disabled={!projectName.trim() || projectBusy}>
+            <Plus size={14} /> {projectBusy && projectRepo.trim() ? t.cloning : t.newProject}
           </Button>
         </form>
       </Card>

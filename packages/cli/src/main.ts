@@ -5,6 +5,7 @@ import { runLogin, runLogout } from "./commands/login.js";
 import { runDoctor } from "./commands/doctor.js";
 import { cliVersion, runUpdate } from "./commands/update.js";
 import { runAgentArchive, runAgentList, runAgentPause, runAgentRestore, runAgentResume } from "./commands/agent.js";
+import { runProjectCreate, runProjectList } from "./commands/project.js";
 import {
   runAuthDisable,
   runAuthEnable,
@@ -377,6 +378,24 @@ task
   .action(async (title: string, opts: { agent?: string; description?: string; acceptance?: string; priority?: string; project?: string; parent?: string; company?: string }) =>
     runTaskCreate({ title, ...opts, ...homeOf(program) }),
   );
+const projectCmd = program.command("project").description("projects: folders or git repositories the tasks work in");
+projectCmd
+  .command("list", { isDefault: true })
+  .description("the projects, their repositories and folders")
+  .option("--company <name>", "company (default: the first one)")
+  .action(async (opts: { company?: string }) => runProjectList({ ...opts, ...homeOf(program) }));
+projectCmd
+  .command("create <name>")
+  .description("create a project; with --repo it is cloned into its folder (GITHUB_TOKEN secret for private ones)")
+  .option("--repo <url>", "git repository URL (https://…, git@…)")
+  .option("--branch <name>", "branch to work on")
+  .option("--description <text>", "what the project is")
+  .option("--goal <title>", "the goal it serves")
+  .option("--company <name>", "company (default: the first one)")
+  .action(async (name: string, opts: { repo?: string; branch?: string; description?: string; goal?: string; company?: string }) =>
+    runProjectCreate({ name, ...opts, ...homeOf(program) }),
+  );
+
 task
   .command("show <id>")
   .description("the task with its why chain, results, subtasks and comments")

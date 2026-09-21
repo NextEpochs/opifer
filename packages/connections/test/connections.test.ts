@@ -212,7 +212,7 @@ describe("tool connections: MCP servers and workflow tools behind one executor",
     // A docker shim: records the arguments and runs the command locally, so the test needs no daemon.
     const dir = await mkdtemp(path.join(tmpdir(), "opifer-docker-"));
     const shim = path.join(dir, "docker");
-    await writeFile(shim, `#!/bin/sh\necho "$@" > "${dir}/args.txt"\nwhile [ "$1" != "node:22-bookworm-slim" ]; do shift; done; shift\nexec "$@"\n`);
+    await writeFile(shim, `#!/bin/sh\necho "$@" > "${dir}/args.txt"\nwhile [ "$1" != "node:22-bookworm" ]; do shift; done; shift\nexec "$@"\n`);
     await chmod(shim, 0o755);
     const env = new DockerEnvironment({ binary: shim });
     const workdir = path.join(dir, "work");

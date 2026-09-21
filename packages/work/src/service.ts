@@ -58,6 +58,10 @@ interface ProjectRow {
   description: string;
   status: Project["status"];
   workdir: string | null;
+  repo_url: string | null;
+  branch: string | null;
+  repo_status: Project["repoStatus"];
+  repo_detail: string;
   created_at: Date;
 }
 
@@ -151,6 +155,10 @@ const toProject = (r: ProjectRow): Project => ({
   description: r.description,
   status: r.status,
   workdir: r.workdir,
+  repoUrl: r.repo_url,
+  branch: r.branch,
+  repoStatus: r.repo_status,
+  repoDetail: r.repo_detail,
   createdAt: r.created_at,
 });
 const toTask = (r: TaskRow): Task => ({
@@ -327,10 +335,13 @@ export class WorkService {
 
   // --- Projects ------------------------------------------------------------
 
-  async createProject(input: { companyId: string; name: string; description?: string; goalId?: string | null; workdir?: string | null }, actor: Actor): Promise<Project> {
+  async createProject(
+    input: { companyId: string; name: string; description?: string; goalId?: string | null; workdir?: string | null; repoUrl?: string | null; branch?: string | null },
+    actor: Actor,
+  ): Promise<Project> {
     const [row] = await this.sql<ProjectRow[]>`
-      INSERT INTO projects (company_id, goal_id, name, description, workdir)
-      VALUES (${input.companyId}, ${input.goalId ?? null}, ${input.name}, ${input.description ?? ""}, ${input.workdir ?? null}) RETURNING *
+      INSERT INTO projects (company_id, goal_id, name, description, workdir, repo_url, branch)
+      VALUES (${input.companyId}, ${input.goalId ?? null}, ${input.name}, ${input.description ?? ""}, ${input.workdir ?? null}, ${input.repoUrl ?? null}, ${input.branch ?? null}) RETURNING *
     `;
     const project = toProject(row!);
     await audit(this.sql, {
@@ -345,12 +356,18 @@ export class WorkService {
     return project;
   }
 
-  async updateProject(companyId: string, id: string, patch: Partial<Pick<Project, "name" | "description" | "status" | "goalId" | "workdir">>, actor: Actor): Promise<Project> {
+  async updateProject(
+    companyId: string,
+    id: string,
+    patch: Partial<Pick<Project, "name" | "description" | "status" | "goalId" | "workdir" | "repoUrl" | "branch" | "repoStatus" | "repoDetail">>,
+    actor: Actor,
+  ): Promise<Project> {
     const [before] = await this.sql<ProjectRow[]>`SELECT * FROM projects WHERE id = ${id} AND company_id = ${companyId}`;
     if (!before) throw new WorkError("not_found", "project not found");
     const next = { ...toProject(before), ...stripUndefined(patch) };
     const [row] = await this.sql<ProjectRow[]>`
-      UPDATE projects SET name = ${next.name}, description = ${next.description}, status = ${next.status}, goal_id = ${next.goalId}, workdir = ${next.workdir} WHERE id = ${id} RETURNING *
+      UPDATE projects SET name = ${next.name}, description = ${next.description}, status = ${next.status}, goal_id = ${next.goalId}, workdir = ${next.workdir},
+        repo_url = ${next.repoUrl}, branch = ${next.branch}, repo_status = ${next.repoStatus}, repo_detail = ${next.repoDetail} WHERE id = ${id} RETURNING *
     `;
     await audit(this.sql, {
       companyId,
