@@ -187,6 +187,8 @@ Everything the interface does, the `o4r` command and the `/v1` API do too.
 
 **Tasks.** An agent is assigned a task, wakes up, works in its own session, delivers a result, and a person (or the reviewing agent) verifies it. One assignee at a time, taken with an atomic checkout; a lease with a heartbeat, so a task whose agent dies goes back to the queue and is blocked after two failures instead of looping forever. Comments with `@Name` wake that agent; a task waiting for an approval resumes on the decision. Agents get the matching tools (`task_status`, `task_comment`, `task_create` to delegate downward, `task_deliver`, `task_block`, `task_approve`, `task_request_changes`) and a brief with the task, its why chain and the rules.
 
+**Files both ways.** Everything an agent produces is an artifact: open or download it from the task panel or Work → Artifacts. Give a task a file (a brief, a spreadsheet, an image) from the same panel or with `o4r task upload`, and the agent is told.
+
 **Email.** A mailbox is a connection: SMTP to send, IMAP to read and search, the password a company secret. Reading is automatic; every email an agent sends asks a person first until sending is allowed for that agent.
 
 **The web.** `web_fetch` reads any public page or API as clean text; `web_search` searches through Brave, Tavily or your own SearXNG when a key or URL is configured. Every number an agent reports comes with its source.

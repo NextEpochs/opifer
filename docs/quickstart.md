@@ -47,6 +47,8 @@ Talk to any agent in **Chat**. Ask "how are things in the company?": the agent r
 
 What the agents produce is under **Artifacts**: in a task's panel (the products they declared at delivery, and every file in the task's folder, to open or download) and in **Work → Artifacts** for the whole company. From the command line: `o4r artifacts`, `o4r task files <id> [path]`.
 
+The other way round, give a task a file (a brief, a spreadsheet, a screenshot): **Give a file** in the task panel, or `o4r task upload <task> brief.pdf notes.xlsx` (`--to folder` for a folder other than `uploads/`). It lands in the task folder and a comment tells the agent, which reads it with its file tools.
+
 ## 4. Money, permissions, learning
 
 **Money** shows where every euro goes and lets you set caps (company, agent, project, task). When a cap is reached the agent stops *before* the next call and asks you.

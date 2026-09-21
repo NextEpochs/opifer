@@ -2,6 +2,11 @@
 
 All notable changes to Opifer. The format follows Keep a Changelog; versions follow SemVer.
 
+## Unreleased
+
+### Added
+- Files for a task: **Give a file** in the task panel and `o4r task upload <task> <file...>` write into the task folder (`uploads/` by default) and leave a comment for the agent; `PUT /v1/tasks/:id/files/<path>` with the raw bytes.
+
 ## 1.4.0 — 2026-09-21 — email and a browser
 
 ### Added
