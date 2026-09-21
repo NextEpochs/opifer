@@ -212,7 +212,12 @@ export function SettingsPage(p: SettingsProps) {
               {typeof health === "object" && health ? <Chip tone={health.database === "ok" ? "ok" : "danger"}>{health.database === "ok" ? t.ok : t.degraded}</Chip> : "—"}
             </dd>
             <dt className="text-mute">{t.version}</dt>
-            <dd className="m-0 font-mono text-[13px]">{typeof health === "object" && health ? health.version : "—"}</dd>
+            <dd className="m-0 font-mono text-[13px]">
+              {typeof health === "object" && health ? (health.update?.current ?? health.version) : "—"}
+              {typeof health === "object" && health?.update?.available && (
+                <span className="ml-2 font-sans text-[13px] text-warn">{fill(t.updateAvailable, { latest: health.update.latest ?? "" })}</span>
+              )}
+            </dd>
             <dt className="text-mute">{t.mode}</dt>
             <dd className="m-0">{typeof health === "object" && health ? (t.modes[health.mode] ?? health.mode) : "—"}</dd>
           </dl>

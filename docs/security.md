@@ -55,6 +55,10 @@ Put a reverse proxy with TLS in front (nginx, Caddy); bind Opifer to `127.0.0.1`
 - The audit log accepts inserts only. Learned memories and skills are never deleted (retired, superseded, archived).
 - Context compression is the only change ever made to a session's past, and it is recorded (`session_compressions`).
 
+## Update check
+
+Once a day the server asks `registry.npmjs.org` for the latest `@opifer/cli` version, with a plain GET and no data of the installation. `"updates": { "check": false }` in `config.json` turns it off.
+
 ## Emergency stop
 
 `POST /v1/companies/:id/stop`, `o4r stop` or the red button: every running turn of the company is interrupted, routines are not claimed, budget reservations are denied, until a person resumes.

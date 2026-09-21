@@ -1,6 +1,6 @@
 {
   "name": "@opifer/provider-anthropic",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Anthropic (Claude) model provider for Opifer.",
   "license": "MIT",
   "homepage": "https://opifer.dev",

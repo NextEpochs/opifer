@@ -10,6 +10,7 @@ import { buildApp, setupProviders } from "@opifer/server";
 import { isPortOpen, openDatabase } from "../database.js";
 import { requireConfig, resolveHome, type OpiferHome } from "../home.js";
 import { c, say } from "../output.js";
+import { cliVersion } from "./update.js";
 
 export interface UpOptions {
   home?: string;
@@ -95,6 +96,7 @@ export async function runUp(options: UpOptions): Promise<void> {
         }
       : {}),
     bus: new EventBus(),
+    updates: { check: config.updates?.check ?? true, current: cliVersion() },
     uiDir,
     logger: { level: "warn" },
     providers,

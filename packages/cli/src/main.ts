@@ -4,6 +4,7 @@ import { OPIFER_VERSION } from "@opifer/core";
 import { runChat } from "./commands/chat.js";
 import { runLogin, runLogout } from "./commands/login.js";
 import { runDoctor } from "./commands/doctor.js";
+import { runUpdate } from "./commands/update.js";
 import {
   runAuthDisable,
   runAuthEnable,
@@ -101,6 +102,15 @@ program
     async (opts: { company?: string; host?: string; port?: string; dbPort?: string; model?: string; localUrl?: string; auth?: boolean; email?: string; password?: string }) => {
       await runInit({ ...opts, ...homeOf(program) });
     },
+  );
+
+program
+  .command("update")
+  .description("install the latest Opifer from npm where this one is installed, and restart the server")
+  .option("--check", "only say whether a newer version exists")
+  .option("--no-restart", "do not restart the server after the install")
+  .action(async (opts: { check?: boolean; restart?: boolean }) =>
+    runUpdate({ ...(opts.check ? { check: true } : {}), ...(opts.restart === false ? { noRestart: true } : {}), ...homeOf(program) }),
   );
 
 const auth = program.command("auth").description("authenticated mode: sign-in on the API and the interface");

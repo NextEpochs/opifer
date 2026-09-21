@@ -10,6 +10,8 @@ import { readConfig, resolveHome } from "../home.js";
 import { c, say } from "../output.js";
 import { uiDistDir } from "./up.js";
 import { readCliKey } from "./auth.js";
+import { cliVersion } from "./update.js";
+import { compareVersions, fetchLatestVersion } from "@opifer/server";
 
 interface Check {
   name: string;
@@ -27,6 +29,21 @@ export async function runDoctor(options: { home?: string }): Promise<void> {
   checks.push({ name: "Node.js", ok: (major ?? 0) >= 22, detail: `v${process.versions.node} (22 or later required)` });
 
   const config = await readConfig(home);
+  {
+    const current = cliVersion();
+    const latest = config?.updates?.check === false ? null : await fetchLatestVersion(fetch, 3000);
+    const newer = latest !== null && compareVersions(latest, current) > 0;
+    checks.push({
+      name: "Version",
+      ok: !newer,
+      warn: true,
+      detail: newer
+        ? `${current}; ${latest} is on npm: o4r update`
+        : latest
+          ? `${current} (latest)`
+          : `${current}${config?.updates?.check === false ? " (update check off)" : " (npm not reachable)"}`,
+    });
+  }
   checks.push({ name: "Opifer folder", ok: config !== null, detail: config ? home.dir : `${home.dir} not initialised (o4r init)` });
 
   if (config) {

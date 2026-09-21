@@ -22,6 +22,8 @@ export interface OpiferConfig {
   sandbox?: { kind?: "auto" | "docker" | "local"; image?: string; network?: "none" | "bridge" };
   /** Authenticated mode: sign-in required on the API and the interface; `trustProxy` when a reverse proxy is in front (default on). */
   auth?: { enabled: boolean; trustProxy?: boolean; sessionDays?: number };
+  /** The daily look at npm for a newer version; `check: false` turns it off (no other data leaves the machine). */
+  updates?: { check?: boolean };
 }
 
 export const DEFAULT_CONFIG: OpiferConfig = {

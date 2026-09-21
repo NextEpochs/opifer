@@ -57,6 +57,15 @@ In **Work → Routines** give an agent a recurring job: every day at 9, Monday a
 
 In **Connections** add an MCP server or a workflow (n8n, Zapier, Make) as tools; create a webhook so an automation can open tasks; subscribe a URL to the company's events (signed); connect the Telegram bot of the company to talk to the agents from your phone and approve with one tap.
 
+## Updating
+
+```bash
+o4r update            # the latest from npm, installed where this one is, and the server restarted
+o4r update --check    # only tell me
+```
+
+Your data, configuration and keys stay where they are; `o4r up` applies any new migration. Under systemd the service comes back by itself after the install. From a repository checkout: `git pull --ff-only && pnpm install && pnpm build && pnpm o4r down && pnpm o4r up --detach`. With Docker: `docker compose build --pull && docker compose up -d`. The server looks at npm once a day for a newer version and Settings tells you; `"updates": { "check": false }` in `config.json` turns that off.
+
 ## 6. When something goes wrong
 
 - **Stop everything**: the red button in the sidebar (or `o4r stop`). Every agent stops, routines pause, no model is called until you resume.

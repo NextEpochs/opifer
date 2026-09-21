@@ -2,6 +2,16 @@
 
 All notable changes to Opifer. The format follows Keep a Changelog; versions follow SemVer.
 
+## 1.2.0 — 2026-09-21 — updating
+
+### Added
+- `o4r update`: installs the latest `@opifer/cli` from npm where this one is installed and restarts the server (under systemd or launchd the service comes back by itself); `--check` only says whether a newer version exists; from a repository checkout it prints the git and pnpm commands.
+- The server looks at npm once a day for a newer version (`updates.check: false` in `config.json` turns it off; nothing else leaves the machine); the health check, `o4r doctor` and Settings say when one is out.
+
+### Fixed
+- The interface is English by default whatever the browser language; Italian is chosen in Settings (1.1.1 of the interface).
+- The hidden password prompt of `o4r user password` and `o4r auth enable` failed in a terminal (1.1.2 of the CLI); `o4r doctor` crashed on the companies list in authenticated mode (1.1.1 of the CLI).
+
 ## 1.1.0 — 2026-09-20 — authenticated mode
 
 Opifer can now run on a server or a VPS: `o4r init --auth --email you@example.com` (or `o4r auth enable`) and every call to the interface and the API needs a signed-in person or an API key.

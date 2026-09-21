@@ -6,3 +6,5 @@ export { buildGovernance, masterKeyFile } from "./governance.js";
 export type { Governance, GovernanceOptions } from "./governance.js";
 export { AuthService, AuthError, hashPassword, verifyPassword, requiredRole, ROLES, API_KEY_PREFIX, SESSION_COOKIE } from "./auth.js";
 export type { Actor, AuthUser, ApiKeyInfo, Role } from "./auth.js";
+export { UpdateCheck, compareVersions, fetchLatestVersion, REGISTRY_URL } from "./updates.js";
+export type { UpdateStatus, Fetcher } from "./updates.js";

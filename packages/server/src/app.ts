@@ -30,6 +30,7 @@ import { ChannelService, ConnectionService, ConnectionToolExecutor, EventService
 import { DockerEnvironment, LocalEnvironment, dockerAvailable, useEnvironment } from "@opifer/runtime";
 import { API_KEY_PREFIX, AuthService, atLeast, requiredRole, sessionTokenOf, type Actor } from "./auth.js";
 import { registerAuthRoutes } from "./routes/auth.js";
+import { UpdateCheck, type Fetcher } from "./updates.js";
 
 export interface AppOptions {
   db: DatabaseHandle;
@@ -44,6 +45,8 @@ export interface AppOptions {
    * API key, with a role. `trustProxy` reads the client address and the protocol from the reverse proxy in front.
    */
   auth?: { sessionDays?: number; trustProxy?: boolean };
+  /** The daily look at npm for a newer version (`check: false` turns it off); `current` is the CLI's version when it is ahead of the core. */
+  updates?: { check?: boolean; intervalMs?: number; current?: string; fetcher?: Fetcher };
   /** Model providers and default model; without them, sessions are not available. */
   providers?: ProviderSetup;
   /** Root folder of the sessions' working directories. */
@@ -77,6 +80,8 @@ export interface AppContext {
   mode: InstallMode;
   /** People, sessions and API keys; null in local mode. */
   auth: AuthService | null;
+  /** Whether a newer Opifer is on npm. */
+  updates: UpdateCheck;
   runtime: AgentRuntime | null;
   governance: Governance | null;
   work: WorkService;
@@ -143,6 +148,13 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   const app = Fastify({ logger: options.logger ?? false, trustProxy: options.auth?.trustProxy ?? authenticated });
   const auth = authenticated ? new AuthService(options.db.sql, { ...(options.auth?.sessionDays !== undefined ? { sessionDays: options.auth.sessionDays } : {}) }) : null;
   app.decorateRequest("actor", undefined);
+  const updates = new UpdateCheck(options.updates?.current ?? OPIFER_VERSION, {
+    enabled: options.updates?.check ?? false,
+    ...(options.updates?.intervalMs !== undefined ? { intervalMs: options.updates.intervalMs } : {}),
+    ...(options.updates?.fetcher ? { fetcher: options.updates.fetcher } : {}),
+  });
+  app.addHook("onReady", async () => updates.start());
+  app.addHook("onClose", async () => updates.stop());
   // Security headers on every answer (see docs/security.md): no sniffing, no framing, no referrer, a strict policy for the interface.
   app.addHook("onSend", async (request, reply) => {
     reply.header("x-content-type-options", "nosniff");
@@ -323,6 +335,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   if (scheduler && hub) scheduler.deliverTo((routine, run, text) => hub.deliverRoutine(routine, run, text));
   app.decorate("opifer", {
     auth,
+    updates,
     db: options.db,
     bus,
     mode: options.mode,
@@ -388,6 +401,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
       database,
       runtime: runtime ? "ok" : "absent",
       governance: governance ? "ok" : "absent",
+      update: updates.status(),
     };
   });
 

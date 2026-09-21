@@ -267,6 +267,8 @@ The guides are also on [opifer.dev](https://opifer.dev/docs/quickstart/), render
 
 Two modes. **Local**: one machine, no sign-in, the server on `127.0.0.1`. **Authenticated**, for a server or a VPS: `o4r init --auth --email you@example.com` (or `o4r auth enable`), and every call to the interface and the API needs a signed-in person or an API key, with a role (observer, operator, admin, owner). Keep Opifer on `127.0.0.1` behind nginx or Caddy with HTTPS; the interface works at the root or under a path. People: `o4r user add`; keys for integrations: `o4r apikey create`. The nginx snippet is in the [ten-minute guide](docs/quickstart.md#on-a-server); what is protected and how in [docs/security.md](docs/security.md).
 
+**Updating**: `o4r update` installs the latest version from npm where this one is installed and restarts the server (`--check` only tells you); data, configuration and keys stay. Settings and `o4r doctor` say when a newer version is out (one look at npm a day, `updates.check: false` turns it off).
+
 For servers and cloud there is a container image:
 
 ```bash

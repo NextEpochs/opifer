@@ -323,7 +323,18 @@ o4r up           <span class="c"># http://127.0.0.1:4700</span></code></pre>
           </details>
           <details>
             <summary>Can I run it on a server?</summary>
-            <p>Yes. Turn authenticated mode on (<code>o4r init --auth --email you@example.com</code>): every call to the interface and the API then needs a signed-in person or an API key, with a role. Keep Opifer on localhost behind nginx or Caddy with HTTPS; the interface works at the root or under a path. The security review says what is protected and how.</p>
+            <p>
+              Yes. Turn authenticated mode on (<code>o4r init --auth --email you@example.com</code>): every call to the interface and the API then needs a signed-in person or an
+              API key, with a role. Keep Opifer on localhost behind nginx or Caddy with HTTPS; the interface works at the root or under a path. The security review says what is
+              protected and how.
+            </p>
+          </details>
+          <details>
+            <summary>How do I update it?</summary>
+            <p>
+              <code>o4r update</code>: the latest version from npm, installed where this one is, and the server restarted. Your data, configuration and keys stay. Settings tells
+              you when a newer version is out.
+            </p>
           </details>
           <details>
             <summary>What does an agent see of my secrets?</summary>

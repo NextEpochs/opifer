@@ -8,6 +8,7 @@ export interface Health {
   runtime?: "ok" | "absent";
   governance?: "ok" | "absent";
   sandbox?: { kind: "local" | "docker"; detail: string };
+  update?: { current: string; latest: string | null; available: boolean; checkedAt: string | null } | null;
 }
 
 export interface Company {
