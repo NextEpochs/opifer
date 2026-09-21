@@ -187,6 +187,8 @@ Everything the interface does, the `o4r` command and the `/v1` API do too.
 
 **Tasks.** An agent is assigned a task, wakes up, works in its own session, delivers a result, and a person (or the reviewing agent) verifies it. One assignee at a time, taken with an atomic checkout; a lease with a heartbeat, so a task whose agent dies goes back to the queue and is blocked after two failures instead of looping forever. Comments with `@Name` wake that agent; a task waiting for an approval resumes on the decision. Agents get the matching tools (`task_status`, `task_comment`, `task_create` to delegate downward, `task_deliver`, `task_block`, `task_approve`, `task_request_changes`) and a brief with the task, its why chain and the rules.
 
+**Email.** A mailbox is a connection: SMTP to send, IMAP to read and search, the password a company secret. Reading is automatic; every email an agent sends asks a person first until sending is allowed for that agent.
+
 **The web.** `web_fetch` reads any public page or API as clean text; `web_search` searches through Brave, Tavily or your own SearXNG when a key or URL is configured. Every number an agent reports comes with its source.
 
 **Software.** A project can be a git repository: cloned into its folder, worked on a branch, pushed with a token kept as a company secret. Agents get `edit_file`, `apply_patch` and a terminal with the network on and build tools, and, when Claude Code or the Codex CLI is installed on the machine, `run_coder`: they hand it a full brief and it does the multi-step work in the project folder, under the same approvals and review. Everything produced is under **Artifacts**, to open or download.

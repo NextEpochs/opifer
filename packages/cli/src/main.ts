@@ -58,6 +58,7 @@ import {
   runChannelPair,
   runChannelRemove,
   runConnectionAction,
+  runConnectionAddEmail,
   runConnectionAddMcp,
   runConnectionAddWorkflow,
   runConnectionList,
@@ -591,6 +592,19 @@ connection
   .option("--company <name>", "company (default: the first one)")
   .action(async (name: string, opts: { command?: string; args?: string; url?: string; secret?: string; risk?: string; description?: string; company?: string }) =>
     runConnectionAddMcp({ name, ...opts, ...homeOf(program) }),
+  );
+connection
+  .command("add-email <name>")
+  .description("add a mailbox the agents send from and read: SMTP and IMAP, the password as a company secret")
+  .requiredOption("--smtp <host[:port]>", "SMTP server (587 STARTTLS or 465 TLS)")
+  .requiredOption("--user <login>", "mailbox login")
+  .requiredOption("--from <address>", 'the From address, e.g. "Opifer <agents@example.com>"')
+  .option("--imap <host[:port]>", "IMAP server (default: smtp host with imap., port 993)")
+  .option("--secret <NAME>", "the company secret holding the password (default EMAIL_PASSWORD)")
+  .option("--description <text>", "what it is for")
+  .option("--company <name>", "company (default: the first one)")
+  .action(async (name: string, opts: { smtp: string; user: string; from: string; imap?: string; secret?: string; description?: string; company?: string }) =>
+    runConnectionAddEmail({ name, ...opts, ...homeOf(program) }),
   );
 connection
   .command("add-workflow <name>")

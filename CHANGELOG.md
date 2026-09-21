@@ -2,6 +2,11 @@
 
 All notable changes to Opifer. The format follows Keep a Changelog; versions follow SemVer.
 
+## Unreleased
+
+### Added
+- Email as a connection: a mailbox per company (SMTP to send, IMAP to read), the password a company secret. The agents get `<name>__send` (high risk: a person approves each email unless the policy allows it), `<name>__list`, `<name>__read` and `<name>__search`. Connections → Tools → Add a mailbox; `o4r connection add-email <name> --smtp host:port --imap host:port --user … --from …`. Migration `0012_email_connections`.
+
 ## 1.3.0 — 2026-09-21 — software work and artifacts
 
 ### Added

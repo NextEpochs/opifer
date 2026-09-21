@@ -585,7 +585,7 @@ export interface RoutineRun {
 
 export interface ToolConnection {
   id: string;
-  kind: "mcp_stdio" | "mcp_http" | "workflow";
+  kind: "mcp_stdio" | "mcp_http" | "workflow" | "email";
   name: string;
   description: string;
   config: Record<string, unknown>;

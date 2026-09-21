@@ -59,6 +59,10 @@ After every finished task a background review keeps what is worth keeping: memor
 
 Agents read the web with `web_fetch` (a page as clean text, a JSON API) out of the box. For `web_search`, give the server a search provider: `BRAVE_API_KEY` (Brave Search API), `TAVILY_API_KEY`, or `SEARXNG_URL` for a SearXNG instance of yours, in the environment of `o4r up` (the systemd unit, the compose file); `o4r doctor` says which one is in use. Fetching never reaches private addresses of the machine or its network.
 
+## Email
+
+Give the company a mailbox in **Connections → Tools → Add a mailbox** (SMTP server, IMAP server, login, From address, password) or `o4r connection add-email agents --smtp smtp.example.com:587 --imap imap.example.com:993 --user agents@example.com --from "Opifer <agents@example.com>"` then `o4r secret set EMAIL_PASSWORD`. Agents get `agents__send`, `agents__list`, `agents__read`, `agents__search`: reading is automatic, every email they send asks you first (a card in the Inbox, or Telegram) until you allow sending for that agent.
+
 ## Software: projects that are repositories
 
 A project can be a git repository: give its URL (and a branch) when you create it in **Work → Projects** or with `o4r project create "Site" --repo https://github.com/org/site --branch main`. It is cloned into the project's folder; every task of the project works there. For a private repository, store a token first (`o4r secret set GITHUB_TOKEN`) and bind it to the agents that push (`o4r secret bind GITHUB_TOKEN --agent Theo --tool terminal`): git authenticates through a helper, the token never lands in the repository.

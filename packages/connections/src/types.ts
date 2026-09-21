@@ -5,7 +5,7 @@ export interface Actor {
   id?: string | null;
 }
 
-export type ConnectionKind = "mcp_stdio" | "mcp_http" | "workflow";
+export type ConnectionKind = "mcp_stdio" | "mcp_http" | "workflow" | "email";
 export type ConnectionStatus = "unknown" | "healthy" | "degraded" | "failed" | "missing_secret";
 export type Risk = "low" | "medium" | "high";
 
@@ -31,6 +31,16 @@ export interface ConnectionConfig {
   toolDescription?: string;
   /** JSON field of the response returned to the model (workflow); the whole body otherwise. */
   resultField?: string;
+  // email: see EmailConfig in email.ts (smtpHost, smtpPort, smtpSecure, imapHost, imapPort, imapSecure, user, from, passwordSecret)
+  smtpHost?: string;
+  smtpPort?: number;
+  smtpSecure?: boolean;
+  imapHost?: string;
+  imapPort?: number;
+  imapSecure?: boolean;
+  user?: string;
+  from?: string;
+  passwordSecret?: string;
 }
 
 export interface ToolConnection {

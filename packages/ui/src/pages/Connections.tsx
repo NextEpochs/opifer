@@ -53,7 +53,7 @@ export function ConnectionsPage({ ws }: { ws: Workspace }) {
 function ToolsTab({ ws, companyId }: { ws: Workspace; companyId: string }) {
   const { t } = ws;
   const [list, setList] = useState<ToolConnection[]>([]);
-  const [adding, setAdding] = useState<"mcp" | "workflow" | null>(null);
+  const [adding, setAdding] = useState<"mcp" | "workflow" | "email" | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const load = useCallback(async () => setList(await api.connections(companyId)), [companyId]);
@@ -91,9 +91,23 @@ function ToolsTab({ ws, companyId }: { ws: Workspace; companyId: string }) {
         <Button size="sm" onClick={() => setAdding(adding === "workflow" ? null : "workflow")}>
           <Plus size={15} /> {t.addWorkflow}
         </Button>
+        <Button size="sm" onClick={() => setAdding(adding === "email" ? null : "email")}>
+          <Plus size={15} /> {t.addEmail}
+        </Button>
       </div>
       {notice && <Notice text={notice} onClose={() => setNotice(null)} />}
-      {adding && (
+      {adding === "email" && (
+        <EmailForm
+          ws={ws}
+          onDone={async (message) => {
+            setAdding(null);
+            setNotice(message);
+            await load();
+          }}
+          onCancel={() => setAdding(null)}
+        />
+      )}
+      {adding && adding !== "email" && (
         <ConnectionForm
           ws={ws}
           kind={adding}
@@ -150,6 +164,104 @@ function ToolsTab({ ws, companyId }: { ws: Workspace; companyId: string }) {
         </ul>
       )}
     </div>
+  );
+}
+
+/** A mailbox: SMTP to send, IMAP to read; the password becomes a company secret named after the connection. */
+function EmailForm({ ws, onDone, onCancel }: { ws: Workspace; onDone: (message: string) => Promise<void>; onCancel: () => void }) {
+  const { t, company } = ws;
+  const [name, setName] = useState("mail");
+  const [smtp, setSmtp] = useState("");
+  const [imap, setImap] = useState("");
+  const [user, setUser] = useState("");
+  const [from, setFrom] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const split = (v: string): [string, number | undefined] => {
+    const [host, port] = v.trim().split(":");
+    return [host ?? "", port ? Number(port) : undefined];
+  };
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      const secret = `EMAIL_PASSWORD_${name
+        .trim()
+        .toUpperCase()
+        .replace(/[^A-Z0-9]+/g, "_")}`;
+      await api.setSecret(company.id, secret, password);
+      const [smtpHost, smtpPort] = split(smtp);
+      const [imapHost, imapPort] = split(imap);
+      const created = await api.createConnection(company.id, {
+        kind: "email",
+        name: name.trim().toLowerCase(),
+        description: `Mailbox ${from.trim()}`,
+        config: {
+          smtpHost,
+          ...(smtpPort ? { smtpPort } : {}),
+          ...(imapHost ? { imapHost } : {}),
+          ...(imapPort ? { imapPort } : {}),
+          user: user.trim(),
+          from: from.trim(),
+          passwordSecret: secret,
+        },
+        risk: "high",
+        secretNames: [secret],
+      });
+      await onDone(`${created.name}: ${t.connStatus[created.status]}${created.statusDetail ? ` (${created.statusDetail})` : ""}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Card className="p-4">
+      <form onSubmit={submit} className="flex flex-col gap-3">
+        <p className="m-0 text-[13px] text-mute">{t.emailExplain}</p>
+        <div className="flex flex-wrap gap-3">
+          <div className="w-40">
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder={t.connName} aria-label={t.connName} required pattern="[a-z0-9][a-z0-9_\-]*" />
+          </div>
+          <div className="min-w-56 flex-1">
+            <Input value={smtp} onChange={(e) => setSmtp(e.target.value)} placeholder={t.emailSmtp} aria-label={t.emailSmtp} required />
+          </div>
+          <div className="min-w-56 flex-1">
+            <Input value={imap} onChange={(e) => setImap(e.target.value)} placeholder={t.emailImap} aria-label={t.emailImap} />
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-3">
+          <div className="min-w-56 flex-1">
+            <Input value={user} onChange={(e) => setUser(e.target.value)} placeholder={t.emailUser} aria-label={t.emailUser} required autoComplete="off" />
+          </div>
+          <div className="min-w-56 flex-1">
+            <Input value={from} onChange={(e) => setFrom(e.target.value)} placeholder={t.emailFrom} aria-label={t.emailFrom} required />
+          </div>
+          <div className="min-w-56 flex-1">
+            <Input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder={t.emailPassword}
+              aria-label={t.emailPassword}
+              required
+              autoComplete="new-password"
+            />
+          </div>
+        </div>
+        {error && <p className="m-0 text-[13px] text-danger">{error}</p>}
+        <div className="flex gap-2">
+          <Button type="submit" variant="primary" size="sm" disabled={busy}>
+            {t.addEmail}
+          </Button>
+          <Button type="button" size="sm" variant="ghost" onClick={onCancel}>
+            {t.cancel}
+          </Button>
+        </div>
+      </form>
+    </Card>
   );
 }
 

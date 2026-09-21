@@ -10,6 +10,7 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+import { EMAIL_TOOLS, EMAIL_TOOL_RISK, callEmail, checkEmail, emailConfigOf, validateEmailConfig } from "./email.js";
 import type { Sql } from "postgres";
 import { audit } from "@opifer/db";
 import type { ToolDefinition } from "@opifer/sdk";
@@ -124,6 +125,8 @@ export class ConnectionService {
   constructor(
     private readonly sql: Sql,
     private readonly readSecret: SecretReader | null = null,
+    /** Mail transports, replaced by fakes in tests. */
+    private readonly emailDeps: import("./email.js").EmailDeps = {},
   ) {}
 
   async create(
@@ -133,23 +136,28 @@ export class ConnectionService {
     const name = input.name.trim().toLowerCase();
     if (!CONNECTION_NAME.test(name)) throw new ConnectionError("invalid_input", "a connection name is lowercase letters, digits, dashes or underscores (up to 40 characters)");
     if (input.kind === "mcp_stdio" && !input.config.command) throw new ConnectionError("invalid_input", "an MCP stdio connection needs a command");
-    if (input.kind !== "mcp_stdio" && !input.config.url)
+    if (input.kind === "email") {
+      const problem = validateEmailConfig(input.config as never);
+      if (problem) throw new ConnectionError("invalid_input", problem);
+    } else if (input.kind !== "mcp_stdio" && !input.config.url)
       throw new ConnectionError("invalid_input", `a ${input.kind === "mcp_http" ? "MCP HTTP" : "workflow"} connection needs a url`);
     const [existing] = await this.sql<{ id: string }[]>`SELECT id FROM tool_connections WHERE company_id = ${input.companyId} AND name = ${name}`;
     if (existing) throw new ConnectionError("conflict", `a connection named "${name}" already exists`);
     const tools: DiscoveredTool[] =
-      input.kind === "workflow"
-        ? [
-            {
-              name: "run",
-              description: input.config.toolDescription ?? input.description ?? `Runs the ${name} workflow`,
-              inputSchema: input.config.inputSchema ?? { type: "object", properties: {} },
-            },
-          ]
-        : [];
+      input.kind === "email"
+        ? EMAIL_TOOLS
+        : input.kind === "workflow"
+          ? [
+              {
+                name: "run",
+                description: input.config.toolDescription ?? input.description ?? `Runs the ${name} workflow`,
+                inputSchema: input.config.inputSchema ?? { type: "object", properties: {} },
+              },
+            ]
+          : [];
     const [row] = await this.sql<Row[]>`
       INSERT INTO tool_connections (company_id, kind, name, description, config, risk, secret_names, enabled, tools)
-      VALUES (${input.companyId}, ${input.kind}, ${name}, ${input.description ?? ""}, ${input.config as never}::jsonb, ${input.risk ?? "medium"}, ${input.secretNames ?? []}, ${input.enabled ?? true}, ${tools as never}::jsonb)
+      VALUES (${input.companyId}, ${input.kind}, ${name}, ${input.description ?? ""}, ${input.config as never}::jsonb, ${input.risk ?? "medium"}, ${input.kind === "email" ? [input.config.passwordSecret ?? "EMAIL_PASSWORD"] : (input.secretNames ?? [])}, ${input.enabled ?? true}, ${tools as never}::jsonb)
       RETURNING *
     `;
     await audit(this.sql, {
@@ -243,6 +251,10 @@ export class ConnectionService {
     if (!connection) throw new ConnectionError("not_found", "connection not found");
     const { values, missing } = await this.secretsFor(connection);
     if (missing.length > 0) return this.setStatus(connection, "missing_secret", `missing secrets: ${missing.join(", ")}`, connection.tools);
+    if (connection.kind === "email") {
+      const result = await checkEmail(emailConfigOf(connection), values[connection.secretNames[0] ?? "EMAIL_PASSWORD"] ?? "", this.emailDeps);
+      return this.setStatus(connection, result.ok ? "healthy" : "failed", result.detail, EMAIL_TOOLS);
+    }
     if (connection.kind === "workflow") {
       // A workflow tool has no discovery: reachability only (HEAD may be refused; any answer is a sign of life).
       try {
@@ -297,7 +309,7 @@ export class ConnectionService {
           name: `${c.name}${TOOL_SEPARATOR}${t.name}`,
           description: `[${c.name}] ${t.description}`.slice(0, 1000),
           inputSchema: t.inputSchema,
-          risk: c.risk,
+          risk: c.kind === "email" ? (EMAIL_TOOL_RISK[t.name] ?? c.risk) : c.risk,
           connectionId: c.id,
         });
     }
@@ -315,6 +327,16 @@ export class ConnectionService {
     if (missing.length > 0) {
       await this.setStatus(connection, "missing_secret", `missing secrets: ${missing.join(", ")}`, connection.tools);
       return { content: `The connection "${connection.name}" is missing secrets (${missing.join(", ")}): a person must set them.`, isError: true };
+    }
+    if (connection.kind === "email") {
+      try {
+        const result = await callEmail(emailConfigOf(connection), toolName, args, values[connection.secretNames[0] ?? "EMAIL_PASSWORD"] ?? "", this.emailDeps);
+        if (connection.status !== "healthy" && !result.isError) await this.setStatus(connection, "healthy", "last call ok", EMAIL_TOOLS);
+        return result;
+      } catch (error) {
+        await this.setStatus(connection, "degraded", error instanceof Error ? error.message : String(error), EMAIL_TOOLS);
+        return { content: `The mailbox "${connection.name}" failed: ${error instanceof Error ? error.message : String(error)}`, isError: true };
+      }
     }
     if (connection.kind === "workflow") {
       try {

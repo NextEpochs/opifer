@@ -13,3 +13,5 @@ export { EventService, signPayload } from "./events.js";
 export { ChannelService, newPairingCode } from "./channels.js";
 export { ConnectionError } from "./types.js";
 export type * from "./types.js";
+export { EMAIL_TOOLS, EMAIL_TOOL_RISK, callEmail, checkEmail, validateEmailConfig } from "./email.js";
+export type { EmailConfig, EmailDeps } from "./email.js";

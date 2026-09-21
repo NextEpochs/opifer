@@ -237,6 +237,38 @@ export async function runConnectionAddMcp(
   if (x.status === "missing_secret") say.info(`Set it with ${c.cyan(`o4r secret set ${options.secret}`)} then ${c.cyan(`o4r connection check ${x.name}`)}`);
 }
 
+export async function runConnectionAddEmail(
+  options: Common & { name: string; smtp: string; imap?: string; user: string; from: string; secret?: string; description?: string },
+): Promise<void> {
+  const { base, company } = await connect(options);
+  const [smtpHost, smtpPortRaw] = options.smtp.split(":");
+  const [imapHost, imapPortRaw] = (options.imap ?? "").split(":");
+  const secret = options.secret ?? "EMAIL_PASSWORD";
+  const x = await api<Connection>(base, `/v1/companies/${company.id}/connections`, {
+    method: "POST",
+    body: JSON.stringify({
+      kind: "email",
+      name: options.name,
+      description: options.description ?? `Mailbox ${options.from}`,
+      config: {
+        smtpHost,
+        ...(smtpPortRaw ? { smtpPort: Number(smtpPortRaw) } : {}),
+        ...(imapHost ? { imapHost } : {}),
+        ...(imapPortRaw ? { imapPort: Number(imapPortRaw) } : {}),
+        user: options.user,
+        from: options.from,
+        passwordSecret: secret,
+      },
+      risk: "high",
+      secretNames: [secret],
+    }),
+  });
+  (x.status === "healthy" ? say.ok : say.warn)(
+    `${x.name}: ${x.status}${x.statusDetail ? ` (${x.statusDetail})` : ""}; tools ${x.name}__send (asks), ${x.name}__list, ${x.name}__read, ${x.name}__search`,
+  );
+  if (x.status === "missing_secret") say.info(`Store the password with ${c.cyan(`o4r secret set ${secret}`)} then ${c.cyan(`o4r connection check ${x.name}`)}`);
+}
+
 export async function runConnectionAddWorkflow(
   options: Common & { name: string; url: string; description: string; secret?: string; risk?: string; schema?: string; field?: string; method?: string },
 ): Promise<void> {

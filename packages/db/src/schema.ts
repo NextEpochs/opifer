@@ -1004,7 +1004,7 @@ export const toolConnections = pgTable(
     companyId: uuid("company_id")
       .notNull()
       .references(() => companies.id, { onDelete: "cascade" }),
-    kind: text("kind", { enum: ["mcp_stdio", "mcp_http", "workflow"] }).notNull(),
+    kind: text("kind", { enum: ["mcp_stdio", "mcp_http", "workflow", "email"] }).notNull(),
     name: text("name").notNull(),
     description: text("description").notNull().default(""),
     config: jsonb("config").$type<Record<string, unknown>>().notNull().default({}),

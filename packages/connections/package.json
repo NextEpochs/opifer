@@ -36,9 +36,14 @@
     "@opifer/runtime": "workspace:*",
     "@opifer/sdk": "workspace:*",
     "@opifer/work": "workspace:*",
+    "imapflow": "^2.0.5",
+    "mailparser": "^3.9.28",
+    "nodemailer": "^10.0.10",
     "postgres": "^3.4.7"
   },
   "devDependencies": {
+    "@types/mailparser": "^3.4.6",
+    "@types/nodemailer": "^8.0.2",
     "zod": "^4.6.5"
   }
 }

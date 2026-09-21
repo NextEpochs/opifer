@@ -40,7 +40,7 @@ const connectionBody = {
   required: ["kind", "name", "config"],
   additionalProperties: false,
   properties: {
-    kind: { type: "string", enum: ["mcp_stdio", "mcp_http", "workflow"] },
+    kind: { type: "string", enum: ["mcp_stdio", "mcp_http", "workflow", "email"] },
     name: { type: "string", minLength: 1, maxLength: 40 },
     description: { type: "string", maxLength: 1000 },
     config: { type: "object" },
@@ -59,7 +59,7 @@ export function registerConnectionRoutes(app: FastifyInstance, o: ConnectionRout
   app.post<{
     Params: { id: string };
     Body: {
-      kind: "mcp_stdio" | "mcp_http" | "workflow";
+      kind: "mcp_stdio" | "mcp_http" | "workflow" | "email";
       name: string;
       description?: string;
       config: Record<string, unknown>;
