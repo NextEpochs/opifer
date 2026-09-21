@@ -152,7 +152,7 @@ function HireForm({ ws, defaults }: { ws: Workspace; defaults: HireRequest | nul
         <Select value={model} onChange={(e) => setModel(e.target.value)}>
           <option value="">
             {t.defaultModel}
-            {models ? ` (${models.default})` : ""}
+            {models ? ` (${models.default ?? "none"})` : ""}
           </option>
           {models?.models.map((m) => (
             <option key={m.id} value={m.id}>
@@ -292,7 +292,7 @@ function OverviewTab({ ws, agent }: { ws: Workspace; agent: AgentView }) {
         <Select value={model} onChange={(e) => setModel(e.target.value)}>
           <option value="">
             {t.defaultModel}
-            {models ? ` (${models.default})` : ""}
+            {models ? ` (${models.default ?? "none"})` : ""}
           </option>
           {models?.models.map((m) => (
             <option key={m.id} value={m.id}>

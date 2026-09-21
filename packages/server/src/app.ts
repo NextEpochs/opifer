@@ -103,7 +103,7 @@ export function buildRuntime(
   providers: ProviderRegistry,
   options: {
     workRoot: string;
-    defaultModel: string;
+    defaultModel: string | null;
     fallbackModel?: string | null;
     tools?: AppOptions["tools"];
     gates?: GovernanceGates;

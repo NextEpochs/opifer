@@ -172,6 +172,8 @@ const en = {
   you: "You",
   model: "Model",
   defaultModel: "default model",
+  noModel:
+    "No model connected. On the machine that runs Opifer: o4r login chatgpt (add --manual on a server), or set ANTHROPIC_API_KEY or OPENAI_API_KEY, then restart the server.",
   hire: "Hire",
   pause: "Pause",
   resume: "Resume",
@@ -785,6 +787,8 @@ const it: Strings = {
   you: "Tu",
   model: "Modello",
   defaultModel: "modello predefinito",
+  noModel:
+    "Nessun modello collegato. Sulla macchina che esegue Opifer: o4r login chatgpt (con --manual su un server), oppure ANTHROPIC_API_KEY o OPENAI_API_KEY, poi riavvia il server.",
   hire: "Assumi",
   pause: "Metti in pausa",
   resume: "Riattiva",

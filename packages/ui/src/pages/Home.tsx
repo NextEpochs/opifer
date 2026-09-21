@@ -392,7 +392,8 @@ function Models({ ws }: { ws: Workspace }) {
   return (
     <div className="flex flex-col gap-2 px-[18px] pb-[18px] pt-2 text-sm">
       <div>
-        <span className="text-mute">{t.defaultModel}:</span> <strong className="font-mono text-[13px]">{info.default}</strong>
+        <span className="text-mute">{t.defaultModel}:</span>{" "}
+        {info.default ? <strong className="font-mono text-[13px]">{info.default}</strong> : <span className="text-warn">{t.noModel}</span>}
       </div>
       {info.providers.map((p) => (
         <div key={p.id} className="flex items-center gap-2">

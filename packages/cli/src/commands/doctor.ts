@@ -85,7 +85,10 @@ export async function runDoctor(options: { home?: string }): Promise<void> {
       name: "Model providers",
       ok: enabled.length > 0,
       warn: true,
-      detail: enabled.length > 0 ? `${enabled.join(", ")} (default ${setup.defaultModel})` : "none: set ANTHROPIC_API_KEY, OPENAI_API_KEY or a local endpoint",
+      detail:
+        enabled.length > 0
+          ? `${enabled.join(", ")} (default ${setup.defaultModel ?? "none"})`
+          : "none connected: o4r login chatgpt (--manual on a server), or ANTHROPIC_API_KEY / OPENAI_API_KEY, then restart",
     });
   }
 

@@ -22,7 +22,7 @@ export interface ModelsConfig {
 
 export interface ProviderSetup {
   providers: ProviderRegistry;
-  defaultModel: string;
+  defaultModel: string | null;
   fallbackModel: string | null;
   /** Human-readable description of what is configured and what is missing. */
   report: Array<{ id: string; enabled: boolean; detail: string }>;
@@ -104,8 +104,9 @@ export async function setupProviders(config: ModelsConfig = {}, env: NodeJS.Proc
   let defaultModel = config.default ?? null;
   if (defaultModel && !providers.has(defaultModel.split("/")[0]!)) defaultModel = null;
   if (!defaultModel) {
+    // The first connected provider's default; nothing when no provider is connected (never a made-up model).
     const first = enabled[0];
-    defaultModel = first ? DEFAULT_BY_PROVIDER[first]! : "anthropic/claude-sonnet-5";
+    defaultModel = first ? DEFAULT_BY_PROVIDER[first]! : null;
   }
   let fallbackModel = config.fallback ?? null;
   if (fallbackModel && !providers.has(fallbackModel.split("/")[0]!)) fallbackModel = null;

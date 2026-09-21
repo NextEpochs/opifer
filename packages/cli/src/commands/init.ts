@@ -83,7 +83,7 @@ export async function runInit(options: InitOptions): Promise<void> {
   if (!setup.report.some((r) => r.enabled)) {
     say.warn("No provider configured: set ANTHROPIC_API_KEY or OPENAI_API_KEY, or a local endpoint with --local-url");
   } else {
-    say.ok(`Default model: ${c.bold(setup.defaultModel)}`);
+    say.ok(`Default model: ${c.bold(setup.defaultModel ?? "none")}`);
   }
 
   say.info("");

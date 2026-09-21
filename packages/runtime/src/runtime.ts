@@ -23,7 +23,8 @@ export interface RuntimeOptions {
   tools: ToolExecutor;
   /** Root folder of the per-session working directories. */
   workRoot: string;
-  defaultModel: string;
+  /** The model for agents without one; null when no provider is connected. */
+  defaultModel: string | null;
   defaultFallbackModel?: string | null;
   limits?: Partial<TurnLimits>;
   recovery?: Partial<RecoveryOptions>;
@@ -135,6 +136,8 @@ export class AgentRuntime {
     };
     const systemPrompt = assembleSystemPrompt(promptInput);
     const model = input.model ?? agent.model ?? this.options.defaultModel;
+    if (!model)
+      throw new Error("No model connected: sign in with `o4r login chatgpt`, or set ANTHROPIC_API_KEY or OPENAI_API_KEY, or configure a local endpoint, then restart the server");
     this.options.providers.resolve(model);
     const fallbackModel = input.fallbackModel ?? this.options.defaultFallbackModel ?? null;
     if (fallbackModel) this.options.providers.resolve(fallbackModel);

@@ -83,7 +83,9 @@ export async function runUp(options: UpOptions): Promise<void> {
   const uiDir = uiDistDir();
   const providers = await setupProviders(config.models, process.env, { credentialsDir: home.credentialsDir });
   for (const r of providers.report) (r.enabled ? say.ok : say.warn)(`provider ${r.id}: ${r.detail}`);
-  say.ok(`Default model: ${providers.defaultModel}`);
+  if (providers.defaultModel) say.ok(`Default model: ${providers.defaultModel}`);
+  else
+    say.warn("No model connected: agents cannot work yet. Sign in with `o4r login chatgpt` (add --manual on a server), or set ANTHROPIC_API_KEY or OPENAI_API_KEY, then restart");
   const app = await buildApp({
     db: db.handle,
     mode: config.auth?.enabled ? "authenticated" : "local",

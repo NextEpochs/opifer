@@ -764,7 +764,7 @@ export interface Overview {
 }
 
 export interface ModelsInfo {
-  default: string;
+  default: string | null;
   fallback: string | null;
   providers: Array<{ id: string; enabled: boolean; detail: string }>;
   models: Array<{

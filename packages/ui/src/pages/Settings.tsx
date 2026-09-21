@@ -229,7 +229,8 @@ export function SettingsPage(p: SettingsProps) {
             {models ? (
               <>
                 <div>
-                  <span className="text-mute">{t.defaultModel}:</span> <strong className="font-mono text-[13px]">{models.default}</strong>
+                  <span className="text-mute">{t.defaultModel}:</span>{" "}
+                  {models.default ? <strong className="font-mono text-[13px]">{models.default}</strong> : <span className="text-warn">{t.noModel}</span>}
                 </div>
                 {models.providers.map((pr) => (
                   <div key={pr.id} className="flex items-center gap-2">
