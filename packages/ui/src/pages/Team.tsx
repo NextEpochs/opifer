@@ -12,8 +12,10 @@ type Tab = "overview" | "permissions" | "budget" | "history";
 /** The team: agents as colleagues. Step 2 turns this grid into the org chart. */
 export function TeamPage({ ws, param }: { ws: Workspace; param: string | null }) {
   const { t, overview } = ws;
-  const agents = overview?.agents ?? [];
-  const selected = agents.find((a) => a.id === param) ?? null;
+  const everyone = overview?.agents ?? [];
+  const agents = everyone.filter((a) => a.status !== "archived");
+  const archived = everyone.filter((a) => a.status === "archived");
+  const selected = everyone.find((a) => a.id === param) ?? null;
   const hiring = param === "new";
   const [view, setView] = usePref<"chart" | "cards">("team.view", "chart");
   const [hireDefaults, setHireDefaults] = useState<HireRequest | null>(null);
@@ -81,6 +83,26 @@ export function TeamPage({ ws, param }: { ws: Workspace; param: string | null })
             </button>
           ))}
         </div>
+        {archived.length > 0 && (
+          <section aria-label={t.archivedAgents} className="mt-2">
+            <h2 className="m-0 text-xs font-bold uppercase tracking-wide text-mute">{t.archivedAgents}</h2>
+            <p className="mb-2 mt-1 text-[13px] text-faint">{t.archivedAgentsHint}</p>
+            <ul className="m-0 flex list-none flex-wrap gap-2 p-0">
+              {archived.map((a) => (
+                <li key={a.id} className="flex items-center gap-2 rounded-control border border-line bg-panel px-3 py-1.5 text-sm">
+                  <Avatar name={a.name} size={22} />
+                  <button type="button" onClick={() => ws.go("team", a.id)} className="font-semibold text-ink">
+                    {a.name}
+                  </button>
+                  <span className="text-mute">{a.role}</span>
+                  <Button variant="ghost" size="sm" onClick={() => void api.setAgentStatus(a.id, "active").then(ws.refresh)}>
+                    {t.unarchive}
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
       </div>
       {(selected || hiring) && (
         <aside
@@ -193,6 +215,16 @@ function AgentDrawer({ ws, agent }: { ws: Workspace; agent: AgentView }) {
     await api.setAgentStatus(agent.id, agent.status === "active" ? "paused" : "active");
     await ws.refresh();
   };
+  const archive = async () => {
+    if (!window.confirm(fill(t.archiveAgentConfirm, { name: agent.name }))) return;
+    await api.setAgentStatus(agent.id, "archived");
+    await ws.refresh();
+    ws.go("team");
+  };
+  const restore = async () => {
+    await api.setAgentStatus(agent.id, "active");
+    await ws.refresh();
+  };
 
   return (
     <>
@@ -204,9 +236,18 @@ function AgentDrawer({ ws, agent }: { ws: Workspace; agent: AgentView }) {
             {agent.model ?? t.defaultModel} · rev {agent.currentRevision}
           </div>
         </div>
-        {agent.status !== "archived" && (
-          <Button variant="ghost" size="sm" onClick={() => void toggleStatus()}>
-            {agent.status === "active" ? t.pause : t.resume}
+        {agent.status !== "archived" ? (
+          <>
+            <Button variant="ghost" size="sm" onClick={() => void toggleStatus()}>
+              {agent.status === "active" ? t.pause : t.resume}
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => void archive()}>
+              {t.archive}
+            </Button>
+          </>
+        ) : (
+          <Button variant="ghost" size="sm" onClick={() => void restore()}>
+            {t.unarchive}
           </Button>
         )}
         <button type="button" aria-label={t.remove} onClick={() => ws.go("team")} className="rounded p-1 text-faint hover:bg-hover hover:text-ink">

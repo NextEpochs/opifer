@@ -4,6 +4,7 @@ import { runChat } from "./commands/chat.js";
 import { runLogin, runLogout } from "./commands/login.js";
 import { runDoctor } from "./commands/doctor.js";
 import { cliVersion, runUpdate } from "./commands/update.js";
+import { runAgentArchive, runAgentList, runAgentPause, runAgentRestore, runAgentResume } from "./commands/agent.js";
 import {
   runAuthDisable,
   runAuthEnable,
@@ -111,6 +112,26 @@ program
   .action(async (opts: { check?: boolean; restart?: boolean }) =>
     runUpdate({ ...(opts.check ? { check: true } : {}), ...(opts.restart === false ? { noRestart: true } : {}), ...homeOf(program) }),
   );
+
+const agentCmd = program.command("agent").description("the team: list, pause, resume, archive, restore");
+agentCmd
+  .command("list", { isDefault: true })
+  .description("the agents of the company (archived ones with --all)")
+  .option("--all", "include the archived agents")
+  .option("--company <name>", "company (default: the first one)")
+  .action(async (opts: { all?: boolean; company?: string }) => runAgentList({ ...opts, ...homeOf(program) }));
+for (const [name, fn, description] of [
+  ["pause", runAgentPause, "no new work until resumed"],
+  ["resume", runAgentResume, "back at work"],
+  ["archive", runAgentArchive, "stops working and leaves the org chart; history, costs and learning stay"],
+  ["restore", runAgentRestore, "bring an archived agent back"],
+] as const) {
+  agentCmd
+    .command(`${name} <name>`)
+    .description(description)
+    .option("--company <name>", "company (default: the first one)")
+    .action(async (agentName: string, opts: { company?: string }) => fn({ name: agentName, ...opts, ...homeOf(program) }));
+}
 
 const auth = program.command("auth").description("authenticated mode: sign-in on the API and the interface");
 auth

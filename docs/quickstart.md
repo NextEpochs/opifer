@@ -41,6 +41,8 @@ In **Team**, drag a role from the palette onto *You*: that is a hire. Give it a 
 
 In **Work**, press *New task*: a title, what to do, what *done* means, who does it. The agent wakes up at once. If it needs to run a command that asks for approval, the card appears in your **Inbox** (and on your phone, if Telegram is connected): approve or deny with one click. When the agent delivers, the result waits for your verification: *Verify and close* closes it; *Request changes* sends it back with a note.
 
+An agent you no longer need is archived from their panel in **Team** (or `o4r agent archive Name`): they stop working and leave the org chart; their history, costs and what they learned stay, and *Bring back* rehires them.
+
 Talk to any agent in **Chat**. Ask "how are things in the company?": the agent reads the company status and can hand out work to its reports.
 
 ## 4. Money, permissions, learning

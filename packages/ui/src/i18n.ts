@@ -178,6 +178,9 @@ const en = {
   pause: "Pause",
   resume: "Resume",
   archive: "Archive",
+  archiveAgentConfirm: "Archive {name}? They stop working and leave the org chart; their history, costs and what they learned stay. You can bring them back.",
+  archivedAgents: "Archived",
+  archivedAgentsHint: "Not working, not in the org chart. Bring one back to hire them again.",
   tabs: {
     overview: "Overview",
     permissions: "Permissions",
@@ -793,6 +796,9 @@ const it: Strings = {
   pause: "Metti in pausa",
   resume: "Riattiva",
   archive: "Archivia",
+  archiveAgentConfirm: "Archiviare {name}? Smette di lavorare ed esce dall'organigramma; storia, costi e ciò che ha imparato restano. Puoi riportarlo in servizio.",
+  archivedAgents: "Archiviati",
+  archivedAgentsHint: "Non lavorano e non sono nell'organigramma. Riportane uno in servizio per riassumerlo.",
   tabs: {
     overview: "Panoramica",
     permissions: "Permessi",
