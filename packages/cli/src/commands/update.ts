@@ -58,6 +58,8 @@ export async function runUpdate(options: UpdateOptions): Promise<void> {
     if (options.check) return;
   } else if (compareVersions(latest, current) <= 0) {
     say.ok(`Up to date: ${latest} is the latest on npm`);
+    // The files are current, but the running server may still be an older one (installed by hand, never restarted).
+    if (!options.check && !options.noRestart) await restartIfOlder(options, current);
     return;
   } else {
     say.info(`Newer version on npm: ${c.bold(latest)}`);
@@ -96,11 +98,37 @@ export async function runUpdate(options: UpdateOptions): Promise<void> {
     say.info("Restart the server to run it: o4r down && o4r up --detach (or restart the service)");
     return;
   }
-  const home = resolveHome(options.home);
-  const config = await readConfig(home);
-  if (!config) return;
+  await restart(options);
+}
+
+/** The version the running server reports, or null when it does not run. */
+async function runningVersion(options: UpdateOptions): Promise<{ version: string | null; port: number; host: string } | null> {
+  const config = await readConfig(resolveHome(options.home));
+  if (!config) return null;
   const host = config.server.host === "0.0.0.0" ? "127.0.0.1" : config.server.host;
-  if (!(await isPortOpen(config.server.port, host))) {
+  if (!(await isPortOpen(config.server.port, host))) return null;
+  try {
+    const health = (await (await fetch(`http://${host}:${config.server.port}/v1/health`)).json()) as { update?: { current?: string } | null; version?: string };
+    return { version: health.update?.current ?? health.version ?? null, port: config.server.port, host };
+  } catch {
+    return { version: null, port: config.server.port, host };
+  }
+}
+
+async function restartIfOlder(options: UpdateOptions, installed: string): Promise<void> {
+  const running = await runningVersion(options);
+  if (!running) return;
+  if (running.version && compareVersions(running.version, installed) >= 0) {
+    say.ok(`The running server is ${running.version}`);
+    return;
+  }
+  say.info(`The running server is ${running.version ?? "older"}: restarting it`);
+  await restart(options);
+}
+
+async function restart(options: UpdateOptions): Promise<void> {
+  const running = await runningVersion(options);
+  if (!running) {
     say.info("The server is not running: start it with o4r up --detach");
     return;
   }
@@ -109,7 +137,7 @@ export async function runUpdate(options: UpdateOptions): Promise<void> {
   // Under a service manager (systemd, launchd) the server comes back by itself; otherwise it is started here.
   for (let i = 0; i < 10; i++) {
     await new Promise((resolve) => setTimeout(resolve, 1000));
-    if (await isPortOpen(config.server.port, host)) {
+    if (await isPortOpen(running.port, running.host)) {
       say.ok("The service manager restarted the server");
       return;
     }
