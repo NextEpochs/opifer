@@ -69,6 +69,8 @@ When Google Chrome or Chromium is on the machine that runs Opifer (`o4r doctor` 
 
 Give the company a mailbox in **Connections → Tools → Add a mailbox** (SMTP server, IMAP server, login, From address, password) or `o4r connection add-email agents --smtp smtp.example.com:587 --imap imap.example.com:993 --user agents@example.com --from "Opifer <agents@example.com>"` then `o4r secret set EMAIL_PASSWORD`. Agents get `agents__send`, `agents__list`, `agents__read`, `agents__search`: reading is automatic, every email they send asks you first (a card in the Inbox, or Telegram) until you allow sending for that agent.
 
+Gmail, Outlook and iCloud do not accept the account password over SMTP/IMAP: create an **app password** in the account's security settings (two-factor authentication must be on) and use that; Gmail is `smtp.gmail.com:587` / `imap.gmail.com:993`, Outlook `smtp.office365.com:587` / `outlook.office365.com:993`. A provider that only offers OAuth for mail is not supported yet.
+
 ## Software: projects that are repositories
 
 A project can be a git repository: give its URL (and a branch) when you create it in **Work → Projects** or with `o4r project create "Site" --repo https://github.com/org/site --branch main`. It is cloned into the project's folder; every task of the project works there. For a private repository, store a token first (`o4r secret set GITHUB_TOKEN`) and bind it to the agents that push (`o4r secret bind GITHUB_TOKEN --agent Theo --tool terminal`): git authenticates through a helper, the token never lands in the repository.
